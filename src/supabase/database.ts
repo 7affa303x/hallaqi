@@ -34,6 +34,18 @@ export async function getBarberById(id: string) {
   return data;
 }
 
+export async function updateBarberProfile(barberId: string, updates: Record<string, unknown>) {
+  guard();
+  const { data, error } = await supabase
+    .from('barbers')
+    .update({ ...updates, updated_at: new Date().toISOString() } as Record<string, unknown>)
+    .eq('id', barberId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 /* ========== BOOKINGS ========== */
 export async function getUserBookings(userId: string, statusFilter?: string[]) {
   guard();

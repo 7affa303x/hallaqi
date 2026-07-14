@@ -15,6 +15,7 @@ import {
   Scissors, Clock, TrendingUp, Award, Zap, Crown as CrownIcon,
   ArrowLeft, LogIn, UserPlus as UserPlusIcon
 } from 'lucide-react';
+import EditBarberProfile from '@/components/EditBarberProfile';
 
 interface UserStats {
   totalBookings?: number;
@@ -113,6 +114,15 @@ export default function ProfileTab() {
     );
   }
 
+  // User data from Supabase or fallback
+  const userName = appUser?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'مستخدم';
+  const userEmail = appUser?.email || user?.email || '';
+  const userPhone = appUser?.phone || '';
+  const userAvatar = appUser?.photo_url || user?.user_metadata?.avatar_url || '/logo-icon.png';
+  const isVerified = appUser?.is_verified || false;
+  const isIdVerified = appUser?.is_id_verified || false;
+  const userRole = appUser?.role || 'user';
+
   // Sub-pages router
   if (subPage === 'theme') return <ThemeSelector onBack={() => setSubPage('main')} />;
   if (subPage === 'animation') return <AnimationSelector onBack={() => setSubPage('main')} />;
@@ -125,15 +135,7 @@ export default function ProfileTab() {
   if (subPage === 'linked-accounts') return <LinkedAccounts onBack={() => setSubPage('main')} />;
   if (subPage === 'badges') return <BadgesPage onBack={() => setSubPage('main')} />;
   if (subPage === 'stats') return <StatsPage onBack={() => setSubPage('main')} />;
-
-  // User data from Supabase or fallback
-  const userName = appUser?.display_name || user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'مستخدم';
-  const userEmail = appUser?.email || user?.email || '';
-  const userPhone = appUser?.phone || '';
-  const userAvatar = appUser?.photo_url || user?.user_metadata?.avatar_url || '/logo-icon.png';
-  const isVerified = appUser?.is_verified || false;
-  const isIdVerified = appUser?.is_id_verified || false;
-  const userRole = appUser?.role || 'user';
+  if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
   const stats = (appUser?.stats as UserStats) || { totalBookings: 0, totalSpent: 0, streakDays: 0, points: 0, rank: 'جديد' };
   const badges = (appUser as unknown as { badges?: UserBadge[] })?.badges || [];
   const followers = appUser?.followers || 0;
