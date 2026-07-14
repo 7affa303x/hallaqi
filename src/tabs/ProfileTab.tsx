@@ -16,6 +16,7 @@ import {
   ArrowLeft, LogIn, UserPlus as UserPlusIcon
 } from 'lucide-react';
 import EditBarberProfile from '@/components/EditBarberProfile';
+import ServicesManagement from '@/components/ServicesManagement';
 
 interface UserStats {
   totalBookings?: number;
@@ -43,7 +44,7 @@ const iconMap: Record<string, typeof User> = {
 
 type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'notifications' |
   'privacy' | 'account' | 'subscription' | 'payment' | 'id-verification' |
-  'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile';
+  'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile' | 'services';
 
 export default function ProfileTab() {
   const { themeConfig, navigate } = useApp();
@@ -136,6 +137,7 @@ export default function ProfileTab() {
   if (subPage === 'badges') return <BadgesPage onBack={() => setSubPage('main')} />;
   if (subPage === 'stats') return <StatsPage onBack={() => setSubPage('main')} />;
   if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
+  if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
   const stats = (appUser?.stats as UserStats) || { totalBookings: 0, totalSpent: 0, streakDays: 0, points: 0, rank: 'جديد' };
   const badges = (appUser as unknown as { badges?: UserBadge[] })?.badges || [];
   const followers = appUser?.followers || 0;
@@ -274,6 +276,7 @@ export default function ProfileTab() {
                     'linkedAccounts': 'linked-accounts',
                     'helpCenter': 'help',
                     'aboutApp': 'about',
+                    'services': 'services',
                   };
                   const page = pageMap[item.id];
                   if (page) setSubPage(page);
