@@ -370,272 +370,321 @@ export default function BookingFlowPage() {
           <button onClick={() => { setShowReceiptUpload(false); setConfirmed(true); }} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.surface }}>
             <X size={18} style={{ color: themeConfig.colors.text }} />
           </button>
-          <h1 className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>رفع إيصال الدفع</h1>
+          <h1 className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>إيصال الدفع</h1>
         </div>
         <ReceiptUpload
-          paymentMethod={paymentMethod as 'ccp' | 'baridi-mob'}
-          isUploading={isCCPProcessing}
+          paymentId={ccpPaymentId}
+          bookingId={savedBookingId}
+          clientId={appUser.id}
+          professionalId={barber.id}
+          clientName={appUser.full_name || 'عميل'}
+          onUploadSuccess={() => {
+            // After successful upload, the payment record is updated by ccpProvider.submitPaymentWithReceipt
+            // We can now navigate to confirmation or show a success message
+            setConfirmed(true);
+            setShowReceiptUpload(false);
+            refreshData();
+          }}
+          onCancel={() => {
+            // If user cancels receipt upload, we should probably cancel the booking or mark it as failed
+            // For now, just go back
+            goBack();
+          }}
           uploadProgress={uploadProgress}
           error={ccpError}
-          onUpload={async (file, ref) => {
-            const success = await uploadReceiptAndSubmit({
-              file,
-              clientId: appUser?.id || '',
-              paymentId: ccpPaymentId,
-              transactionReference: ref,
-              bookingId: savedBookingId,
-              professionalId: barber?.id || '',
-              clientName: appUser?.full_name || 'عميل',
-            });
-            if (success) {
-              setTimeout(() => { setShowReceiptUpload(false); setConfirmed(true); }, 1500);
-            }
-            return success;
-          }}
         />
-      </motion.div>
-    );
-  }
-  if (confirmed) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="h-screen flex flex-col items-center justify-center p-6 text-center"
-        style={{ backgroundColor: themeConfig.colors.background }}
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.2 }}
-          className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-          style={{ backgroundColor: themeConfig.colors.success + '20' }}
-        >
-          <Check size={40} style={{ color: themeConfig.colors.success }} />
-        </motion.div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: themeConfig.colors.text }}>تم إرسال طلب الحجز!</h2>
-        <p className="text-sm mb-1" style={{ color: themeConfig.colors.textMuted }}>
-          {barber.name} سيرد على طلبك قريباً
-        </p>
-        <p className="text-xs mb-6" style={{ color: themeConfig.colors.textMuted }}>
-          {selectedDate} - {selectedTime}
-        </p>
-        <div className="w-full max-w-xs p-4 rounded-xl border mb-6" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex justify-between mb-2">
-            <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الخدمات</span>
-            <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{selectedServicesData.length}</span>
-          </div>
-          <div className="flex justify-between mb-2">
-            <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>المدة</span>
-            <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{totalDuration} دقيقة</span>
-          </div>
-          <div className="flex justify-between pt-2 border-t" style={{ borderColor: themeConfig.colors.border }}>
-            <span className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي</span>
-            <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</span>
-          </div>
-        </div>
-        <div className="flex gap-2 w-full max-w-xs">
-          <button
-            onClick={() => navigate('barber-detail', { barberId: barber.id })}
-            className="flex-1 h-12 rounded-xl text-sm font-bold border"
-            style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
-          >
-            تفاصيل المختص
-          </button>
-          <button
-            onClick={() => { setConfirmed(false); goBack(); }}
-            className="flex-1 h-12 rounded-xl text-sm font-bold text-white"
-            style={{ backgroundColor: themeConfig.colors.primary }}
-          >
-            تم
-          </button>
-        </div>
       </motion.div>
     );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 300 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 300 }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="min-h-screen pb-20"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="h-screen flex flex-col p-4 overflow-y-auto"
       style={{ backgroundColor: themeConfig.colors.background }}
     >
-      {/* Header */}
-      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b"
-        style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}
-      >
-        <button onClick={step > 1 ? () => setStep((prev: number) => (prev - 1) as 1 | 2 | 3) : goBack} className="w-10 h-10 rounded-xl flex items-center justify-center">
-          {step > 1 ? <ArrowLeft size={22} style={{ color: themeConfig.colors.text }} /> : <X size={22} style={{ color: themeConfig.colors.text }} />}
-        </button>
-        <div className="flex-1">
-          <h1 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
-            {step === 1 ? 'اختيار الخدمات' : step === 2 ? 'اختيار الموعد' : 'تأكيد الحجز'}
-          </h1>
-          <div className="flex gap-1 mt-1">
-            {[1, 2, 3].map(s => (
-              <div key={s} className="h-1 flex-1 rounded-full" style={{ backgroundColor: s <= step ? themeConfig.colors.primary : themeConfig.colors.border }} />
-            ))}
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</p>
-          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{totalDuration} دقيقة</p>
-        </div>
-      </div>
-
-      {/* === STEP 1: SERVICES === */}
-      {step === 1 && (
-        <div className="px-4 mt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <img src={barber.avatar} alt={barber.name} className="w-8 h-8 rounded-lg object-cover" />
-            <div><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{barber.name}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اختر الخدمات المطلوبة</p></div>
-          </div>
-
-          <div className="space-y-2">
-            {barber.services.map((svc: Service) => {
-              const isSelected = selectedServices.includes(svc.id);
-              return (
-                <button key={svc.id} onClick={() => toggleService(svc.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl border transition-all text-right"
-                  style={{ backgroundColor: isSelected ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.border }}>
-                  <div className="w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0" style={{ borderColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.border, backgroundColor: isSelected ? themeConfig.colors.primary : 'transparent' }}>
-                    {isSelected && <Check size={12} className="text-white" />}
-                  </div>
-                  <div className="flex-1"><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{svc.name}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{svc.duration} دقيقة</p></div>
-                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{svc.price} دج</p>
-                </button>
-              );
-            })}
-          </div>
-
-          <button onClick={() => selectedServices.length > 0 ? setStep(2) : setSaveError('اختر خدمة واحدة على الأقل')} className="w-full h-12 rounded-xl text-sm font-bold text-white mt-4" style={{ backgroundColor: themeConfig.colors.primary }}>متابعة</button>
-        </div>
-      )}
-
-      {/* === STEP 2: DATE & TIME === */}
-      {step === 2 && (
-        <div className="px-4 mt-4">
-          {/* Date selector */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-3"><Calendar size={16} style={{ color: themeConfig.colors.primary }} /><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>اختر التاريخ</p></div>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {dates.map(d => {
-                const isAvailable = isDateAvailable(d.full);
-                const isSelected = selectedDate === d.full;
-                return (
-                  <button key={d.full} onClick={() => { if (isAvailable) { setSelectedDate(d.full); setSelectedTime(''); } }}
-                    disabled={!isAvailable}
-                    className="flex-shrink-0 w-16 h-20 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all disabled:opacity-40"
-                    style={{ backgroundColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.surface, borderColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.border }}>
-                    <span className="text-[10px] font-medium" style={{ color: isSelected ? '#fff' : themeConfig.colors.textMuted }}>{d.day}</span>
-                    <span className="text-lg font-bold" style={{ color: isSelected ? '#fff' : themeConfig.colors.text }}>{d.date}</span>
-                    <span className="text-[9px]" style={{ color: isSelected ? '#fff' : themeConfig.colors.textMuted }}>{d.month}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Time slots */}
-          {selectedDate && (
-            <div>
-              <div className="flex items-center gap-2 mb-3"><Clock size={16} style={{ color: themeConfig.colors.primary }} /><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>اختر الوقت</p></div>
-              {isLoadingSlots ? (
-                <div className="flex items-center justify-center py-8"><div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: themeConfig.colors.primary }} /></div>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.map(slot => {
-                    const isSelected = selectedTime === slot;
-                    return (
-                      <button key={slot} onClick={() => setSelectedTime(slot)}
-                        className="h-10 rounded-xl text-xs font-bold border transition-all"
-                        style={{ backgroundColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.surface, borderColor: isSelected ? themeConfig.colors.primary : themeConfig.colors.border, color: isSelected ? '#fff' : themeConfig.colors.text }}>
-                        {slot}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          <button onClick={() => selectedTime ? setStep(3) : setSaveError('اختر الوقت')} className="w-full h-12 rounded-xl text-sm font-bold text-white mt-4" style={{ backgroundColor: themeConfig.colors.primary }}>متابعة</button>
-        </div>
-      )}
-
-      {/* === STEP 3: CONFIRM === */}
-      {step === 3 && (
-        <div className="px-4 mt-4 space-y-4">
-          {/* Booking summary */}
-          <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <div className="flex items-center gap-2 mb-3"><img src={barber.avatar} alt={barber.name} className="w-8 h-8 rounded-lg object-cover" /><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{barber.name}</p></div>
-            <div className="space-y-2">
-              {selectedServicesData.map(svc => (
-                <div key={svc.id} className="flex justify-between"><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name}</span><span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{svc.price} دج</span></div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-3 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
-              <span className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي</span>
-              <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</span>
-            </div>
-          </div>
-
-          {/* Payment method */}
-          <div>
-            <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>طريقة الدفع</p>
-            <div className="grid grid-cols-4 gap-2">
-              {[{ key: 'card' as const, label: 'بطاقة', icon: CreditCard }, { key: 'cash' as const, label: 'نقداً', icon: Banknote }, { key: 'ccp' as const, label: 'CCP', icon: CreditCard }, { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet }].map(pm => (
-                <button key={pm.key} onClick={() => setPaymentMethod(pm.key)}
-                  className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all"
-                  style={{ backgroundColor: paymentMethod === pm.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: paymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
-                  <pm.icon size={20} style={{ color: paymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }} />
-                  <span className="text-[10px] font-bold" style={{ color: paymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>{pm.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile service */}
-          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <div className="flex items-center gap-2"><Car size={18} style={{ color: themeConfig.colors.primary }} /><span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>خدمة متنقلة (يأتي لعندك)</span></div>
-            <button onClick={() => setIsMobileService(!isMobileService)} className="w-12 h-6 rounded-full relative transition-all" style={{ backgroundColor: isMobileService ? themeConfig.colors.primary : themeConfig.colors.border }}>
-              <div className="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all" style={{ right: isMobileService ? '2px' : 'auto', left: isMobileService ? 'auto' : '2px' }} />
-            </button>
-          </div>
-
-          {/* Address for mobile */}
-          {isMobileService && (
-            <div>
-              <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>العنوان</p>
-              <div className="flex items-center gap-2 p-3 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-                <MapPin size={16} style={{ color: themeConfig.colors.primary }} />
-                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="أدخل عنوانك" className="flex-1 bg-transparent text-xs outline-none" style={{ color: themeConfig.colors.text }} />
-              </div>
-            </div>
-          )}
-
-          {/* Note */}
-          <div>
-            <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>ملاحظات (اختياري)</p>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="أي ملاحظات خاصة..." rows={2} className="w-full p-3 rounded-xl border text-xs resize-none" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }} />
-          </div>
-
-          {(saveError || paymentError || ccpError) && (
-            <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
-              <AlertTriangle size={16} style={{ color: themeConfig.colors.error }} />
-              <p className="text-xs" style={{ color: themeConfig.colors.error }}>{saveError || paymentError || ccpError}</p>
-            </div>
-          )}
-
-          <button onClick={handleConfirm} disabled={isSaving || isPaymentProcessing || isCCPProcessing}
-            className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{ backgroundColor: themeConfig.colors.primary }}>
-            {(isSaving || isPaymentProcessing || isCCPProcessing) ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> {paymentMethod === 'card' ? 'جاري التوجيه للدفع...' : 'جاري الحفظ...'}</> : <>{paymentMethod === 'card' ? `الدفع بالبطاقة - ${totalPrice} دج` : `تأكيد الحجز - ${totalPrice} دج`}</>}
+      {confirmed ? (
+        <div className="flex flex-col items-center justify-center h-full text-center">
+          <Check size={48} className="text-green-500 mb-4" />
+          <h1 className="text-xl font-bold mb-2" style={{ color: themeConfig.colors.text }}>تم تأكيد الحجز!</h1>
+          <p className="text-sm mb-6" style={{ color: themeConfig.colors.textMuted }}>
+            تم إرسال طلب الحجز بنجاح. سيتم مراجعته من قبل المختص قريباً.
+          </p>
+          <button
+            onClick={() => navigate('appointments')}
+            className="px-6 py-3 rounded-lg font-semibold"
+            style={{ backgroundColor: themeConfig.colors.primary, color: themeConfig.colors.onPrimary }}
+          >
+            عرض مواعيدي
           </button>
         </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 mb-6">
+            <button onClick={goBack} className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.surface }}>
+              <ArrowLeft size={18} style={{ color: themeConfig.colors.text }} />
+            </button>
+            <h1 className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>تأكيد الحجز</h1>
+          </div>
+
+          {/* Step 1: Services Selection */}
+          {step === 1 && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col"
+            >
+              <h2 className="text-md font-bold mb-4" style={{ color: themeConfig.colors.text }}>الخدمات المختارة</h2>
+              <div className="flex-1 overflow-y-auto pr-2">
+                {barber.services.map((svc: Service) => (
+                  <div
+                    key={svc.id}
+                    onClick={() => toggleService(svc.id)}
+                    className={`flex items-center justify-between p-3 mb-3 rounded-lg cursor-pointer ${selectedServices.includes(svc.id) ? 'border-2 border-blue-500' : ''}`}
+                    style={{ backgroundColor: themeConfig.colors.surface }}
+                  >
+                    <div>
+                      <p className="font-medium" style={{ color: themeConfig.colors.text }}>{svc.name}</p>
+                      <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.duration} دقيقة - {svc.price} دج</p>
+                    </div>
+                    {selectedServices.includes(svc.id) && <Check size={20} className="text-blue-500" />}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setStep(2)}
+                disabled={selectedServices.length === 0}
+                className="mt-4 px-6 py-3 rounded-lg font-semibold"
+                style={{ backgroundColor: selectedServices.length === 0 ? themeConfig.colors.muted : themeConfig.colors.primary, color: themeConfig.colors.onPrimary }}
+              >
+                التالي
+              </button>
+            </motion.div>
+          )}
+
+          {/* Step 2: Date and Time Selection */}
+          {step === 2 && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col"
+            >
+              <h2 className="text-md font-bold mb-4" style={{ color: themeConfig.colors.text }}>اختيار التاريخ والوقت</h2>
+              <div className="flex mb-4 overflow-x-auto pb-2 no-scrollbar">
+                {dates.map((d, index) => (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      if (isDateAvailable(d.full)) {
+                        setSelectedDate(d.full);
+                        setSelectedTime(''); // Reset time when date changes
+                      }
+                    }}
+                    className={`flex-shrink-0 w-16 h-20 rounded-lg flex flex-col items-center justify-center mr-3
+                      ${selectedDate === d.full ? 'border-2 border-blue-500' : ''}
+                      ${isDateAvailable(d.full) ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                    style={{ backgroundColor: themeConfig.colors.surface }}
+                  >
+                    <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{d.day}</p>
+                    <p className="text-xl font-bold" style={{ color: themeConfig.colors.text }}>{d.date}</p>
+                    <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{d.month}</p>
+                  </div>
+                ))}
+              </div>
+
+              {selectedDate && (
+                <div className="flex-1 overflow-y-auto pr-2">
+                  {isLoadingSlots ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : timeSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-3">
+                      {timeSlots.map((slot, index) => (
+                        <div
+                          key={index}
+                          onClick={() => setSelectedTime(slot)}
+                          className={`p-3 rounded-lg text-center font-medium
+                            ${selectedTime === slot ? 'border-2 border-blue-500' : ''}
+                            cursor-pointer`}
+                          style={{ backgroundColor: themeConfig.colors.surface, color: themeConfig.colors.text }}
+                        >
+                          {slot}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center" style={{ color: themeConfig.colors.textMuted }}>لا توجد أوقات متاحة لهذا اليوم.</p>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => setStep(3)}
+                disabled={!selectedDate || !selectedTime}
+                className="mt-4 px-6 py-3 rounded-lg font-semibold"
+                style={{ backgroundColor: (!selectedDate || !selectedTime) ? themeConfig.colors.muted : themeConfig.colors.primary, color: themeConfig.colors.onPrimary }}
+              >
+                التالي
+              </button>
+            </motion.div>
+          )}
+
+          {/* Step 3: Payment Method and Confirmation */}
+          {step === 3 && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="flex-1 flex flex-col"
+            >
+              <h2 className="text-md font-bold mb-4" style={{ color: themeConfig.colors.text }}>طريقة الدفع</h2>
+              <div className="flex-1 overflow-y-auto pr-2">
+                {/* Payment Methods */}
+                {[{
+                  key: 'cash',
+                  label: 'الدفع نقداً',
+                  icon: Banknote,
+                  description: 'الدفع مباشرة للمختص عند الوصول.',
+                },
+                {
+                  key: 'ccp',
+                  label: 'CCP - حساب بريد الجزائر',
+                  icon: Wallet,
+                  description: 'الدفع عبر الحساب البريدي الجاري (CCP). يتطلب رفع إيصال الدفع.',
+                },
+                {
+                  key: 'baridi-mob',
+                  label: 'بريدي موب',
+                  icon: Wallet,
+                  description: 'الدفع عبر تطبيق بريدي موب. يتطلب رفع إيصال الدفع.',
+                },
+                {
+                  key: 'card',
+                  label: 'البطاقة المصرفية',
+                  icon: CreditCard,
+                  description: 'الدفع الآمن عبر البطاقة المصرفية (CIB/Visa).',
+                }].map((pm) => (
+                  <div
+                    key={pm.key}
+                    onClick={() => setPaymentMethod(pm.key as 'ccp' | 'baridi-mob' | 'cash' | 'card')}
+                    className={`flex items-center p-3 mb-3 rounded-lg cursor-pointer ${paymentMethod === pm.key ? 'border-2 border-blue-500' : ''}`}
+                    style={{ backgroundColor: themeConfig.colors.surface }}
+                  >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                      style={{ backgroundColor: themeConfig.colors.primary + '15' }}>
+                      <pm.icon size={20} style={{ color: themeConfig.colors.primary }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium" style={{ color: themeConfig.colors.text }}>{pm.label}</p>
+                      <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{pm.description}</p>
+                    </div>
+                    {paymentMethod === pm.key && <Check size={20} className="text-blue-500" />}
+                  </div>
+                ))}
+
+                {/* Mobile Service Option */}
+                <div
+                  onClick={() => setIsMobileService(prev => !prev)}
+                  className={`flex items-center p-3 mb-3 rounded-lg cursor-pointer ${isMobileService ? 'border-2 border-blue-500' : ''}`}
+                  style={{ backgroundColor: themeConfig.colors.surface }}
+                >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                    style={{ backgroundColor: themeConfig.colors.primary + '15' }}>
+                    <Car size={20} style={{ color: themeConfig.colors.primary }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium" style={{ color: themeConfig.colors.text }}>خدمة متنقلة (في المنزل)</p>
+                    <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>يأتي المختص إليك. قد يتم تطبيق رسوم إضافية.</p>
+                  </div>
+                  {isMobileService && <Check size={20} className="text-blue-500" />}
+                </div>
+
+                {isMobileService && (
+                  <input
+                    type="text"
+                    placeholder="عنوان الخدمة (مثال: حي النصر، عمارة 5، شقة 12)"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full p-3 mb-3 rounded-lg text-sm"
+                    style={{ backgroundColor: themeConfig.colors.inputBackground, color: themeConfig.colors.text, borderColor: themeConfig.colors.border }}
+                  />
+                )}
+
+                {/* Notes */}
+                <textarea
+                  placeholder="ملاحظات إضافية للمختص (اختياري)"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="w-full p-3 mb-3 rounded-lg text-sm resize-none"
+                  style={{ backgroundColor: themeConfig.colors.inputBackground, color: themeConfig.colors.text, borderColor: themeConfig.colors.border }}
+                />
+
+                {/* Summary */}
+                <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: themeConfig.colors.surface }}>
+                  <h3 className="text-md font-bold mb-3" style={{ color: themeConfig.colors.text }}>ملخص الحجز</h3>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>الخدمات:</p>
+                    <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>{selectedServicesData.map(s => s.name).join(', ')}</p>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>التاريخ:</p>
+                    <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>{dates.find(d => d.full === selectedDate)?.day}, {dates.find(d => d.full === selectedDate)?.date} {dates.find(d => d.full === selectedDate)?.month}</p>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>الوقت:</p>
+                    <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>{selectedTime}</p>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>المدة:</p>
+                    <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>{totalDuration} دقيقة</p>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>طريقة الدفع:</p>
+                    <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>
+                      {paymentMethod === 'cash' && 'نقداً'}
+                      {paymentMethod === 'ccp' && 'CCP'}
+                      {paymentMethod === 'baridi-mob' && 'بريدي موب'}
+                      {paymentMethod === 'card' && 'بطاقة مصرفية'}
+                    </p>
+                  </div>
+                  {isMobileService && (
+                    <div className="flex justify-between mb-2">
+                      <p className="text-sm" style={{ color: themeConfig.colors.textMuted }}>خدمة متنقلة:</p>
+                      <p className="text-sm font-medium" style={{ color: themeConfig.colors.text }}>نعم</p>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center border-t pt-3 mt-3"
+                    style={{ borderColor: themeConfig.colors.border }}>
+                    <p className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي:</p>
+                    <p className="text-lg font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</p>
+                  </div>
+                </div>
+              </div>
+
+              {(saveError || paymentError || ccpError) && (
+                <div className="flex items-center p-3 mt-4 rounded-lg" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
+                  <AlertTriangle size={20} className="text-red-500 mr-2" />
+                  <p className="text-xs" style={{ color: themeConfig.colors.error }}>{saveError || paymentError || ccpError}</p>
+                </div>
+              )}
+
+              <button onClick={handleConfirm} disabled={isSaving || isPaymentProcessing || isCCPProcessing}
+                className="mt-4 px-6 py-3 rounded-lg font-semibold"
+                style={{ backgroundColor: (isSaving || isPaymentProcessing || isCCPProcessing) ? themeConfig.colors.muted : themeConfig.colors.primary, color: themeConfig.colors.onPrimary }}
+              >
+                {(isSaving || isPaymentProcessing || isCCPProcessing) ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> {paymentMethod === 'card' ? 'جاري التوجيه للدفع...' : 'جاري الحفظ...'}</> : <>{paymentMethod === 'card' ? `الدفع بالبطاقة - ${totalPrice} دج` : `تأكيد الحجز - ${totalPrice} دج`}</>}
+              </button>
+            </motion.div>
+          )}
+        </>
       )}
     </motion.div>
   );

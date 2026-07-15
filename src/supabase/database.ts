@@ -671,3 +671,21 @@ export async function notifyBookingStatusChange(
     type: 'booking',
   });
 }
+
+export async function updateBookingPaymentDetails(bookingId: string, paymentId: string | null, paymentStatus: Database["public"]["Enums"]["payment_status"]) {
+  guard();
+  const { error } = await supabase
+    .from('bookings')
+    .update({ payment_id: paymentId, payment_status: paymentStatus, updated_at: new Date().toISOString() })
+    .eq('id', bookingId);
+  if (error) throw new Error(error.message);
+}
+
+export async function updateBookingStatusAndPaymentStatus(bookingId: string, status: Database["public"]["Enums"]["booking_status"], paymentStatus: Database["public"]["Enums"]["payment_status"]) {
+  guard();
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: status, payment_status: paymentStatus, updated_at: new Date().toISOString() })
+    .eq('id', bookingId);
+  if (error) throw new Error(error.message);
+}

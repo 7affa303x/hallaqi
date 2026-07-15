@@ -109,7 +109,7 @@ export interface Booking {
 }
 
 // Aligned with database booking_status enum
-export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'unconfirmed';
 export type PaymentMethod = 'ccp' | 'baridi-mob' | 'cash' | 'card';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 
