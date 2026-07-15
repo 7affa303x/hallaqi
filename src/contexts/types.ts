@@ -2,7 +2,7 @@ import type {
   ThemeName, AnimationStyle, TabName, AppSettings, AppNotification,
   Booking, Barber, Chat, ForumPost, ScreenName, ScreenParams, User
 } from '@/types';
-import type { AppUser } from '@/types/supabase';
+import type { Profile } from '@/types/supabase';
 import { themes } from '@/data/themes';
 
 interface DataLoadingState {
@@ -30,7 +30,7 @@ export interface AppState {
   chats: Chat[];
   forumPosts: ForumPost[];
   notifications: AppNotification[];
-  currentUser: User | AppUser | null;
+  currentUser: User | Profile | null;
   isLoading: DataLoadingState;
   dataError: string | null;
   refreshData: () => Promise<void>;
