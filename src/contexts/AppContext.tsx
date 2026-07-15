@@ -2,11 +2,11 @@ import { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 import { isSupabaseConfigured, isDeveloperMode } from '@/supabase/client';
-import { getBarbers, getUserBookings, getForumPosts, getUserNotifications } from '@/supabase/database';
+import { getBarbers, getUserBookings, getForumPosts, getUserNotifications, updateBookingStatus } from '@/supabase/database';
 import { AppContext } from './context';
 import { themes } from '@/data/themes';
 import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotifications } from '@/data/mockData';
-import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User } from '@/types';
+import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User, Service } from '@/types';
 import type { AppUser } from '@/types/supabase';
 
 const convertAppUserToUser = (appUser: AppUser): User => ({
@@ -24,16 +24,40 @@ const convertAppUserToUser = (appUser: AppUser): User => ({
   wilaya: appUser.wilaya || '',
   followers: appUser.followers,
   following: appUser.following,
-  bookings: [], // Assuming bookings are fetched separately or are not part of the direct AppUser conversion
-  savedBarbers: [], // Assuming savedBarbers are fetched separately
-  notificationsEnabled: true, // Default value
+  bookings: [],
+  savedBarbers: [],
+  notificationsEnabled: true,
   theme: appUser.theme as ThemeName,
   language: appUser.language,
-  isSubscribed: false, // Default value
-  badges: [], // Assuming badges are fetched separately
-  stats: { totalBookings: 0, totalSpent: 0, streakDays: 0, points: 0, rank: 'bronze' }, // Default stats
-  linkedAccounts: [], // Assuming linkedAccounts are fetched separately
+  isSubscribed: false,
+  badges: [],
+  stats: { totalBookings: 0, totalSpent: 0, streakDays: 0, points: 0, rank: 'bronze' },
+  linkedAccounts: [],
 });
+
+/** Transform a Supabase booking row into the app's Booking type */
+function transformBookingRow(row: Record<string, unknown>): Booking {
+  return {
+    id: row.id as string,
+    barberId: row.barberId as string,
+    barberName: (row.barberName as string) || '',
+    barberAvatar: (row.barberAvatar as string) || '',
+    services: ((row.services as Service[]) || []),
+    date: (row.date as string) || '',
+    time: (row.time as string) || '',
+    status: (row.status as Booking['status']) || 'pending',
+    totalPrice: (row.totalPrice as number) || 0,
+    note: (row.note as string) || undefined,
+    createdAt: (row.created_at as string) || new Date().toISOString(),
+    location: (row.location as string) || '',
+    isMobileService: (row.isMobileService as boolean) || false,
+    paymentMethod: (row.paymentMethod as Booking['paymentMethod']) || 'cash',
+    paymentStatus: (row.paymentStatus as Booking['paymentStatus']) || 'pending',
+    reviewed: (row.reviewed as boolean) || false,
+    rating: (row.rating as number) || undefined,
+    address: (row.address as string) || undefined,
+  };
+}
 
 interface HistoryEntry { screen: ScreenName; params?: ScreenParams }
 
@@ -137,10 +161,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured()) {
       // In developer mode, use mock data
       if (isDeveloperMode) {
-        setBarbers(mockBarbers as unknown as Barber[]); // Assuming mockBarbers exists in mockData.ts
-        setBookings(mockBookings as unknown as Booking[]); // Assuming mockBookings exists
-        setForumPosts(mockForumPosts as unknown as ForumPost[]); // Assuming mockForumPosts exists
-        setNotifications(mockNotifications as unknown as AppNotification[]); // Assuming mockNotifications exists
+        setBarbers(mockBarbers as unknown as Barber[]);
+        setBookings(mockBookings as unknown as Booking[]);
+        setForumPosts(mockForumPosts as unknown as ForumPost[]);
+        setNotifications(mockNotifications as unknown as AppNotification[]);
         setIsLoading({ barbers: false, bookings: false, forumPosts: false, notifications: false });
         return;
       }
@@ -159,7 +183,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (appUser) {
       try {
         const bookingsData = await getUserBookings(appUser.id);
-        if (bookingsData && bookingsData.length > 0) setBookings(bookingsData as unknown as Booking[]);
+        if (bookingsData && bookingsData.length > 0) {
+          setBookings(bookingsData.map(transformBookingRow));
+        } else {
+          setBookings([]);
+        }
       } catch (err) { console.warn('[AppContext] bookings fetch failed:', err); }
       finally { setIsLoading(p => ({ ...p, bookings: false })); }
 
@@ -169,6 +197,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (err) { console.warn('[AppContext] notifications fetch failed:', err); }
       finally { setIsLoading(p => ({ ...p, notifications: false })); }
     } else {
+      setBookings([]);
       setIsLoading(p => ({ ...p, bookings: false, notifications: false }));
     }
 
@@ -258,20 +287,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
+  /** Add booking: prepend to local state (Supabase save handled by caller) */
   const addBooking = useCallback((booking: Booking) => {
-    if (isDeveloperMode) {
-      setBookings(prev => [booking, ...prev]);
-      return;
-    }
     setBookings(prev => [booking, ...prev]);
   }, []);
 
-  const cancelBooking = useCallback((id: string) => {
-    if (isDeveloperMode) {
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
-      return;
-    }
+  /** Cancel booking: update Supabase first, then local state */
+  const cancelBooking = useCallback(async (id: string) => {
+    // Optimistic UI update
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
+    // Sync to Supabase
+    if (!isDeveloperMode && isSupabaseConfigured()) {
+      try {
+        await updateBookingStatus(id, 'cancelled');
+      } catch (err) {
+        console.error('[AppContext] Failed to cancel booking in Supabase:', err);
+      }
+    }
   }, []);
 
   const sendMessage = useCallback((_chatId: string, _content: string) => {
