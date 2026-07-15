@@ -169,7 +169,29 @@ export async function getProfessionalBookings(proId: string, statusFilter?: (Dat
 export async function createBooking(booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) {
   guard();
   const { data, error } = await supabase.from('bookings').insert(booking).select().single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Handle duplicate key constraint - find and return existing booking
+    if (error.code === '23505' && error.message.includes('idx_bookings_no_double_booking')) {
+      // Find the existing booking for this slot and reuse if same client
+      const { data: existing } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('professional_id', booking.professional_id as string)
+        .eq('booking_start_time', booking.booking_start_time as string)
+        .neq('status', 'cancelled' as never)
+        .neq('status', 'no_show' as never)
+        .single();
+      if (existing) {
+        // If the existing booking belongs to the same client, reuse it
+        if (existing.client_id === booking.client_id) {
+          return existing;
+        }
+        // Otherwise, the slot is genuinely taken
+        throw new Error('هذا الوقت محجوز بالفعل. يرجى اختيار وقت آخر.');
+      }
+    }
+    throw new Error(error.message);
+  }
   return data;
 }
 
