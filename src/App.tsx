@@ -24,6 +24,7 @@ const LoginScreen = lazy(() => import('@/pages/LoginScreen'));
 const RegisterScreen = lazy(() => import('@/pages/RegisterScreen'));
 const ForgotPassword = lazy(() => import('@/components/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('@/components/auth/ResetPassword'));
+const PaymentSuccessPage = lazy(() => import('@/pages/PaymentSuccessPage'));
 
 function TabContent({ tab }: { tab: string }) {
   switch (tab) {
@@ -70,6 +71,8 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>;
     case 'reset-password':
       return <Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>;
+    case 'payment-success':
+      return <Suspense fallback={<LoadingFallback />}><PaymentSuccessPage /></Suspense>;
     default: {
       const params = screenParams;
       if (params?.title) {

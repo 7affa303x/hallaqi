@@ -379,6 +379,7 @@ export type ScreenName =
   | 'register'
   | 'forgot-password'
   | 'reset-password'
+  | 'payment-success'
   | 'coming-soon';
 
 export interface ScreenParams {

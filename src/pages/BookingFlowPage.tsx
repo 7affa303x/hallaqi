@@ -7,6 +7,7 @@ import {
   Wallet, Banknote, Calendar, X, AlertTriangle
 } from 'lucide-react';
 import { createBooking, getProfessionalBookings, sendNotification } from '@/supabase/database';
+import { usePayment } from '@/hooks/usePayment';
 import type { Service, BookingStatus, PaymentStatus } from '@/types';
 import type { Database } from '@/types/supabase';
 
@@ -82,7 +83,8 @@ export default function BookingFlowPage() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'ccp' | 'baridi-mob' | 'cash'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'ccp' | 'baridi-mob' | 'cash' | 'card'>('cash');
+  const { initiatePayment, isProcessing: isPaymentProcessing, error: paymentError } = usePayment();
   const [note, setNote] = useState('');
   const [isMobileService, setIsMobileService] = useState(false);
   const [address, setAddress] = useState('');
@@ -234,6 +236,38 @@ export default function BookingFlowPage() {
       const saved = await createBooking({ ...bookingRow, status: bookingRow.status as unknown as Database["public"]["Enums"]["booking_status"] });
 
       if (saved) {
+        // If card payment selected, redirect to Stripe Checkout
+        if (paymentMethod === 'card') {
+          const baseUrl = window.location.origin;
+          const lineItems = selectedServicesData.map(svc => ({
+            name: svc.name,
+            description: `خدمة من ${barber.name}`,
+            amount: Math.round(svc.price * 100), // convert to centimes
+            quantity: 1,
+            currency: 'dzd',
+          }));
+
+          await initiatePayment('stripe', {
+            bookingId: saved.id,
+            clientId: appUser.id,
+            professionalId: barber.id,
+            lineItems,
+            totalAmount: totalPrice,
+            currency: 'dzd',
+            metadata: {
+              barber_name: barber.name,
+              booking_date: selectedDate,
+              booking_time: selectedTime,
+            },
+            successUrl: `${baseUrl}/?screen=payment-success`,
+            cancelUrl: `${baseUrl}/?screen=booking-flow&barberId=${barber.id}`,
+            customerEmail: undefined, // email from auth session if needed
+          });
+          // User will be redirected to Stripe, no need to continue
+          return;
+        }
+
+        // For non-card payments, proceed as before
         // Notify the barber that they received a new booking
         try {
           await sendNotification({
@@ -483,8 +517,8 @@ export default function BookingFlowPage() {
           {/* Payment method */}
           <div>
             <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>طريقة الدفع</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[{ key: 'cash' as const, label: 'نقداً', icon: Banknote }, { key: 'ccp' as const, label: 'CCP', icon: CreditCard }, { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet }].map(pm => (
+            <div className="grid grid-cols-4 gap-2">
+              {[{ key: 'card' as const, label: 'بطاقة', icon: CreditCard }, { key: 'cash' as const, label: 'نقداً', icon: Banknote }, { key: 'ccp' as const, label: 'CCP', icon: CreditCard }, { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet }].map(pm => (
                 <button key={pm.key} onClick={() => setPaymentMethod(pm.key)}
                   className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all"
                   style={{ backgroundColor: paymentMethod === pm.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: paymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
@@ -520,17 +554,17 @@ export default function BookingFlowPage() {
             <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="أي ملاحظات خاصة..." rows={2} className="w-full p-3 rounded-xl border text-xs resize-none" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }} />
           </div>
 
-          {saveError && (
+          {(saveError || paymentError) && (
             <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
               <AlertTriangle size={16} style={{ color: themeConfig.colors.error }} />
-              <p className="text-xs" style={{ color: themeConfig.colors.error }}>{saveError}</p>
+              <p className="text-xs" style={{ color: themeConfig.colors.error }}>{saveError || paymentError}</p>
             </div>
           )}
 
-          <button onClick={handleConfirm} disabled={isSaving}
+          <button onClick={handleConfirm} disabled={isSaving || isPaymentProcessing}
             className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             style={{ backgroundColor: themeConfig.colors.primary }}>
-            {isSaving ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> جاري الحفظ...</> : <>تأكيد الحجز - {totalPrice} دج</>}
+            {(isSaving || isPaymentProcessing) ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> {paymentMethod === 'card' ? 'جاري التوجيه للدفع...' : 'جاري الحفظ...'}</> : <>{paymentMethod === 'card' ? `الدفع بالبطاقة - ${totalPrice} دج` : `تأكيد الحجز - ${totalPrice} دج`}</>}
           </button>
         </div>
       )}
