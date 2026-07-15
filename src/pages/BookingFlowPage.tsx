@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { useAuth } from '@/hooks/useAuth';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Check, Clock, MapPin, Car, CreditCard,
-  Wallet, Banknote, Calendar, X
+  Wallet, Banknote, Calendar, X, AlertTriangle
 } from 'lucide-react';
-import { getBarberAvailability, getBarberExceptions } from '@/supabase/database';
+import { createBooking, getBarberBookings, checkSlotAgainstBookings, filterSlotsByWorkingHours } from '@/supabase/database';
+import type { Service } from '@/types';
 
 const ALL_TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -14,12 +16,11 @@ const ALL_TIME_SLOTS = [
   '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00',
 ];
 
-/** Convert JS Date getDay() (0=Sun) to our schedule day_of_week (0=Sat) */
-function jsDayToScheduleDay(jsDay: number): number {
-  // JS: 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
-  // Schedule: 0=Sat,1=Sun,2=Mon,3=Tue,4=Wed,5=Thu,6=Fri
-  return jsDay === 6 ? 0 : jsDay + 1;
-}
+/** Map JS Date getDay() (0=Sun) to workingHours day key */
+const JS_DAY_TO_KEY: Record<number, string> = {
+  0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
+  4: 'thursday', 5: 'friday', 6: 'saturday',
+};
 
 /** Generate time slots between start and end times */
 function generateTimeSlotsForRange(start: string, end: string): string[] {
@@ -49,7 +50,8 @@ const generateDates = () => {
 };
 
 export default function BookingFlowPage() {
-  const { themeConfig, screenParams, barbers, addBooking, navigate, goBack } = useApp();
+  const { themeConfig, screenParams, barbers, addBooking, navigate, goBack, refreshData } = useApp();
+  const { appUser } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -59,64 +61,80 @@ export default function BookingFlowPage() {
   const [isMobileService, setIsMobileService] = useState(false);
   const [address, setAddress] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-  const [availabilitySchedule, setAvailabilitySchedule] = useState<Array<{ day_of_week: number; start_time: string; end_time: string; is_active: boolean }>>([]);
-  const [availabilityExceptions, setAvailabilityExceptions] = useState<Array<{ date: string; type: string }>>([]);
+  const [existingBookings, setExistingBookings] = useState<Array<{ time: string; services: Array<{ duration?: number }> }>>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   const barber = barbers.find(b => b.id === screenParams?.barberId);
   const dates = generateDates();
 
+  /** Fetch existing bookings when date changes */
   useEffect(() => {
-    if (!barber?.id) return;
-    const fetchAvailability = async () => {
+    if (!barber?.id || !selectedDate) {
+      setExistingBookings([]);
+      return;
+    }
+    let cancelled = false;
+    const fetch = async () => {
+      setIsLoadingSlots(true);
       try {
-        const [schedData, excData] = await Promise.all([
-          getBarberAvailability(barber.id),
-          getBarberExceptions(barber.id),
-        ]);
-        setAvailabilitySchedule(schedData.map(s => ({
-          day_of_week: s.day_of_week as number,
-          start_time: s.start_time as string,
-          end_time: s.end_time as string,
-          is_active: s.is_active as boolean,
-        })));
-        setAvailabilityExceptions(excData.map(e => ({
-          date: e.date as string,
-          type: e.type as string,
-        })));
+        const bookings = await getBarberBookings(barber.id, selectedDate);
+        if (!cancelled) setExistingBookings(bookings);
       } catch (err) {
-        console.error('Failed to fetch availability:', err);
+        console.error('Failed to fetch existing bookings:', err);
+        if (!cancelled) setExistingBookings([]);
+      } finally {
+        if (!cancelled) setIsLoadingSlots(false);
       }
     };
-    fetchAvailability();
-  }, [barber?.id]);
+    fetch();
+    return () => { cancelled = true; };
+  }, [barber?.id, selectedDate]);
 
-  // Check if a date is available (not an exception day and barber works that day)
-  const isDateAvailable = (dateStr: string): boolean => {
-    // Check exceptions
-    if (availabilityExceptions.some(e => e.date === dateStr)) return false;
-    // Check schedule
-    if (availabilitySchedule.length === 0) return true; // No schedule = all days available (fallback)
+  /** Get working hours for a specific date */
+  const getDayHours = useCallback((dateStr: string): { open: string; close: string } | null => {
+    if (!barber?.workingHours) return null;
     const jsDay = new Date(dateStr).getDay();
-    const scheduleDay = jsDayToScheduleDay(jsDay);
-    const daySchedule = availabilitySchedule.find(s => s.day_of_week === scheduleDay);
-    return daySchedule?.is_active ?? false;
-  };
+    const dayKey = JS_DAY_TO_KEY[jsDay];
+    return (barber.workingHours as Record<string, { open: string; close: string }>)[dayKey] || null;
+  }, [barber?.workingHours]);
 
-  // Get available time slots for a specific date
-  const getAvailableTimeSlots = (dateStr: string): string[] => {
-    if (availabilitySchedule.length === 0) return ALL_TIME_SLOTS; // Fallback
-    const jsDay = new Date(dateStr).getDay();
-    const scheduleDay = jsDayToScheduleDay(jsDay);
-    const daySchedule = availabilitySchedule.find(s => s.day_of_week === scheduleDay);
-    if (!daySchedule || !daySchedule.is_active) return [];
-    return generateTimeSlotsForRange(daySchedule.start_time, daySchedule.end_time);
-  };
+  /** Check if a date is available (barber works that day) */
+  const isDateAvailable = useCallback((dateStr: string): boolean => {
+    const hours = getDayHours(dateStr);
+    if (!hours) return false;
+    if (hours.open === 'closed' || hours.close === 'closed') return false;
+    return true;
+  }, [getDayHours]);
 
-  // Memoize available time slots for selected date
+  /** Get available time slots for a specific date */
+  const getAvailableTimeSlots = useCallback((dateStr: string): string[] => {
+    const hours = getDayHours(dateStr);
+    if (!hours || hours.open === 'closed' || hours.close === 'closed') return [];
+
+    // 1. Start with slots within working hours
+    let slots = generateTimeSlotsForRange(hours.open, hours.close);
+
+    // 2. If date is selected, filter out slots occupied by existing bookings
+    if (dateStr === selectedDate && existingBookings.length > 0) {
+      const selectedServicesData = barber?.services?.filter(
+        (s: Service) => selectedServices.includes(s.id)
+      ) || [];
+      const totalDuration = selectedServicesData.reduce((sum: number, s: Service) => sum + s.duration, 0) || 30;
+      slots = slots.filter(slot =>
+        checkSlotAgainstBookings(slot, totalDuration, existingBookings)
+      );
+    }
+
+    return slots;
+  }, [getDayHours, selectedDate, existingBookings, barber?.services, selectedServices]);
+
+  /** Memoize available time slots for selected date */
   const timeSlots = useMemo(() => {
     if (!selectedDate) return ALL_TIME_SLOTS;
     return getAvailableTimeSlots(selectedDate);
-  }, [selectedDate, availabilitySchedule]);
+  }, [selectedDate, getAvailableTimeSlots]);
 
   if (!barber) {
     return (
@@ -131,34 +149,93 @@ export default function BookingFlowPage() {
     setSelectedServices(prev =>
       prev.includes(svcId) ? prev.filter(id => id !== svcId) : [...prev, svcId]
     );
+    setSelectedTime(''); // Reset time when services change (duration changes)
   };
 
-  const selectedServicesData = barber.services.filter(s => selectedServices.includes(s.id));
-  const totalPrice = selectedServicesData.reduce((sum, s) => sum + s.price, 0);
-  const totalDuration = selectedServicesData.reduce((sum, s) => sum + s.duration, 0);
+  const selectedServicesData = barber.services.filter((s: Service) => selectedServices.includes(s.id));
+  const totalPrice = selectedServicesData.reduce((sum: number, s: Service) => sum + s.price, 0);
+  const totalDuration = selectedServicesData.reduce((sum: number, s: Service) => sum + s.duration, 0);
 
-  const handleConfirm = () => {
-    const newBooking = {
-      id: `b-${Date.now()}`,
-      barberId: barber.id,
-      barberName: barber.name,
-      barberAvatar: barber.avatar,
-      services: selectedServicesData,
-      date: selectedDate,
-      time: selectedTime,
-      status: 'pending' as const,
-      totalPrice,
-      note: note || undefined,
-      createdAt: new Date().toISOString(),
-      location: isMobileService ? (address || 'المنزل') : barber.location,
-      isMobileService,
-      paymentMethod,
-      paymentStatus: 'pending' as const,
-      reviewed: false,
-      address: isMobileService ? address : undefined,
-    };
-    addBooking(newBooking);
-    setConfirmed(true);
+  const handleConfirm = async () => {
+    if (!appUser) {
+      setSaveError('يجب تسجيل الدخول لإتمام الحجز');
+      return;
+    }
+    if (!selectedDate || !selectedTime) {
+      setSaveError('يرجى اختيار التاريخ والوقت');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      // Validate: check slot is still available
+      const available = await checkSlotAgainstBookings(
+        selectedTime, totalDuration, existingBookings
+      );
+      if (!available) {
+        setSaveError('هذا الوقت لم يعد متاحاً. يرجى اختيار وقت آخر.');
+        setIsSaving(false);
+        return;
+      }
+
+      // Build Supabase booking row
+      const bookingRow = {
+        user_id: appUser.id,
+        barberId: barber.id,
+        barberName: barber.name,
+        barberAvatar: barber.avatar || '',
+        services: selectedServicesData as unknown as Service[],
+        date: selectedDate,
+        time: selectedTime,
+        status: 'pending' as const,
+        totalPrice,
+        note: note || null,
+        location: isMobileService ? (address || 'المنزل') : barber.location,
+        isMobileService,
+        paymentMethod,
+        paymentStatus: 'pending' as const,
+        reviewed: false,
+        address: isMobileService ? address || null : null,
+      };
+
+      const saved = await createBooking(bookingRow);
+
+      if (saved) {
+        // Add to local state for immediate UI update
+        const newBooking = {
+          id: (saved as Record<string, unknown>).id as string,
+          barberId: barber.id,
+          barberName: barber.name,
+          barberAvatar: barber.avatar || '',
+          services: selectedServicesData,
+          date: selectedDate,
+          time: selectedTime,
+          status: 'pending' as const,
+          totalPrice,
+          note: note || undefined,
+          createdAt: new Date().toISOString(),
+          location: isMobileService ? (address || 'المنزل') : barber.location,
+          isMobileService,
+          paymentMethod,
+          paymentStatus: 'pending' as const,
+          reviewed: false,
+          address: isMobileService ? address : undefined,
+        };
+        addBooking(newBooking);
+
+        // Refresh from server to ensure consistency
+        await refreshData();
+
+        setConfirmed(true);
+      }
+    } catch (err) {
+      console.error('Booking save failed:', err);
+      setSaveError(err instanceof Error ? err.message : 'فشل حفظ الحجز. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (confirmed) {
@@ -247,6 +324,15 @@ export default function BookingFlowPage() {
         </div>
       </div>
 
+      {/* Error Banner */}
+      {saveError && (
+        <div className="mx-4 mt-3 p-3 rounded-xl flex items-center gap-2" style={{ backgroundColor: themeConfig.colors.error + '15', border: `1px solid ${themeConfig.colors.error}30` }}>
+          <AlertTriangle size={16} style={{ color: themeConfig.colors.error }} />
+          <p className="text-xs flex-1" style={{ color: themeConfig.colors.error }}>{saveError}</p>
+          <button onClick={() => setSaveError(null)} className="text-xs font-bold px-2" style={{ color: themeConfig.colors.error }}>×</button>
+        </div>
+      )}
+
       {/* Step 1: Services */}
       {step === 1 && (
         <div className="p-4">
@@ -297,7 +383,7 @@ export default function BookingFlowPage() {
           {/* Services */}
           <h3 className="text-sm font-bold mb-2" style={{ color: themeConfig.colors.text }}>الخدمات المتاحة</h3>
           <div className="space-y-2">
-            {barber.services.map(svc => {
+            {barber.services.map((svc: Service) => {
               const isSelected = selectedServices.includes(svc.id);
               return (
                 <button
@@ -376,7 +462,12 @@ export default function BookingFlowPage() {
 
           {/* Time Selection */}
           <h3 className="text-sm font-bold mb-2" style={{ color: themeConfig.colors.text }}>اختر الوقت</h3>
-          {timeSlots.length === 0 && selectedDate ? (
+          {isLoadingSlots ? (
+            <div className="text-center py-6 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-2" style={{ borderColor: themeConfig.colors.primary, borderTopColor: 'transparent' }} />
+              <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>جاري تحميل الأوقات المتاحة...</p>
+            </div>
+          ) : timeSlots.length === 0 && selectedDate ? (
             <div className="text-center py-6 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <Clock size={24} className="mx-auto mb-2 opacity-40" style={{ color: themeConfig.colors.textMuted }} />
               <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>لا توجد أوقات متاحة في هذا اليوم</p>
@@ -399,6 +490,13 @@ export default function BookingFlowPage() {
               ))}
             </div>
           )}
+
+          {/* Info about filtered slots */}
+          {selectedDate && existingBookings.length > 0 && timeSlots.length > 0 && (
+            <p className="text-[10px] mt-3 text-center" style={{ color: themeConfig.colors.textMuted }}>
+              تم إخفاء الأوقات المحجوزة ({existingBookings.length} حجز موجود)
+            </p>
+          )}
         </div>
       )}
       
@@ -418,7 +516,7 @@ export default function BookingFlowPage() {
             </div>
 
             <div className="space-y-2 mb-3 pb-3 border-b" style={{ borderColor: themeConfig.colors.border }}>
-              {selectedServicesData.map(svc => (
+              {selectedServicesData.map((svc: Service) => (
                 <div key={svc.id} className="flex justify-between">
                   <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name} ({svc.duration}د)</span>
                   <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{svc.price} دج</span>
@@ -508,7 +606,7 @@ export default function BookingFlowPage() {
         <div className="max-w-lg mx-auto">
           {step === 1 && (
             <button
-              onClick={() => selectedServices.length > 0 && setStep(2 as 1 | 2 | 3)}
+              onClick={() => selectedServices.length > 0 && setStep(2)}
               disabled={selectedServices.length === 0}
               className="w-full h-12 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40"
               style={{ backgroundColor: themeConfig.colors.primary }}
@@ -518,7 +616,7 @@ export default function BookingFlowPage() {
           )}
           {step === 2 && (
             <button
-              onClick={() => selectedDate && selectedTime && setStep(3 as 1 | 2 | 3)}
+              onClick={() => selectedDate && selectedTime && setStep(3)}
               disabled={!selectedDate || !selectedTime}
               className="w-full h-12 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40"
               style={{ backgroundColor: themeConfig.colors.primary }}
@@ -529,11 +627,21 @@ export default function BookingFlowPage() {
           {step === 3 && (
             <button
               onClick={handleConfirm}
-              className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+              disabled={isSaving}
+              className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               style={{ backgroundColor: themeConfig.colors.primary }}
             >
-              <Check size={18} />
-              تأكيد الحجز - {totalPrice} دج
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#fff', borderTopColor: 'transparent' }} />
+                  جاري الحفظ...
+                </>
+              ) : (
+                <>
+                  <Check size={18} />
+                  تأكيد الحجز - {totalPrice} دج
+                </>
+              )}
             </button>
           )}
         </div>
