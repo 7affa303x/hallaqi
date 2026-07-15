@@ -22,6 +22,7 @@ export const supabase = isSupabaseConfigured()
       auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
     });
 
+/** @deprecated Use table names directly from Database types instead */
 export const TABLES = {
   PROFILES: 'profiles',
   PROFESSIONALS: 'professionals',

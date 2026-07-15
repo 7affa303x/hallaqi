@@ -65,11 +65,11 @@ function ScreenRouter() {
     case 'login':
       return <Suspense fallback={<LoadingFallback />}><LoginScreen /></Suspense>;
     case 'register':
+      return <Suspense fallback={<LoadingFallback />}><RegisterScreen /></Suspense>;
     case 'forgot-password':
       return <Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>;
     case 'reset-password':
       return <Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>;
-      return <Suspense fallback={<LoadingFallback />}><RegisterScreen /></Suspense>;
     default: {
       const params = screenParams;
       if (params?.title) {
