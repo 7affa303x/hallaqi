@@ -55,9 +55,12 @@ export interface Service {
   image?: string;
 }
 
+// Aligned with database service_category enum
 export type ServiceCategory =
   | 'haircut'
   | 'beard'
+  | 'shave'
+  | 'hair_treatment'
   | 'facial'
   | 'coloring'
   | 'styling'
@@ -103,7 +106,8 @@ export interface Booking {
   address?: string;
 }
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no-show';
+// Aligned with database booking_status enum
+export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
 export type PaymentMethod = 'ccp' | 'baridi-mob' | 'cash' | 'card';
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 
