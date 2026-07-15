@@ -7,7 +7,7 @@ import {
   Scissors, Heart, Share2, Phone, MessageSquare,
   Calendar, Navigation, Globe, AlertTriangle
 } from 'lucide-react';
-import { getBarberAvailability, getBarberExceptions } from '@/supabase/database';
+import { getProfessionalSchedules, getProfessionalExceptions } from '@/supabase/database';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
 const daysArSchedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
@@ -45,8 +45,8 @@ export default function BarberDetailPage() {
     const fetchAvailability = async () => {
       try {
         const [schedData, excData] = await Promise.all([
-          getBarberAvailability(barber.id),
-          getBarberExceptions(barber.id),
+          getProfessionalSchedules(barber.id),
+          getProfessionalExceptions(barber.id),
         ]);
         setAvailabilitySchedule(schedData.map(s => ({
           day_of_week: s.day_of_week as number,
@@ -70,7 +70,7 @@ export default function BarberDetailPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
         <img src="/logo-icon.png" alt="Hallaqi" className="w-16 h-16 mb-4 opacity-30" />
-        <p className="text-sm font-medium" style={{ color: themeConfig.colors.textMuted }}>الحلاق غير موجود</p>
+        <p className="text-sm font-medium" style={{ color: themeConfig.colors.textMuted }}>المختص غير موجود</p>
         <button onClick={goBack} className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>رجوع</button>
       </div>
     );
