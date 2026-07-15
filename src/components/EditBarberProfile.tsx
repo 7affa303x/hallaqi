@@ -587,7 +587,7 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
         <div>
           <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>أيام الإغلاق</h3>
           <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            {barberData && <AvailabilityExceptions barberId={barberData.id as string} />}
+            <AvailabilityExceptions />
           </div>
         </div>
 
