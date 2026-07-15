@@ -6,7 +6,7 @@ import {
   ArrowLeft, Check, Clock, MapPin, Car, CreditCard,
   Wallet, Banknote, Calendar, X, AlertTriangle
 } from 'lucide-react';
-import { createBooking, getProfessionalBookings } from '@/supabase/database';
+import { createBooking, getProfessionalBookings, sendNotification } from '@/supabase/database';
 import type { Service, BookingStatus, PaymentStatus } from '@/types';
 import type { Database } from '@/types/supabase';
 
@@ -234,6 +234,30 @@ export default function BookingFlowPage() {
       const saved = await createBooking({ ...bookingRow, status: bookingRow.status as unknown as Database["public"]["Enums"]["booking_status"] });
 
       if (saved) {
+        // Notify the barber that they received a new booking
+        try {
+          await sendNotification({
+            userId: barber.id,
+            title: 'حجز جديد',
+            message: `لديك حجز جديد من ${appUser.full_name || 'عميل'} - ${selectedDate} ${selectedTime}`,
+            type: 'booking',
+          });
+        } catch (err) {
+          console.error('Failed to notify barber:', err);
+        }
+
+        // Notify the client that their booking was submitted
+        try {
+          await sendNotification({
+            userId: appUser.id,
+            title: 'تم إرسال طلب الحجز',
+            message: `تم إرسال طلب الحجز إلى ${barber.name} - سيتم تأكيده قريباً`,
+            type: 'booking',
+          });
+        } catch (err) {
+          console.error('Failed to notify client:', err);
+        }
+
         // Add to local state for immediate UI update
         const newBooking = {
           id: saved.id,

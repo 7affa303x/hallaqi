@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 import { isSupabaseConfigured, isDeveloperMode } from '@/supabase/client';
-import { getProfessionals, getClientBookings, getForumPosts, getUserNotifications, updateBookingStatus } from '@/supabase/database';
+import { getProfessionals, getClientBookings, getForumPosts, getUserNotifications, updateBookingStatus, sendNotification } from '@/supabase/database';
 import { AppContext } from './context';
 import { themes } from '@/data/themes';
 import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotifications } from '@/data/mockData';
@@ -287,15 +287,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cancelBooking = useCallback(async (id: string) => {
+    const booking = bookings.find(b => b.id === id);
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
     if (!isDeveloperMode && isSupabaseConfigured()) {
       try {
         await updateBookingStatus(id, 'cancelled' as unknown as Database["public"]["Enums"]["booking_status"]);
+        // Notify the client that their booking was cancelled
+        if (booking && appUser) {
+          try {
+            await sendNotification({
+              userId: appUser.id,
+              title: 'تم إلغاء الحجز',
+              message: `تم إلغاء حجزك مع ${booking.barberName}`,
+              type: 'booking',
+            });
+          } catch (err) {
+            console.error('[AppContext] Failed to send cancel notification:', err);
+          }
+        }
       } catch (err) {
         console.error('[AppContext] Failed to cancel booking:', err);
       }
     }
-  }, []);
+  }, [bookings, appUser]);
+
+  const confirmBooking = useCallback(async (id: string) => {
+    const booking = bookings.find(b => b.id === id);
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed' as const } : b));
+    if (!isDeveloperMode && isSupabaseConfigured()) {
+      try {
+        await updateBookingStatus(id, 'confirmed' as unknown as Database["public"]["Enums"]["booking_status"]);
+        // Notify the client that their booking was confirmed
+        if (booking && appUser) {
+          try {
+            await sendNotification({
+              userId: appUser.id,
+              title: 'تم تأكيد الحجز',
+              message: `تم تأكيد حجزك مع ${booking.barberName} - ${booking.date} ${booking.time}`,
+              type: 'booking',
+            });
+          } catch (err) {
+            console.error('[AppContext] Failed to send confirm notification:', err);
+          }
+        }
+      } catch (err) {
+        console.error('[AppContext] Failed to confirm booking:', err);
+      }
+    }
+  }, [bookings, appUser]);
 
   const sendMessage = useCallback((_chatId: string, _content: string) => {
     console.log('[AppContext] Message:', _content);
@@ -330,7 +369,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       barbers, bookings, chats, forumPosts, notifications, currentUser,
       isLoading, dataError, refreshData,
       toggleFollow, toggleLike, markNotificationRead, markAllNotificationsRead,
-      addBooking, cancelBooking, sendMessage, getBarberById, getPostById,
+      addBooking, cancelBooking, confirmBooking, sendMessage, getBarberById, getPostById,
       isSearchOpen, setIsSearchOpen, showNotifications, setShowNotifications, unreadCount,
       settings, updateSettings,
     }}>

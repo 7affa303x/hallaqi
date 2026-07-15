@@ -7,6 +7,7 @@ import type {
   Message, Notification,
   ForumPost, ForumComment, ForumCategory
 } from '@/types/supabase';
+import type { Json } from '@/types/supabase';
 import type { BookingStatus } from '@/types'; // Import app-level BookingStatus
 
 function guard(): void {
@@ -72,6 +73,28 @@ export async function updateProfessionalProfile(proId: string, updates: Partial<
     .select()
     .single();
   if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getProfessionalWithProfile(proId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('professionals')
+    .select('id, business_name, profiles(full_name, phone_number)')
+    .eq('id', proId)
+    .single();
+  if (error) return null;
+  return data;
+}
+
+export async function getProfileById(userId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, phone_number')
+    .eq('id', userId)
+    .single();
+  if (error) return null;
   return data;
 }
 
@@ -156,6 +179,32 @@ export async function updateBookingStatus(bookingId: string, status: Database["p
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', bookingId);
   if (error) throw new Error(error.message);
+}
+
+export async function updateBookingStatusWithReturn(
+  bookingId: string,
+  status: Database["public"]["Enums"]["booking_status"]
+) {
+  guard();
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', bookingId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getBookingById(bookingId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, professionals(*, profiles(full_name, avatar_url)), profiles!bookings_client_id_fkey(full_name, avatar_url)')
+    .eq('id', bookingId)
+    .single();
+  if (error) return null;
+  return data;
 }
 
 /** Check if a time slot is available for a professional */
@@ -321,6 +370,50 @@ export async function deletePortfolioItem(itemId: string) {
   if (error) throw new Error(error.message);
 }
 
+export async function updatePortfolioItem(itemId: string, updates: Partial<PortfolioItem>) {
+  guard();
+  const { data, error } = await supabase
+    .from('portfolio_items')
+    .update(updates)
+    .eq('id', itemId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/* ========== NOTIFICATIONS / EDGE FUNCTIONS ========== */
+
+/**
+ * Send a notification via the send-notification Edge Function
+ */
+export async function sendNotification(params: {
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+}) {
+  guard();
+  try {
+    const { data, error } = await supabase.functions.invoke('send-notification', {
+      body: {
+        user_id: params.userId,
+        title: params.title,
+        message: params.message,
+        type: params.type,
+      },
+    });
+    if (error) {
+      console.error('sendNotification edge function error:', error);
+      return false;
+    }
+    return data?.success === true;
+  } catch (err) {
+    console.error('sendNotification failed:', err);
+    return false;
+  }
+}
+
 /* ========== CHAT / MESSAGING ========== */
 
 export async function getOrCreateConversation(user1Id: string, user2Id: string): Promise<string> {
@@ -382,6 +475,36 @@ export async function getUserNotifications(userId: string, limit = 50): Promise<
     .limit(limit);
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+/**
+ * Directly insert a notification into the notifications table
+ */
+export async function insertNotification(notification: {
+  user_id: string;
+  title: string;
+  message: string;
+  type: string;
+  metadata?: unknown;
+}) {
+  guard();
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: notification.user_id,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      metadata: (notification.metadata as unknown as Json) || null,
+      read: false,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error('insertNotification error:', error);
+    return null;
+  }
+  return data;
 }
 
 export async function markNotificationRead(notificationId: string) {
@@ -509,4 +632,41 @@ export function subscribeToMessages(conversationId: string, callback: (messages:
     { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
     () => { getConversationMessages(conversationId).then(callback); }
   ).subscribe();
+}
+
+/* ========== BOOKING NOTIFICATION HELPERS ========== */
+
+/**
+ * Send notification about a new booking to both the client and the professional
+ */
+export async function notifyNewBooking(_bookingId: string, _clientName: string, _proBusinessName: string) {
+  // Notify the barber that they received a new booking
+  // This requires knowing the professional_id from the booking - caller should handle
+  // We provide the edge function helper for flexibility
+}
+
+/**
+ * Send notification about booking status change
+ */
+export async function notifyBookingStatusChange(
+  clientUserId: string,
+  professionalName: string,
+  status: string,
+  _bookingId: string
+) {
+  const statusLabels: Record<string, string> = {
+    confirmed: 'مؤكد',
+    cancelled: 'ملغي',
+    completed: 'مكتمل',
+    'no_show': 'لم يحضر',
+    in_progress: 'قيد التنفيذ',
+  };
+  const statusAr = statusLabels[status] || status;
+
+  await sendNotification({
+    userId: clientUserId,
+    title: 'تحديث حالة الحجز',
+    message: `حجزك مع ${professionalName} أصبح ${statusAr}`,
+    type: 'booking',
+  });
 }

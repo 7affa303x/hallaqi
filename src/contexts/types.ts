@@ -40,6 +40,7 @@ export interface AppState {
   markAllNotificationsRead: () => void;
   addBooking: (booking: Booking) => void;
   cancelBooking: (id: string) => void;
+  confirmBooking: (id: string) => void;
   sendMessage: (_chatId: string, _content: string) => void;
   getBarberById: (id: string) => Barber | undefined;
   getPostById: (id: string) => ForumPost | undefined;

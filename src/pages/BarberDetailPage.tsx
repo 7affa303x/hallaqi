@@ -7,7 +7,8 @@ import {
   Scissors, Heart, Share2, Phone, MessageSquare,
   Calendar, Navigation, Globe, AlertTriangle
 } from 'lucide-react';
-import { getProfessionalSchedules, getProfessionalExceptions } from '@/supabase/database';
+import { getProfessionalSchedules, getProfessionalExceptions, getPortfolioItems } from '@/supabase/database';
+import type { PortfolioItem } from '@/types/supabase';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
 const daysArSchedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
@@ -29,6 +30,8 @@ function viewOnMap(location: string, wilaya: string) {
 export default function BarberDetailPage() {
   const { themeConfig, screenParams, navigate, goBack } = useApp();
   const [activeSection, setActiveSection] = useState<'services' | 'reviews' | 'portfolio' | 'hours'>('services');
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
   const [likedImages, setLikedImages] = useState<Set<number>>(new Set());
   const [showQR, setShowQR] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -42,6 +45,19 @@ export default function BarberDetailPage() {
 
   useEffect(() => {
     if (!barber?.id) return;
+    const fetchPortfolio = async () => {
+      setLoadingPortfolio(true);
+      try {
+        const items = await getPortfolioItems(barber.id);
+        setPortfolioItems(items);
+      } catch (err) {
+        console.error('Failed to fetch portfolio items:', err);
+      } finally {
+        setLoadingPortfolio(false);
+      }
+    };
+    fetchPortfolio();
+
     const fetchAvailability = async () => {
       try {
         const [schedData, excData] = await Promise.all([
@@ -350,17 +366,48 @@ export default function BarberDetailPage() {
 
         {activeSection === 'portfolio' && (
           <motion.div key="portfolio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="px-4 mt-3">
-            <div className="grid grid-cols-2 gap-2">
-              {barber.portfolio.map((img, idx) => (
-                <div key={idx} className="relative rounded-xl overflow-hidden aspect-square">
-                  <img src={img} alt={`عمل ${idx + 1}`} className="w-full h-full object-cover" />
-                  <button onClick={() => toggleImageLike(idx)}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
-                    <Heart size={14} className={likedImages.has(idx) ? 'text-red-500 fill-red-500' : 'text-white'} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            {loadingPortfolio ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: themeConfig.colors.primary }} />
+              </div>
+            ) : portfolioItems.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {portfolioItems.map((item, idx) => (
+                  <div key={item.id} className="relative rounded-xl overflow-hidden aspect-square">
+                    {item.type === 'video' ? (
+                      <video src={item.url} className="w-full h-full object-cover" controls={false} muted preload="metadata" />
+                    ) : (
+                      <img src={item.url} alt={item.caption || `عمل ${idx + 1}`} className="w-full h-full object-cover" />
+                    )}
+                    <button onClick={() => toggleImageLike(idx)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
+                      <Heart size={14} className={likedImages.has(idx) ? 'text-red-500 fill-red-500' : 'text-white'} />
+                    </button>
+                    {/* Type badge */}
+                    <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[8px] font-bold bg-white/20 backdrop-blur text-white">
+                      {item.type === 'video' ? 'فيديو' : 'صورة'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : barber.portfolio.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {barber.portfolio.map((img, idx) => (
+                  <div key={idx} className="relative rounded-xl overflow-hidden aspect-square">
+                    <img src={img} alt={`عمل ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button onClick={() => toggleImageLike(idx)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/30 backdrop-blur flex items-center justify-center">
+                      <Heart size={14} className={likedImages.has(idx) ? 'text-red-500 fill-red-500' : 'text-white'} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Heart size={40} style={{ color: themeConfig.colors.textMuted + '30' }} className="mx-auto" />
+                <p className="text-sm mt-2" style={{ color: themeConfig.colors.textMuted }}>لا توجد صور معرض</p>
+              </div>
+            )}
           </motion.div>
         )}
 

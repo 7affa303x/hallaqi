@@ -79,6 +79,31 @@ export async function uploadPortfolioItem(
 }
 
 /**
+ * Upload portfolio item with metadata (caption, type, sort_order)
+ * Returns both the file path and public URL
+ */
+export async function uploadPortfolioItemWithMeta(
+  professionalId: string,
+  file: File
+): Promise<{ path: string; url: string } | null> {
+  const ext = file.name.split('.').pop();
+  const path = `${professionalId}/${Date.now()}.${ext}`;
+  const uploadedPath = await uploadFile('portfolio', path, file);
+  if (!uploadedPath) return null;
+  return {
+    path: uploadedPath,
+    url: getPublicUrl('portfolio', uploadedPath),
+  };
+}
+
+/**
+ * Delete portfolio file from storage
+ */
+export async function deletePortfolioFile(filePath: string): Promise<boolean> {
+  return deleteFile('portfolio', filePath);
+}
+
+/**
  * Upload review image
  */
 export async function uploadReviewImage(
