@@ -1,245 +1,486 @@
 import { supabase, isSupabaseConfigured } from './client';
+import type {
+  Profile, Professional, Service, Booking, Review, Favorite,
+  AvailabilitySchedule, AvailabilityException, PortfolioItem,
+  Conversation, Message, Notification,
+  ForumPost, ForumComment, ForumLike, ForumCategory
+} from '@/types/supabase';
 
 function guard(): void {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 }
 
-/* ========== BARBERS ========== */
-export async function getBarbers(filters?: { tag?: string; wilaya?: string; search?: string }) {
+/* ========== PROFILES ========== */
+
+export async function getProfile(userId: string): Promise<Profile | null> {
   guard();
-  let query = supabase.from('barbers').select('*').order('rating', { ascending: false });
-  if (filters?.wilaya) query = query.eq('wilaya', filters.wilaya);
-
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-
-  let barbers = (data || []) as Record<string, unknown>[];
-  if (filters?.tag) {
-    barbers = barbers.filter(b => ((b.tags as string[]) || []).includes(filters.tag!));
-  }
-  if (filters?.search) {
-    const s = filters.search.toLowerCase();
-    barbers = barbers.filter(b =>
-      ((b.name as string) || '').toLowerCase().includes(s) ||
-      ((b.location as string) || '').toLowerCase().includes(s)
-    );
-  }
-  return barbers;
-}
-
-export async function getBarberById(id: string) {
-  guard();
-  const { data, error } = await supabase.from('barbers').select('*').eq('id', id).single();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
   if (error) return null;
   return data;
 }
 
-export async function updateBarberProfile(barberId: string, updates: Record<string, unknown>) {
+export async function updateProfile(userId: string, updates: Partial<Profile>) {
   guard();
   const { data, error } = await supabase
-    .from('barbers')
-    .update({ ...updates, updated_at: new Date().toISOString() } as Record<string, unknown>)
-    .eq('id', barberId)
+    .from('profiles')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', userId)
     .select()
     .single();
   if (error) throw new Error(error.message);
   return data;
 }
 
-/* ========== BOOKINGS ========== */
-export async function getUserBookings(userId: string, statusFilter?: string[]) {
+/* ========== PROFESSIONALS ========== */
+
+export async function getProfessionals(filters?: { city?: string; search?: string; category?: string }) {
   guard();
-  let query = supabase.from('bookings').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  let query = supabase
+    .from('professionals')
+    .select('*, profiles(full_name, avatar_url, city, user_role), services(*)')
+    .order('average_rating', { ascending: false });
+
+  if (filters?.city) {
+    query = query.filter('profiles.city', 'eq', filters.city);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []) as (Professional & { profiles?: Profile; services?: Service[] })[];
+}
+
+export async function getProfessionalById(id: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('professionals')
+    .select('*, profiles(*), services(*), portfolio_items(*)')
+    .eq('id', id)
+    .single();
+  if (error) return null;
+  return data as Professional & { profiles?: Profile; services?: Service[]; portfolio_items?: PortfolioItem[] };
+}
+
+export async function updateProfessionalProfile(proId: string, updates: Partial<Professional>) {
+  guard();
+  const { data, error } = await supabase
+    .from('professionals')
+    .update(updates)
+    .eq('id', proId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/* ========== SERVICES ========== */
+
+export async function getProfessionalServices(proId: string): Promise<Service[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*')
+    .eq('professional_id', proId)
+    .eq('is_active', true)
+    .order('name');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
+  guard();
+  const { data, error } = await supabase.from('services').insert(service).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateService(serviceId: string, updates: Partial<Service>) {
+  guard();
+  const { data, error } = await supabase
+    .from('services')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', serviceId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteService(serviceId: string) {
+  guard();
+  const { error } = await supabase.from('services').delete().eq('id', serviceId);
+  if (error) throw new Error(error.message);
+}
+
+/* ========== BOOKINGS ========== */
+
+export async function getClientBookings(clientId: string, statusFilter?: string[]) {
+  guard();
+  let query = supabase
+    .from('bookings')
+    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*)')
+    .eq('client_id', clientId)
+    .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || []) as Record<string, unknown>[];
+  return (data || []) as (Booking & { professionals?: Professional & { profiles?: Profile }; services?: Service })[];
 }
 
-export async function createBooking(booking: Record<string, unknown>) {
+export async function getProfessionalBookings(proId: string, statusFilter?: string[]) {
   guard();
-  const { data, error } = await supabase.from('bookings').insert(booking as Record<string, unknown>).select().single();
+  let query = supabase
+    .from('bookings')
+    .select('*, profiles(*), services(*)')
+    .eq('professional_id', proId)
+    .order('booking_start_time', { ascending: false });
+  if (statusFilter?.length) query = query.in('status', statusFilter);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []) as (Booking & { profiles?: Profile; services?: Service })[];
+}
+
+export async function createBooking(booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) {
+  guard();
+  const { data, error } = await supabase.from('bookings').insert(booking).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function updateBookingStatus(bookingId: string, status: string) {
   guard();
-  const { error } = await supabase.from('bookings').update({ status, updated_at: new Date().toISOString() } as Record<string, unknown>).eq('id', bookingId);
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', bookingId);
   if (error) throw new Error(error.message);
 }
 
-/** Get existing non-cancelled bookings for a barber on a specific date */
-export async function getBarberBookings(barberId: string, date: string) {
+/** Check if a time slot is available for a professional */
+export async function isSlotAvailable(
+  professionalId: string,
+  startTime: string,
+  endTime: string
+): Promise<boolean> {
   guard();
   const { data, error } = await supabase
     .from('bookings')
-    .select(\'time, services, status, total_price\')
-    .eq(\'barber_id\', barberId)
-    .eq('date', date)
-    .not('status', 'eq', 'cancelled');
+    .select('id')
+    .eq('professional_id', professionalId)
+    .not('status', 'in', '(cancelled,no_show)')
+    .lt('booking_start_time', endTime)
+    .gt('booking_end_time', startTime);
+
   if (error) throw new Error(error.message);
-  return (data || []) as Array<{
-    time: string;
-    services: Array<{ duration?: number }>;
-    status: string;
-    total_price: number;
-  }>;
+  return (data || []).length === 0;
 }
 
-/** Check if a time slot is available (no overlap with existing bookings) */
-export async function isSlotAvailable(
-  barberId: string,
-  date: string,
-  time: string,
-  durationMinutes: number
-): Promise<boolean> {
-  const bookings = await getBarberBookings(barberId, date);
-  return checkSlotAgainstBookings(time, durationMinutes, bookings);
+/* ========== AVAILABILITY ========== */
+
+export async function getProfessionalSchedules(proId: string): Promise<AvailabilitySchedule[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('availability_schedules')
+    .select('*')
+    .eq('professional_id', proId)
+    .eq('is_active', true)
+    .order('day_of_week');
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
-/** Pure function: check slot against existing bookings list */
-export function checkSlotAgainstBookings(
-  time: string,
-  durationMinutes: number,
-  bookings: Array<{ time: string; services: Array<{ duration?: number }> }>
-): boolean {
-  const [sh, sm] = time.split(':').map(Number);
-  const slotStart = sh * 60 + sm;
-  const slotEnd = slotStart + durationMinutes;
-
-  for (const b of bookings) {
-    const [bh, bm] = b.time.split(':').map(Number);
-    const bookStart = bh * 60 + bm;
-    const bookServices = b.services || [];
-    const bookDuration = bookServices.reduce((sum, s) => sum + (s.duration || 30), 0);
-    const bookEnd = bookStart + bookDuration;
-    // Overlap: existing_start < new_end AND existing_end > new_start
-    if (bookStart < slotEnd && bookEnd > slotStart) {
-      return false;
-    }
-  }
-  return true;
+export async function updateProfessionalSchedules(
+  proId: string,
+  schedules: Omit<AvailabilitySchedule, 'id' | 'created_at' | 'updated_at'>[]
+) {
+  guard();
+  // Delete existing schedules
+  await supabase.from('availability_schedules').delete().eq('professional_id', proId);
+  // Insert new schedules
+  const { data, error } = await supabase
+    .from('availability_schedules')
+    .insert(schedules.map(s => ({ ...s, professional_id: proId })))
+    .select();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
-/** Filter slots by working hours for a given day */
-export function filterSlotsByWorkingHours(
-  slots: string[],
-  dayHours: { open: string; close: string } | null
-): string[] {
-  if (!dayHours) return slots;
-  if (dayHours.open === 'closed' || dayHours.close === 'closed') return [];
-  return slots.filter(slot => slot >= dayHours.open && slot < dayHours.close);
+export async function getProfessionalExceptions(proId: string, fromDate?: string, toDate?: string) {
+  guard();
+  let query = supabase
+    .from('availability_exceptions')
+    .select('*')
+    .eq('professional_id', proId)
+    .order('date');
+  if (fromDate) query = query.gte('date', fromDate);
+  if (toDate) query = query.lte('date', toDate);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []) as AvailabilityException[];
+}
+
+export async function addAvailabilityException(exception: Omit<AvailabilityException, 'id' | 'created_at' | 'updated_at'>) {
+  guard();
+  const { data, error } = await supabase.from('availability_exceptions').insert(exception).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteAvailabilityException(exceptionId: string) {
+  guard();
+  const { error } = await supabase.from('availability_exceptions').delete().eq('id', exceptionId);
+  if (error) throw new Error(error.message);
+}
+
+/* ========== REVIEWS ========== */
+
+export async function getProfessionalReviews(proId: string): Promise<Review[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*, profiles(full_name, avatar_url)')
+    .eq('professional_id', proId)
+    .eq('is_public', true)
+    .eq('moderation_status', 'approved')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as (Review & { profiles?: Profile })[];
+}
+
+export async function createReview(review: Omit<Review, 'id' | 'created_at' | 'updated_at' | 'is_public' | 'moderation_status'>) {
+  guard();
+  const { data, error } = await supabase
+    .from('reviews')
+    .insert({ ...review, is_public: true, moderation_status: 'pending' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 /* ========== FAVORITES ========== */
-export async function toggleFavorite(userId: string, barberId: string, isFav: boolean) {
+
+export async function toggleFavorite(userId: string, professionalId: string, isFav: boolean) {
   guard();
   if (isFav) {
-    const { error } = await supabase.from('favorites').insert({ user_id: userId, barber_id: barberId } as Record<string, unknown>);
+    const { error } = await supabase.from('favorites').insert({ user_id: userId, professional_id: professionalId });
     if (error && !error.message.includes('duplicate')) throw new Error(error.message);
   } else {
-    const { error } = await supabase.from('favorites').delete().eq('user_id', userId).eq('barber_id', barberId);
+    const { error } = await supabase.from('favorites').delete().eq('user_id', userId).eq('professional_id', professionalId);
     if (error) throw new Error(error.message);
   }
 }
 
 export async function getFavorites(userId: string) {
   guard();
-  const { data, error } = await supabase.from('favorites').select('*').eq('user_id', userId);
+  const { data, error } = await supabase
+    .from('favorites')
+    .select('*, professionals(*, profiles(full_name, avatar_url))')
+    .eq('user_id', userId);
   if (error) throw new Error(error.message);
-  return (data || []) as Record<string, unknown>[];
+  return (data || []) as (Favorite & { professionals?: Professional & { profiles?: Profile } })[];
 }
 
-/* ========== FORUM ========== */
-export async function getForumPosts(category?: string) {
+export async function isFavorited(userId: string, professionalId: string): Promise<boolean> {
   guard();
-  let query = supabase.from('forum_posts').select('*').order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
-  if (category && category !== 'all') query = query.eq('category', category);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data || []) as Record<string, unknown>[];
+  const { data, error } = await supabase
+    .from('favorites')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('professional_id', professionalId)
+    .maybeSingle();
+  if (error) return false;
+  return !!data;
 }
 
-export async function getPostComments(postId: string) {
+/* ========== PORTFOLIO ========== */
+
+export async function getPortfolioItems(proId: string): Promise<PortfolioItem[]> {
   guard();
-  const { data, error } = await supabase.from('forum_comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+  const { data, error } = await supabase
+    .from('portfolio_items')
+    .select('*')
+    .eq('professional_id', proId)
+    .order('sort_order');
   if (error) throw new Error(error.message);
-  return (data || []) as Record<string, unknown>[];
+  return data || [];
 }
 
-export async function addComment(comment: Record<string, unknown>) {
+export async function addPortfolioItem(item: Omit<PortfolioItem, 'id' | 'created_at'>) {
   guard();
-  const { data, error } = await supabase.from('forum_comments').insert(comment as Record<string, unknown>).select().single();
+  const { data, error } = await supabase.from('portfolio_items').insert(item).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
 
-export async function togglePostLike(postId: string, userId: string) {
+export async function deletePortfolioItem(itemId: string) {
   guard();
-  const { data } = await supabase.from('forum_posts').select('liked_by, likes').eq('id', postId).single();
-  if (!data) return;
+  const { error } = await supabase.from('portfolio_items').delete().eq('id', itemId);
+  if (error) throw new Error(error.message);
+}
 
-  const row = data as Record<string, unknown>;
-  const likedBy = (row.liked_by as string[]) || [];
-  const isLiked = likedBy.includes(userId);
+/* ========== CHAT / MESSAGING ========== */
 
-  const newLikedBy = isLiked ? likedBy.filter((id: string) => id !== userId) : [...likedBy, userId];
-  const newLikes = isLiked ? Math.max(0, (row.likes as number || 1) - 1) : ((row.likes as number) || 0) + 1;
+export async function getOrCreateConversation(user1Id: string, user2Id: string): Promise<string> {
+  guard();
+  const { data, error } = await supabase.rpc('get_or_create_conversation', {
+    user1_id: user1Id,
+    user2_id: user2Id,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
 
-  await supabase.from('forum_posts').update({ liked_by: newLikedBy, likes: newLikes } as Record<string, unknown>).eq('id', postId);
+export async function getUserConversations(userId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('conversation_members')
+    .select('conversation_id, conversations(*, messages(content, created_at, sender_id))')
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function getConversationMessages(conversationId: string, limit = 50): Promise<Message[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*, profiles(full_name, avatar_url)')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data || []) as (Message & { profiles?: Profile })[];
+}
+
+export async function sendMessage(message: Omit<Message, 'id' | 'created_at' | 'updated_at'>) {
+  guard();
+  const { data, error } = await supabase.from('messages').insert(message).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function markMessagesAsRead(conversationId: string, userId: string) {
+  guard();
+  await supabase.rpc('mark_conversation_messages_as_read', {
+    p_conversation_id: conversationId,
+    p_user_id: userId,
+  });
 }
 
 /* ========== NOTIFICATIONS ========== */
-export async function getUserNotifications(userId: string, limit = 50) {
+
+export async function getUserNotifications(userId: string, limit = 50): Promise<Notification[]> {
   guard();
-  const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (error) throw new Error(error.message);
-  return (data || []) as Record<string, unknown>[];
+  return data || [];
 }
 
 export async function markNotificationRead(notificationId: string) {
   guard();
-  const { error } = await supabase.from('notifications').update({ read: true } as Record<string, unknown>).eq('id', notificationId);
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId);
   if (error) throw new Error(error.message);
 }
 
-/* ========== AVAILABILITY (uses barber.workingHours JSONB — schedules table does not exist) ========== */
+/* ========== FORUM ========== */
 
-export async function getBarberAvailability(_barberId: string) {
-  // DEPRECATED: availability_schedules table does not exist.
-  // Use barber.workingHours JSONB field instead.
-  return [] as Record<string, unknown>[];
+export async function getForumCategories(): Promise<ForumCategory[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('forum_categories')
+    .select('*')
+    .order('sort_order');
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
-export async function getBarberExceptions(_barberId: string) {
-  // DEPRECATED: availability_exceptions table does not exist.
-  return [] as Record<string, unknown>[];
+export async function getForumPosts(categorySlug?: string) {
+  guard();
+  let query = supabase
+    .from('forum_posts')
+    .select('*, profiles(full_name, avatar_url, user_role), forum_categories(name, slug)')
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (categorySlug && categorySlug !== 'all') {
+    query = query.eq('forum_categories.slug', categorySlug);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []) as (ForumPost & { profiles?: Profile; forum_categories?: ForumCategory })[];
 }
 
-export async function updateBarberAvailability(
-  _barberId: string,
-  _schedules: Array<{ day_of_week: number; start_time: string; end_time: string; is_active: boolean }>
-) {
-  // DEPRECATED: availability_schedules table does not exist.
-  // Update barber.workingHours via updateBarberProfile instead.
-  throw new Error('Use updateBarberProfile to modify workingHours');
+export async function getPostComments(postId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('forum_comments')
+    .select('*, profiles(full_name, avatar_url)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as (ForumComment & { profiles?: Profile })[];
 }
 
-export async function addBarberException(
-  _barberId: string,
-  _exception: { date: string; type: string; reason: string; start_time?: string; end_time?: string }
-) {
-  // DEPRECATED: availability_exceptions table does not exist.
-  throw new Error('availability_exceptions table does not exist');
+export async function addForumPost(post: Omit<ForumPost, 'id' | 'created_at' | 'updated_at' | 'likes_count' | 'comments_count' | 'views_count'>) {
+  guard();
+  const { data, error } = await supabase.from('forum_posts').insert(post).select().single();
+  if (error) throw new Error(error.message);
+  return data;
 }
 
-export async function deleteBarberException(_exceptionId: string) {
-  // DEPRECATED: availability_exceptions table does not exist.
-  throw new Error('availability_exceptions table does not exist');
+export async function addForumComment(comment: Omit<ForumComment, 'id' | 'created_at' | 'updated_at' | 'likes_count'>) {
+  guard();
+  const { data, error } = await supabase.from('forum_comments').insert(comment).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function toggleForumLike(userId: string, postId?: string, commentId?: string) {
+  guard();
+  if (!postId && !commentId) throw new Error('Must provide postId or commentId');
+
+  // Check if already liked
+  let query = supabase.from('forum_likes').select('id').eq('user_id', userId);
+  if (postId) query = query.eq('post_id', postId);
+  if (commentId) query = query.eq('comment_id', commentId);
+
+  const { data: existing } = await query.maybeSingle();
+
+  if (existing) {
+    // Unlike
+    await supabase.from('forum_likes').delete().eq('id', existing.id);
+    return false;
+  } else {
+    // Like
+    await supabase.from('forum_likes').insert({
+      user_id: userId,
+      post_id: postId || null,
+      comment_id: commentId || null,
+    });
+    return true;
+  }
+}
+
+export async function isPostLikedByUser(userId: string, postId: string): Promise<boolean> {
+  guard();
+  const { data } = await supabase
+    .from('forum_likes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('post_id', postId)
+    .maybeSingle();
+  return !!data;
 }
 
 /* ========== REAL-TIME ========== */
+
 export function subscribeToTable(table: string, callback: (payload: Record<string, unknown>) => void) {
   guard();
   return supabase.channel(`${table}-changes`).on(
@@ -249,11 +490,20 @@ export function subscribeToTable(table: string, callback: (payload: Record<strin
   ).subscribe();
 }
 
-export function subscribeToNotifications(userId: string, callback: (notifications: Record<string, unknown>[]) => void) {
+export function subscribeToNotifications(userId: string, callback: (notifications: Notification[]) => void) {
   guard();
   return supabase.channel('user-notifications').on(
     'postgres_changes' as never,
     { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
     () => { getUserNotifications(userId).then(callback); }
+  ).subscribe();
+}
+
+export function subscribeToMessages(conversationId: string, callback: (messages: Message[]) => void) {
+  guard();
+  return supabase.channel(`conv-${conversationId}`).on(
+    'postgres_changes' as never,
+    { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+    () => { getConversationMessages(conversationId).then(callback); }
   ).subscribe();
 }
