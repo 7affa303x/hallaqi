@@ -12,7 +12,7 @@ interface EditBarberProfileProps {
   userRole: string;
 }
 
-export default function EditBarberProfile({ onBack, userRole }: EditBarberProfileProps) {
+export default function EditBarberProfile({ onBack, userRole: _userRole }: EditBarberProfileProps) {
   const { themeConfig } = useApp();
   const { appUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);

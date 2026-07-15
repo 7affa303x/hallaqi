@@ -7,7 +7,8 @@ import {
   Wallet, Banknote, Calendar, X, AlertTriangle
 } from 'lucide-react';
 import { createBooking, getProfessionalBookings } from '@/supabase/database';
-import type { Service } from '@/types';
+import type { Service, BookingStatus, PaymentStatus } from '@/types';
+import type { Database } from '@/types/supabase';
 
 const ALL_TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -37,7 +38,7 @@ function generateTimeSlotsForRange(start: string, end: string): string[] {
 function isSlotOverlapping(
   slotTime: string,
   durationMinutes: number,
-  existingBookings: Array<{ booking_start_time: string | null; booking_end_time: string | null; status: string | null }>,
+  existingBookings: Array<{ booking_start_time: string | null; booking_end_time: string | null; status: BookingStatus | null }>,
   selectedDate: string
 ): boolean {
   const slotStart = new Date(`${selectedDate}T${slotTime}`);
@@ -89,7 +90,7 @@ export default function BookingFlowPage() {
   const [existingBookings, setExistingBookings] = useState<Array<{
     booking_start_time: string | null;
     booking_end_time: string | null;
-    status: string | null;
+    status: BookingStatus | null;
   }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -109,7 +110,7 @@ export default function BookingFlowPage() {
       setIsLoadingSlots(true);
       try {
         const bookings = await getProfessionalBookings(barber.id);
-        if (!cancelled) setExistingBookings(bookings || []);
+        if (!cancelled) setExistingBookings(bookings.map(b => ({ ...b, status: b.status as unknown as BookingStatus })) || []);
       } catch (err) {
         console.error('Failed to fetch existing bookings:', err);
         if (!cancelled) setExistingBookings([]);
@@ -224,13 +225,13 @@ export default function BookingFlowPage() {
         service_id: selectedServicesData[0]?.id || null,
         booking_start_time: bookingStartTime,
         booking_end_time: bookingEndTime,
-        status: 'pending' as const,
+        status: 'pending' as BookingStatus,
         total_price: totalPrice,
         notes: note || null,
-        payment_status: 'pending' as const,
+        payment_status: 'pending' as PaymentStatus,
       };
 
-      const saved = await createBooking(bookingRow);
+      const saved = await createBooking({ ...bookingRow, status: bookingRow.status as unknown as Database["public"]["Enums"]["booking_status"] });
 
       if (saved) {
         // Add to local state for immediate UI update
@@ -242,14 +243,14 @@ export default function BookingFlowPage() {
           services: selectedServicesData,
           date: selectedDate,
           time: selectedTime,
-          status: 'pending' as const,
+          status: 'pending' as BookingStatus,
           totalPrice: totalPrice,
           note: note || undefined,
           createdAt: new Date().toISOString(),
           location: barber.location,
           isMobileService: isMobileService,
           paymentMethod: paymentMethod,
-          paymentStatus: 'pending' as const,
+          paymentStatus: 'pending' as PaymentStatus,
           reviewed: false,
           address: isMobileService ? address : undefined,
         };

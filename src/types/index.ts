@@ -1,3 +1,5 @@
+
+
 // ====== BARBER TYPES ======
 export interface Barber {
   id: string;

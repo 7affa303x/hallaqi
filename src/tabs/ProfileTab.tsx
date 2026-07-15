@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import { settingsSections, subscriptionPlans } from '@/data/mockData';
-import type { ThemeName, AnimationStyle, LinkedAccount } from '@/types';
+import type { ThemeName, AnimationStyle, LinkedAccount, User } from '@/types';
 import { themes, animationStyles } from '@/data/themes';
 import {
-  User, Shield, BadgeCheck, Crown, Settings, ChevronLeft,
+  User as UserIcon, Shield, BadgeCheck, Crown, Settings, ChevronLeft,
   Star, Calendar, MapPin, Link as LinkIcon, LogOut,
   Bell, Eye, Palette, Globe, Type, Mail,
   MessageSquare, Trophy, UserPlus, Lock,
@@ -33,8 +33,8 @@ interface UserBadge {
   color: string;
 }
 
-const iconMap: Record<string, typeof User> = {
-  User, Shield, BadgeCheck, Settings, Star, Calendar, MapPin, LinkIcon,
+const iconMap: Record<string, any> = {
+  Shield, BadgeCheck, Settings, Star, Calendar, MapPin, LinkIcon,
   LogOut, Bell, Eye, Palette, Globe, Type, Mail, MessageSquare, Trophy,
   UserPlus, Lock, Smartphone, CreditCard, Wallet, HelpCircle, Phone,
   Bug, Lightbulb, Info, FileText, FileCode, Trash2, Download, AlertTriangle,
@@ -60,7 +60,7 @@ export default function ProfileTab() {
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ backgroundColor: themeConfig.colors.background }}>
         <div className="text-center max-w-xs">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: themeConfig.colors.primary + '15' }}>
-            <User size={36} style={{ color: themeConfig.colors.primary }} />
+            <UserIcon size={36} style={{ color: themeConfig.colors.primary }} />
           </div>
           <h2 className="text-lg font-bold mb-2" style={{ color: themeConfig.colors.text }}>سجل الدخول إلى حسابك</h2>
           <p className="text-sm mb-6 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>سجل الدخول للوصول لحجوزاتك، المحادثات، والمزيد من الميزات</p>
@@ -378,7 +378,7 @@ function PaymentMethods({ onBack }: { onBack: () => void }) {
 
 function IDVerification({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
-  const { appUser } = useAuth();
+  const { appUser: _appUser } = useAuth();
   const isIdVerified = false; // Not in profiles table
 
   return (
@@ -421,7 +421,7 @@ function LinkedAccounts({ onBack }: { onBack: () => void }) {
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الحسابات المرتبطة</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
-        {providers.map(provider => { const account = currentUser?.linkedAccounts?.find((a: LinkedAccount) => a.provider === provider.key); return (
+        {providers.map(provider => { const account = (currentUser as User)?.linkedAccounts?.find((a: LinkedAccount) => a.provider === provider.key); return (
           <div key={provider.key} className="flex items-center gap-3 p-3 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: provider.color + '15' }}><LinkIcon size={20} style={{ color: provider.color }} /></div>
             <div className="flex-1"><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{provider.name}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{account?.connected ? account.username || 'متصل' : 'غير متصل'}</p></div>

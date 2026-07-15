@@ -6,7 +6,8 @@ import { getProfessionals, getClientBookings, getForumPosts, getUserNotification
 import { AppContext } from './context';
 import { themes } from '@/data/themes';
 import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotifications } from '@/data/mockData';
-import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User, Service } from '@/types';
+import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User } from '@/types';
+import type { Database } from '@/types/supabase';
 import type { Profile } from '@/types/supabase';
 
 const convertProfileToUser = (profile: Profile): User => ({
@@ -289,7 +290,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
     if (!isDeveloperMode && isSupabaseConfigured()) {
       try {
-        await updateBookingStatus(id, 'cancelled');
+        await updateBookingStatus(id, 'cancelled' as unknown as Database["public"]["Enums"]["booking_status"]);
       } catch (err) {
         console.error('[AppContext] Failed to cancel booking:', err);
       }

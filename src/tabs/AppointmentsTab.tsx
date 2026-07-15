@@ -13,10 +13,11 @@ import {
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
   pending: { label: 'قيد الانتظار', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
+  in_progress: { label: 'قيد التنفيذ', color: '#8B5CF6', bg: '#EDE9FE', icon: Clock },
   confirmed: { label: 'مؤكد', color: '#3B82F6', bg: '#DBEAFE', icon: CheckCircle2 },
   completed: { label: 'مكتمل', color: '#22C55E', bg: '#DCFCE7', icon: CheckCircle2 },
   cancelled: { label: 'ملغي', color: '#EF4444', bg: '#FEE2E2', icon: XCircle },
-  'no-show': { label: 'لم يحضر', color: '#78716C', bg: '#F5F5F4', icon: AlertCircle },
+  'no_show': { label: 'لم يحضر', color: '#78716C', bg: '#F5F5F4', icon: AlertCircle },
 };
 
 const tabs = [

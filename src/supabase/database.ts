@@ -1,10 +1,13 @@
 import { supabase, isSupabaseConfigured } from './client';
+import type { Database } from '../types/supabase';
+
 import type {
   Profile, Professional, Service, Booking, Review, Favorite,
   AvailabilitySchedule, AvailabilityException, PortfolioItem,
-  Conversation, Message, Notification,
-  ForumPost, ForumComment, ForumLike, ForumCategory
+  Message, Notification,
+  ForumPost, ForumComment, ForumCategory
 } from '@/types/supabase';
+import type { BookingStatus } from '@/types'; // Import app-level BookingStatus
 
 function guard(): void {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
@@ -113,7 +116,7 @@ export async function deleteService(serviceId: string) {
 
 /* ========== BOOKINGS ========== */
 
-export async function getClientBookings(clientId: string, statusFilter?: string[]) {
+export async function getClientBookings(clientId: string, statusFilter?: (Database["public"]["Enums"]["booking_status"])[] | null) {
   guard();
   let query = supabase
     .from('bookings')
@@ -126,7 +129,7 @@ export async function getClientBookings(clientId: string, statusFilter?: string[
   return (data || []) as (Booking & { professionals?: Professional & { profiles?: Profile }; services?: Service })[];
 }
 
-export async function getProfessionalBookings(proId: string, statusFilter?: string[]) {
+export async function getProfessionalBookings(proId: string, statusFilter?: (Database["public"]["Enums"]["booking_status"])[] | null) {
   guard();
   let query = supabase
     .from('bookings')
@@ -136,7 +139,7 @@ export async function getProfessionalBookings(proId: string, statusFilter?: stri
   if (statusFilter?.length) query = query.in('status', statusFilter);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || []) as (Booking & { profiles?: Profile; services?: Service })[];
+  return (data || []) as (Booking & { profiles?: Profile; services?: Service; status: BookingStatus })[];
 }
 
 export async function createBooking(booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) {
@@ -146,7 +149,7 @@ export async function createBooking(booking: Omit<Booking, 'id' | 'created_at' |
   return data;
 }
 
-export async function updateBookingStatus(bookingId: string, status: string) {
+export async function updateBookingStatus(bookingId: string, status: Database["public"]["Enums"]["booking_status"]) {
   guard();
   const { error } = await supabase
     .from('bookings')

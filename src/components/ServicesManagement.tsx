@@ -3,6 +3,7 @@ import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfessionalServices, createService, updateService, deleteService } from '@/supabase/database';
 import type { Service as AppService } from '@/types';
+import type { Database } from '@/types/supabase';
 import { ArrowLeft, Plus, Trash2, Save, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 const SERVICE_CATEGORIES: AppService['category'][] = ['haircut', 'beard', 'shave', 'hair_treatment', 'facial', 'coloring', 'styling', 'package'];
@@ -31,7 +32,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
           description: s.description || '',
           price: Number(s.price),
           duration: s.duration_minutes,
-          category: (s.category as AppService['category']) || 'haircut',
+          category: (s.category as unknown as AppService["category"]) || "haircut",
         })));
       })
       .catch(() => setError('فشل تحميل الخدمات'))
@@ -72,25 +73,27 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
           await createService({
             professional_id: proId,
             name: svc.name.trim(),
-            description: svc.description.trim() || null,
+            description: (svc.description || "").trim() || null,
             price: svc.price,
             duration_minutes: svc.duration,
-            category: svc.category,
+            category: svc.category as unknown as Database["public"]["Enums"]["service_category"],
+            is_active: true,
           });
         } else {
           await updateService(svc.id, {
             name: svc.name.trim(),
-            description: svc.description.trim() || null,
+            description: (svc.description || "").trim() || null,
             price: svc.price,
             duration_minutes: svc.duration,
-            category: svc.category,
+            category: svc.category as unknown as Database["public"]["Enums"]["service_category"],
+            is_active: true,
           });
         }
       }
       // Refresh to get server-generated IDs for new services
       const refreshed = await getProfessionalServices(proId);
       setServices(refreshed.map(s => ({
-        id: s.id, name: s.name, description: s.description || '', price: Number(s.price), duration: s.duration_minutes, category: (s.category as AppService['category']) || 'haircut',
+        id: s.id, name: s.name, description: s.description || '', price: Number(s.price), duration: s.duration_minutes, category: (s.category as unknown as AppService["category"]) || "haircut",
       })));
       setSuccess(true);
     } catch (err) {
