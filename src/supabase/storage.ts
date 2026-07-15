@@ -1,77 +1,105 @@
-import { supabase, STORAGE, isSupabaseConfigured } from './client';
-
-export type UploadProgressCallback = (progress: number) => void;
+import { supabase, isSupabaseConfigured } from './client';
 
 function guard(): void {
-  if (!isSupabaseConfigured()) throw new Error('التخزين غير متوفر في وضع العرض التجريبي');
+  if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 }
 
-export async function uploadFile(bucket: string, path: string, file: File, onProgress?: UploadProgressCallback): Promise<string> {
+/**
+ * Upload a file to a Supabase Storage bucket
+ */
+export async function uploadFile(
+  bucket: string,
+  path: string,
+  file: File
+): Promise<string | null> {
   guard();
-  
-  // Supabase JS SDK doesn't support onUploadProgress in upload options.
-  // For now, we simulate progress with a simple approach.
-  // In production, consider using the REST API directly for progress tracking.
-  if (onProgress) {
-    onProgress(0);
-  }
-  
   const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: '3600',
     upsert: true,
-  } as any);
-  
-  if (error) throw new Error('فشل رفع الملف. حاول مرة أخرى.');
-  
-  if (onProgress) {
-    onProgress(100);
+  });
+  if (error) {
+    console.error('Upload error:', error);
+    return null;
   }
-  
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
-  return urlData.publicUrl;
+  return data?.path || null;
 }
 
-export async function uploadAvatar(userId: string, file: File, onProgress?: UploadProgressCallback): Promise<string> {
-  const ext = file.name.split('.').pop() || 'jpg';
-  return uploadFile(STORAGE.AVATARS, `${userId}/avatar.${ext}`, file, onProgress);
-}
-
-export async function uploadPortfolioImage(barberId: string, file: File, index: number, onProgress?: UploadProgressCallback): Promise<string> {
-  const ext = file.name.split('.').pop() || 'jpg';
-  return uploadFile(STORAGE.PORTFOLIO, `${barberId}/image_${index}.${ext}`, file, onProgress);
-}
-
-export async function uploadIdCard(userId: string, file: File, side: 'front' | 'back' | 'selfie'): Promise<string> {
-  return uploadFile(STORAGE.ID_CARDS, `${userId}/${side}.jpg`, file);
-}
-
-export async function deleteFile(bucket: string, path: string): Promise<void> {
-  guard();
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  if (error) throw new Error(error.message);
-}
-
-export function getFileUrl(bucket: string, path: string): string {
+/**
+ * Get a public URL for a file in a bucket
+ */
+export function getPublicUrl(bucket: string, path: string): string {
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
-export function validateFile(file: File, options: { maxSizeMB?: number; allowedTypes?: string[] } = {}): { valid: boolean; error?: string } {
-  const { maxSizeMB = 5, allowedTypes = ['image/jpeg', 'image/png', 'image/webp'] } = options;
-  if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'نوع الملف غير مدعوم. استخدم JPG, PNG, أو WebP.' };
+/**
+ * Delete a file from a bucket
+ */
+export async function deleteFile(bucket: string, path: string): Promise<boolean> {
+  guard();
+  const { error } = await supabase.storage.from(bucket).remove([path]);
+  if (error) {
+    console.error('Delete error:', error);
+    return false;
   }
-  if (file.size > maxSizeMB * 1024 * 1024) {
-    return { valid: false, error: `حجم الملف يتجاوز ${maxSizeMB}MB.` };
-  }
-  return { valid: true };
+  return true;
 }
 
-export const UPLOAD_LIMITS = {
-  AVATAR_MAX_SIZE: 2,
-  ID_CARD_MAX_SIZE: 5,
-  PORTFOLIO_MAX_SIZE: 5,
-  REVIEW_IMAGE_MAX_SIZE: 3,
-  PORTFOLIO_MAX_COUNT: 20,
-  REVIEW_MAX_IMAGES: 5,
-} as const;
+/**
+ * Upload avatar image
+ */
+export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
+  const path = `${userId}/${Date.now()}.${file.name.split('.').pop()}`;
+  const uploadedPath = await uploadFile('avatars', path, file);
+  if (!uploadedPath) return null;
+  return getPublicUrl('avatars', uploadedPath);
+}
+
+/**
+ * Upload cover image
+ */
+export async function uploadCover(userId: string, file: File): Promise<string | null> {
+  const path = `${userId}/${Date.now()}.${file.name.split('.').pop()}`;
+  const uploadedPath = await uploadFile('covers', path, file);
+  if (!uploadedPath) return null;
+  return getPublicUrl('covers', uploadedPath);
+}
+
+/**
+ * Upload portfolio item
+ */
+export async function uploadPortfolioItem(
+  professionalId: string,
+  file: File
+): Promise<string | null> {
+  const path = `${professionalId}/${Date.now()}.${file.name.split('.').pop()}`;
+  const uploadedPath = await uploadFile('portfolio', path, file);
+  if (!uploadedPath) return null;
+  return getPublicUrl('portfolio', uploadedPath);
+}
+
+/**
+ * Upload review image
+ */
+export async function uploadReviewImage(
+  reviewId: string,
+  file: File
+): Promise<string | null> {
+  const path = `${reviewId}/${Date.now()}.${file.name.split('.').pop()}`;
+  const uploadedPath = await uploadFile('reviews', path, file);
+  if (!uploadedPath) return null;
+  return getPublicUrl('reviews', uploadedPath);
+}
+
+/**
+ * List files in a folder
+ */
+export async function listFiles(bucket: string, folder: string) {
+  guard();
+  const { data, error } = await supabase.storage.from(bucket).list(folder);
+  if (error) {
+    console.error('List error:', error);
+    return [];
+  }
+  return data || [];
+}
