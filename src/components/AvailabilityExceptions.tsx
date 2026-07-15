@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '@/contexts/useApp';
-import { CalendarOff, Plus, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { CalendarOff, Plus, AlertCircle, Info } from 'lucide-react';
 
 interface ExceptionItem {
   id: string;
@@ -9,22 +9,17 @@ interface ExceptionItem {
   reason: string;
 }
 
-interface AvailabilityExceptionsProps {
-  barberId: string;
-}
-
 const EXCEPTION_TYPES = [
   { key: 'holiday', label: 'عطلة رسمية' },
   { key: 'vacation', label: 'إجازة شخصية' },
   { key: 'closed', label: 'مغلق' },
 ];
 
-export default function AvailabilityExceptions({ barberId }: AvailabilityExceptionsProps) {
+export default function AvailabilityExceptions() {
   const { themeConfig } = useApp();
   const [exceptions] = useState<ExceptionItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Form state
   const [newDate, setNewDate] = useState('');
@@ -222,12 +217,6 @@ export default function AvailabilityExceptions({ barberId }: AvailabilityExcepti
         <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: themeConfig.colors.error + '10' }}>
           <AlertCircle size={14} style={{ color: themeConfig.colors.error }} />
           <span className="text-[10px]" style={{ color: themeConfig.colors.error }}>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: themeConfig.colors.success + '10' }}>
-          <CheckCircle size={14} style={{ color: themeConfig.colors.success }} />
-          <span className="text-[10px]" style={{ color: themeConfig.colors.success }}>{success}</span>
         </div>
       )}
     </div>
