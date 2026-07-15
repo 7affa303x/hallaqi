@@ -164,7 +164,7 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!appUser?.id) { setError('بيانات غير كاملة'); return; }
+    if (!appUser?.id) { setError('حدث خطأ في تحميل بيانات الحساب. يرجى تسجيل الخروج وإعادة الدخول.'); return; }
     if (!formData.full_name.trim()) { setError('الاسم مطلوب'); return; }
 
     setIsLoading(true); setError(null); setSuccess(false);

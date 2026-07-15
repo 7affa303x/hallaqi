@@ -8,7 +8,12 @@ export const isSupabaseConfigured = (): boolean => {
   return supabaseUrl.length > 10 && supabaseKey.length > 10 && supabaseUrl.startsWith('http');
 };
 
-export const isDeveloperMode = !isSupabaseConfigured();
+export const isDeveloperMode = localStorage.getItem("hallaqi_dev_mode") === "true";
+export function toggleDeveloperMode() {
+  const current = localStorage.getItem("hallaqi_dev_mode") === "true";
+  localStorage.setItem("hallaqi_dev_mode", (!current).toString());
+  window.location.reload();
+}
 
 export const supabase = isSupabaseConfigured()
   ? createClient<Database>(supabaseUrl, supabaseKey, {

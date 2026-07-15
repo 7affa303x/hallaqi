@@ -72,14 +72,38 @@ export function useAuth() {
       if (session?.user) {
         fetchUserProfile(session.user.id).then(profile => {
           if (!mounted) return;
-          setState({
-            user: session.user,
-            appUser: profile,
-            isLoading: false,
-            isAuthenticated: true,
-            error: null,
-            session,
-          });
+          if (profile) {
+            setState({
+              user: session.user,
+              appUser: profile,
+              isLoading: false,
+              isAuthenticated: true,
+              error: null,
+              session,
+            });
+          } else {
+            // Profile doesn't exist - create it
+            const newProfile = {
+              id: session.user.id,
+              full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'مستخدم',
+              user_role: 'client' as const,
+              user_status: 'active' as const,
+              verification_status: 'unverified' as const,
+            };
+            supabase.from('profiles').insert(newProfile).select().single().then(({ data }) => {
+              if (!mounted) return;
+              setState({
+                user: session.user,
+                appUser: data || newProfile as any,
+                isLoading: false,
+                isAuthenticated: true,
+                error: null,
+                session,
+              });
+            }).catch(() => {
+              if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: session.user, session }));
+            });
+          }
         }).catch(() => {
           if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
         });
@@ -95,14 +119,38 @@ export function useAuth() {
       if (session?.user) {
         fetchUserProfile(session.user.id).then(profile => {
           if (!mounted) return;
-          setState({
-            user: session.user,
-            appUser: profile,
-            isLoading: false,
-            isAuthenticated: true,
-            error: null,
-            session,
-          });
+          if (profile) {
+            setState({
+              user: session.user,
+              appUser: profile,
+              isLoading: false,
+              isAuthenticated: true,
+              error: null,
+              session,
+            });
+          } else {
+            // Profile doesn't exist - create it
+            const newProfile = {
+              id: session.user.id,
+              full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'مستخدم',
+              user_role: 'client' as const,
+              user_status: 'active' as const,
+              verification_status: 'unverified' as const,
+            };
+            supabase.from('profiles').insert(newProfile).select().single().then(({ data }) => {
+              if (!mounted) return;
+              setState({
+                user: session.user,
+                appUser: data || newProfile as any,
+                isLoading: false,
+                isAuthenticated: true,
+                error: null,
+                session,
+              });
+            }).catch(() => {
+              if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: session.user, session }));
+            });
+          }
         }).catch(() => {
           if (mounted) setState({
             user: null, appUser: null, isLoading: false,

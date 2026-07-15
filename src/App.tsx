@@ -162,11 +162,19 @@ function AppContent() {
     <div className={`min-h-screen anim-${animationStyle}`} style={{ ...cssVars, backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text, fontFamily: themeConfig.fontFamily, transition: 'background-color 0.5s ease, color 0.5s ease' }}>
       <NetworkStatusBar />
       <main className={`max-w-lg mx-auto min-h-screen ${showNav ? 'pb-16' : ''}`}>
-        {isDeveloperMode && (
-          <div className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 py-1.5 px-4 bg-purple-500">
-            <span className="text-xs font-bold text-white">وضع المطور (Developer Mode)</span>
-          </div>
-        )}
+        {/* Developer Mode Toggle Button */}
+<button
+  onClick={() => { import('@/supabase/client').then(m => m.toggleDeveloperMode()); }}
+  className={`fixed bottom-20 left-2 z-[100] w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-lg transition-all ${isDeveloperMode ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-500 opacity-50'}`}
+  title="وضع المطور"
+>
+  {'</>'}
+</button>
+{isDeveloperMode && (
+  <div className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 py-1.5 px-4 bg-purple-500">
+    <span className="text-xs font-bold text-white">وضع المطور (Developer Mode)</span>
+  </div>
+)}
         <ScreenRouter />
       </main>
       {showNav && <BottomNav />}
