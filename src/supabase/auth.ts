@@ -28,13 +28,16 @@ export async function signUp(email: string, password: string, fullName: string) 
   });
   if (error) throw new Error(getAuthErrorMessage(error));
 
-  // Profile auto-created by handle_new_user trigger
-  // But we update with additional data if needed
+  // The profile row is created by the handle_new_user trigger using the
+  // full_name we pass in user_metadata above. Syncing it again here is
+  // best-effort only and MUST NOT be awaited: awaiting a PostgREST request
+  // immediately after an auth call deadlocks on the browser auth lock and
+  // leaves the sign-up UI hanging. Fire-and-forget instead.
   if (data.user) {
-    await supabase.from('profiles').update({
+    void supabase.from('profiles').update({
       full_name: fullName,
       updated_at: new Date().toISOString(),
-    }).eq('id', data.user.id);
+    }).eq('id', data.user.id).then(() => {}, () => {});
   }
   return data;
 }
@@ -46,10 +49,12 @@ export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(getAuthErrorMessage(error));
 
+  // Best-effort "last active" bump — fire-and-forget for the same auth-lock
+  // reason described in signUp(); never block the sign-in flow on it.
   if (data.user) {
-    await supabase.from('profiles').update({
+    void supabase.from('profiles').update({
       updated_at: new Date().toISOString(),
-    }).eq('id', data.user.id);
+    }).eq('id', data.user.id).then(() => {}, () => {});
   }
   return data;
 }
