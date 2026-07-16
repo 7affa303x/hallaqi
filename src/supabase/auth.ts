@@ -2,17 +2,23 @@ import { supabase, isSupabaseConfigured } from './client';
 import type { Profile } from '@/types/supabase';
 
 function getAuthErrorMessage(err: { message?: string; code?: string; status?: number }): string {
-  const msg = err.message || '';
+  const msg = (err.message || '').toLowerCase();
   const code = err.code || '';
 
-  if (code === 'invalid_credentials' || msg.includes('Invalid login')) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+  // Check specific error codes/messages before the broad "email" match below,
+  // otherwise messages that merely contain the word "email" (e.g. the
+  // "email rate limit exceeded" throttling error) get mislabelled.
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || msg.includes('rate limit')) {
+    return 'طلبات كثيرة. حاول لاحقاً';
+  }
+  if (code === 'invalid_credentials' || msg.includes('invalid login')) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
   if (code === 'user_not_found' || msg.includes('user not found')) return 'لا يوجد حساب بهذا البريد';
-  if (code === 'email_exists' || msg.includes('already registered')) return 'هذا البريد مسجل بالفعل';
+  if (code === 'email_exists' || msg.includes('already registered') || msg.includes('already been registered')) return 'هذا البريد مسجل بالفعل';
+  if (code === 'email_not_confirmed' || msg.includes('not confirmed')) return 'يرجى تأكيد بريدك الإلكتروني أولاً';
   if (code === 'weak_password' || msg.includes('password')) return 'كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل';
-  if (code === 'invalid_email' || msg.includes('email')) return 'البريد الإلكتروني غير صالح';
+  if (code === 'invalid_email' || msg.includes('invalid email') || msg.includes('unable to validate email')) return 'البريد الإلكتروني غير صالح';
   if (code === 'session_expired' || msg.includes('expired')) return 'انتهت الجلسة. سجل الدخول مرة أخرى';
-  if (err.status === 0 || msg.includes('network')) return 'فشل الاتصال بالشبكة. تحقق من اتصالك';
-  if (code === 'over_email_send_rate_limit') return 'طلبات كثيرة. حاول لاحقاً';
+  if (err.status === 0 || msg.includes('network') || msg.includes('failed to fetch')) return 'فشل الاتصال بالشبكة. تحقق من اتصالك';
 
   return 'حدث خطأ. حاول مرة أخرى';
 }
