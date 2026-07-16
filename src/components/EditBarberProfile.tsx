@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { updateProfile, updateProfessionalProfile, addPortfolioItem, deletePortfolioItem, updatePortfolioItem, getPortfolioItems } from '@/supabase/database';
-import { uploadPortfolioItemWithMeta, deletePortfolioFile } from '@/supabase/storage';
+import { uploadAvatar, uploadPortfolioItemWithMeta, deletePortfolioFile } from '@/supabase/storage';
 import { ArrowLeft, Save, AlertCircle, CheckCircle, Plus, Trash2, Upload, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -172,7 +172,6 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       await updateProfile(appUser.id, {
         full_name: data.full_name.trim(),
         phone_number: data.phone_number?.trim() || null,
-        updated_at: new Date().toISOString(),
       });
 
       if (isBarber) {
@@ -187,7 +186,6 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       }
 
       if (avatarFile && appUser.id) {
-        const { uploadAvatar } = await import('@/supabase/storage');
         const avatarUrl = await uploadAvatar(appUser.id, avatarFile);
         if (avatarUrl) await updateProfile(appUser.id, { avatar_url: avatarUrl });
       }

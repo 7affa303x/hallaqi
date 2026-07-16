@@ -8,12 +8,12 @@ import { isDeveloperMode } from '@/supabase/client';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import BottomNav from '@/components/BottomNav';
 import BookingTab from '@/tabs/BookingTab';
-import AppointmentsTab from '@/tabs/AppointmentsTab';
-import CameraTab from '@/tabs/CameraTab';
-import ForumTab from '@/tabs/ForumTab';
-import ProfileTab from '@/tabs/ProfileTab';
 import './App.css';
 
+const AppointmentsTab = lazy(() => import('@/tabs/AppointmentsTab'));
+const CameraTab = lazy(() => import('@/tabs/CameraTab'));
+const ForumTab = lazy(() => import('@/tabs/ForumTab'));
+const ProfileTab = lazy(() => import('@/tabs/ProfileTab'));
 const BarberDetailPage = lazy(() => import('@/pages/BarberDetailPage'));
 const BookingFlowPage = lazy(() => import('@/pages/BookingFlowPage'));
 const ChatRoomPage = lazy(() => import('@/pages/ChatRoomPage'));
@@ -29,14 +29,16 @@ const PaymentSuccessPage = lazy(() => import("@/pages/PaymentSuccessPage"));
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 
 function TabContent({ tab }: { tab: string }) {
+  let content;
   switch (tab) {
-    case 'booking': return <BookingTab />;
-    case 'appointments': return <AppointmentsTab />;
-    case 'camera': return <CameraTab />;
-    case 'forum': return <ForumTab />;
-    case 'profile': return <ProfileTab />;
-    default: return <BookingTab />;
+    case 'booking': content = <BookingTab />; break;
+    case 'appointments': content = <AppointmentsTab />; break;
+    case 'camera': content = <CameraTab />; break;
+    case 'forum': content = <ForumTab />; break;
+    case 'profile': content = <ProfileTab />; break;
+    default: content = <BookingTab />;
   }
+  return <Suspense fallback={<LoadingFallback />}>{content}</Suspense>;
 }
 
 function ScreenRouter() {

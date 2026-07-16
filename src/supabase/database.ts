@@ -163,7 +163,7 @@ export async function getClientBookings(clientId: string, statusFilter?: (Databa
   if (statusFilter?.length) query = query.in('status', statusFilter);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || []) as (Booking & { professionals?: Professional & { profiles?: Profile }; services?: Service })[];
+  return data || [];
 }
 
 export async function getProfessionalBookings(proId: string, statusFilter?: (Database["public"]["Enums"]["booking_status"])[] | null) {
@@ -179,7 +179,7 @@ export async function getProfessionalBookings(proId: string, statusFilter?: (Dat
   return (data || []) as (Booking & { profiles?: Profile; services?: Service; status: BookingStatus })[];
 }
 
-export async function createBooking(booking: Omit<Booking, 'id' | 'created_at' | 'updated_at'>) {
+export async function createBooking(booking: Database['public']['Tables']['bookings']['Insert']) {
   guard();
   const { data, error } = await supabase.from('bookings').insert(booking).select().single();
   if (error) {

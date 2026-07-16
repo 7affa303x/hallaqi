@@ -1201,3 +1201,24 @@ export const Constants = {
     },
   },
 } as const
+
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+export type Professional = Database["public"]["Tables"]["professionals"]["Row"]
+export type Service = Database["public"]["Tables"]["services"]["Row"]
+export type Booking = Database["public"]["Tables"]["bookings"]["Row"]
+export type Review = Database["public"]["Tables"]["reviews"]["Row"]
+export type Favorite = Database["public"]["Tables"]["favorites"]["Row"]
+export type AvailabilitySchedule = Database["public"]["Tables"]["availability_schedules"]["Row"]
+export type AvailabilityException = Database["public"]["Tables"]["availability_exceptions"]["Row"]
+export type PortfolioItem = Database["public"]["Tables"]["portfolio_items"]["Row"]
+export type Conversation = Database["public"]["Tables"]["conversations"]["Row"]
+export type ConversationMember = Database["public"]["Tables"]["conversation_members"]["Row"]
+export type Message = Database["public"]["Tables"]["messages"]["Row"]
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"]
+export type ForumPost = Database["public"]["Tables"]["forum_posts"]["Row"]
+export type ForumComment = Database["public"]["Tables"]["forum_comments"]["Row"]
+export type ForumCategory = Database["public"]["Tables"]["forum_categories"]["Row"]
+export type ForumLike = Database["public"]["Tables"]["forum_likes"]["Row"]
+export type ForumReport = Database["public"]["Tables"]["forum_reports"]["Row"]
+export type Payment = Database["public"]["Tables"]["payments"]["Row"]
+export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"]
