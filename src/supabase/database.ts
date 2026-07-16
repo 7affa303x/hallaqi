@@ -6,7 +6,7 @@ import type {
   AvailabilitySchedule, AvailabilityException, PortfolioItem,
   Message, Notification,
   ForumPost, ForumComment, ForumCategory
-} from '@/types/supabase';
+} from '@/types/supabase-aliases';
 import type { Json } from '@/types/supabase';
 import type { BookingStatus } from '@/types';
 import type { AppSettings } from '@/types';
@@ -41,6 +41,53 @@ export async function updateProfile(userId: string, updates: Partial<EditablePro
     .single();
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function exportUserData(userId: string) {
+  guard();
+  const [
+    profile,
+    bookings,
+    reviews,
+    favorites,
+    notifications,
+    settings,
+    forumPosts,
+    forumComments,
+  ] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+    supabase.from('bookings').select('*').eq('client_id', userId),
+    supabase.from('reviews').select('*').eq('reviewer_id', userId),
+    supabase.from('favorites').select('*').eq('user_id', userId),
+    supabase.from('notifications').select('*').eq('user_id', userId),
+    supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
+    supabase.from('forum_posts').select('*').eq('author_id', userId),
+    supabase.from('forum_comments').select('*').eq('author_id', userId),
+  ]);
+  const error = [profile, bookings, reviews, favorites, notifications, settings, forumPosts, forumComments]
+    .find(result => result.error)?.error;
+  if (error) throw new Error(error.message);
+  return {
+    exported_at: new Date().toISOString(),
+    profile: profile.data,
+    bookings: bookings.data || [],
+    reviews: reviews.data || [],
+    favorites: favorites.data || [],
+    notifications: notifications.data || [],
+    settings: settings.data,
+    forum_posts: forumPosts.data || [],
+    forum_comments: forumComments.data || [],
+  };
+}
+
+export async function deleteCurrentAccount() {
+  guard();
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    method: 'POST',
+  });
+  if (error || data?.success !== true) {
+    throw new Error(error?.message || 'تعذر حذف الحساب');
+  }
 }
 
 /* ========== PROFESSIONALS ========== */
@@ -592,6 +639,79 @@ export async function upsertUserSettings(userId: string, settings: AppSettings) 
   if (error) throw new Error(error.message);
 }
 
+export async function createIdVerificationRequest(userId: string, documentPath: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('id_verification_requests')
+    .insert({ user_id: userId, document_path: documentPath, status: 'pending' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getLatestIdVerificationRequest(userId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('id_verification_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function reportProfessional(params: {
+  reporterId: string;
+  professionalId: string;
+  reason: string;
+}) {
+  guard();
+  const { error } = await supabase.from('professional_reports').insert({
+    reporter_id: params.reporterId,
+    professional_id: params.professionalId,
+    reason: params.reason,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function getSubscriptionPlans() {
+  guard();
+  const { data, error } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .eq('is_active', true)
+    .order('price_dzd');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function getLatestSubscriptionRequest(userId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('subscription_requests')
+    .select('*, subscription_plans(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function createSubscriptionRequest(userId: string, planId: string) {
+  guard();
+  const { data, error } = await supabase
+    .from('subscription_requests')
+    .insert({ user_id: userId, plan_id: planId, status: 'pending' })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 /* ========== FORUM ========== */
 
 export async function getForumCategories(): Promise<ForumCategory[]> {
@@ -826,4 +946,40 @@ export async function adminListPendingPayments() {
     .limit(50);
   if (error) throw new Error(error.message);
   return data || [];
+}
+
+export async function adminListBookings(limit = 100) {
+  guard();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*, profiles!bookings_client_id_fkey(full_name), professionals(business_name, profiles(full_name)), services(name)')
+    .order('booking_start_time', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function adminListPendingIdVerifications() {
+  guard();
+  const { data, error } = await supabase
+    .from('id_verification_requests')
+    .select('*, profiles(full_name)')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function adminReviewIdVerification(
+  requestId: string,
+  approved: boolean,
+  reason?: string
+) {
+  guard();
+  const { error } = await supabase.rpc('review_id_verification', {
+    request_id: requestId,
+    approve: approved,
+    reason: reason || undefined,
+  });
+  if (error) throw new Error(error.message);
 }

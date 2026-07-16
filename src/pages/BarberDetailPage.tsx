@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -12,8 +13,9 @@ import {
   getProfessionalSchedules,
   getProfessionalExceptions,
   getPortfolioItems,
+  reportProfessional,
 } from '@/supabase/database';
-import type { PortfolioItem } from '@/types/supabase';
+import type { PortfolioItem } from '@/types/supabase-aliases';
 import type { Barber } from '@/types';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
@@ -35,6 +37,7 @@ function viewOnMap(location: string, wilaya: string) {
 
 export default function BarberDetailPage() {
   const { themeConfig, screenParams, navigate, goBack } = useApp();
+  const { appUser } = useAuth();
   const [activeSection, setActiveSection] = useState<'services' | 'reviews' | 'portfolio' | 'hours'>('services');
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [loadingPortfolio, setLoadingPortfolio] = useState(false);
@@ -108,10 +111,24 @@ export default function BarberDetailPage() {
     setLikedImages(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
   };
 
-  const handleReport = () => {
-    if (!reportReason.trim()) return;
-    setReportSent(true);
-    setTimeout(() => { setShowReport(false); setReportSent(false); setReportReason(''); }, 2000);
+  const handleReport = async () => {
+    if (!reportReason.trim() || !barber) return;
+    if (!appUser) {
+      setShowReport(false);
+      navigate('login', { redirectScreen: 'barber-detail', barberId: barber.id });
+      return;
+    }
+    try {
+      await reportProfessional({
+        reporterId: appUser.id,
+        professionalId: barber.id,
+        reason: reportReason.trim(),
+      });
+      setReportSent(true);
+      setTimeout(() => { setShowReport(false); setReportSent(false); setReportReason(''); }, 1500);
+    } catch {
+      setReportSent(false);
+    }
   };
 
   return (

@@ -8,7 +8,7 @@ import { addForumPost, getForumCategories } from '@/supabase/database';
 import { uploadForumImage } from '@/supabase/storage';
 import { forumPostSchema } from '@/lib/validation';
 import type { ForumPostFormData } from '@/lib/validation';
-import type { ForumCategory as DatabaseForumCategory } from '@/types/supabase';
+import type { ForumCategory as DatabaseForumCategory } from '@/types/supabase-aliases';
 
 export default function CreateForumPostPage() {
   const { themeConfig, goBack, refreshData } = useApp();

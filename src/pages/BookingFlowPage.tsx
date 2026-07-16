@@ -30,6 +30,10 @@ const ALL_TIME_SLOTS = [
   '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00',
 ];
 
+const ccpConfigured = Boolean(
+  import.meta.env.VITE_CCP_ACCOUNT_NUMBER && import.meta.env.VITE_CCP_CARD_NUMBER
+);
+
 /** Map JS Date getDay() (0=Sun) to workingHours day key */
 const JS_DAY_TO_KEY: Record<number, string> = {
   0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
@@ -650,9 +654,10 @@ export default function BookingFlowPage() {
           <div>
             <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>طريقة الدفع</p>
             <div className="grid grid-cols-4 gap-2">
-              {[{ key: 'card' as const, label: 'بطاقة', icon: CreditCard }, { key: 'cash' as const, label: 'نقداً', icon: Banknote }, { key: 'ccp' as const, label: 'CCP', icon: CreditCard }, { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet }].map(pm => (
-                <button key={pm.key} type="button" onClick={() => registerStep3('paymentMethod').onChange({ target: { value: pm.key } })}
-                  className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all"
+              {[{ key: 'card' as const, label: 'بطاقة', icon: CreditCard, disabled: false }, { key: 'cash' as const, label: 'نقداً', icon: Banknote, disabled: false }, { key: 'ccp' as const, label: 'CCP', icon: CreditCard, disabled: !ccpConfigured }, { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet, disabled: !ccpConfigured }].map(pm => (
+                <button key={pm.key} type="button" disabled={pm.disabled} onClick={() => registerStep3('paymentMethod').onChange({ target: { value: pm.key } })}
+                  className="flex flex-col items-center gap-1 p-3 rounded-xl border transition-all disabled:opacity-40"
+                  title={pm.disabled ? 'يتطلب إعداد حساب التحصيل التجاري' : undefined}
                   style={{ backgroundColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
                   <pm.icon size={20} style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }} />
                   <span className="text-[10px] font-bold" style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>{pm.label}</span>

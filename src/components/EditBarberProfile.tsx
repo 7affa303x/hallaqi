@@ -7,7 +7,7 @@ import { ArrowLeft, Save, AlertCircle, CheckCircle, Plus, Trash2, Upload, Image 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { editBarberProfileSchema } from '@/lib/validation';
-import type { PortfolioItem } from '@/types/supabase';
+import type { PortfolioItem } from '@/types/supabase-aliases';
 import type { EditBarberProfileFormData } from '@/lib/validation';
 import WorkingHoursEditor from './WorkingHoursEditor';
 import AvailabilityExceptions from './AvailabilityExceptions';

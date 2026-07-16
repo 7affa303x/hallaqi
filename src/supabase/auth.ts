@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './client';
-import type { Profile } from '@/types/supabase';
+import type { Profile } from '@/types/supabase-aliases';
 
 function getAuthErrorMessage(err: { message?: string; code?: string; status?: number }): string {
   const msg = (err.message || '').toLowerCase();

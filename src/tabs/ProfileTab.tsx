@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
-import { settingsSections, subscriptionPlans } from '@/data/mockData';
+import { settingsSections } from '@/data/mockData';
 import type { ThemeName, AnimationStyle, LinkedAccount, User } from '@/types';
 import { themes, animationStyles } from '@/data/themes';
 import {
@@ -18,6 +18,17 @@ import {
 } from 'lucide-react';
 import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
+import {
+  createIdVerificationRequest,
+  getLatestIdVerificationRequest,
+  getLatestSubscriptionRequest,
+  getSubscriptionPlans,
+  createSubscriptionRequest,
+  deleteCurrentAccount,
+  exportUserData,
+} from '@/supabase/database';
+import { uploadIdCard } from '@/supabase/storage';
+import type { SubscriptionPlan } from '@/types/supabase-aliases';
 
 interface UserStats {
   totalBookings?: number;
@@ -51,6 +62,7 @@ export default function ProfileTab() {
   const { themeConfig, navigate, unreadCount } = useApp();
   const { isAuthenticated, appUser, user, logout, isLoading: authLoading } = useAuth();
   const [subPage, setSubPage] = useState<ProfileSubPage>('main');
+  const [actionError, setActionError] = useState('');
 
   const handleLogout = async () => {
     try { await logout(); setSubPage('main'); } catch (err) { console.error('Logout error:', err); }
@@ -107,6 +119,8 @@ export default function ProfileTab() {
   if (subPage === 'linked-accounts') return <LinkedAccounts onBack={() => setSubPage('main')} />;
   if (subPage === 'badges') return <BadgesPage onBack={() => setSubPage('main')} />;
   if (subPage === 'stats') return <StatsPage onBack={() => setSubPage('main')} />;
+  if (subPage === 'help') return <InformationPage onBack={() => setSubPage('main')} kind="help" />;
+  if (subPage === 'about') return <InformationPage onBack={() => setSubPage('main')} kind="about" />;
   if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
   if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
 
@@ -186,6 +200,12 @@ export default function ProfileTab() {
         </div>
       )}
 
+      {actionError && (
+        <p role="alert" className="mx-4 mt-4 p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>
+          {actionError}
+        </p>
+      )}
+
       <div className="px-4 mt-4 space-y-4">
         {settingsSections.map(section => (
           <div key={section.title}>
@@ -195,13 +215,49 @@ export default function ProfileTab() {
                 const Icon = iconMap[item.icon] || Settings;
                 const isDanger = item.type === 'danger';
                 const isLast = index === section.items.length - 1;
-                const handleClick = () => {
+                const handleClick = async () => {
+                  setActionError('');
                   if (item.id === 'logout') { handleLogout(); return; }
+                  if (item.id === 'clearCache') {
+                    if ('caches' in window) {
+                      const keys = await caches.keys();
+                      await Promise.all(keys.map(key => caches.delete(key)));
+                    }
+                    return;
+                  }
+                  if (item.id === 'exportData' && appUser) {
+                    try {
+                      const exported = await exportUserData(appUser.id);
+                      const url = URL.createObjectURL(new Blob(
+                        [JSON.stringify(exported, null, 2)],
+                        { type: 'application/json' }
+                      ));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `hallaqi-data-${new Date().toISOString().slice(0, 10)}.json`;
+                      link.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      setActionError(err instanceof Error ? err.message : 'تعذر تصدير البيانات');
+                    }
+                    return;
+                  }
+                  if (item.id === 'deleteAccount') {
+                    const confirmed = window.confirm('سيتم حذف حسابك وبياناته نهائياً. هل أنت متأكد؟');
+                    if (!confirmed) return;
+                    try {
+                      await deleteCurrentAccount();
+                      await logout();
+                    } catch (err) {
+                      setActionError(err instanceof Error ? err.message : 'تعذر حذف الحساب');
+                    }
+                    return;
+                  }
                   const pageMap: Record<string, ProfileSubPage> = { theme: 'theme', animation: 'animation', language: 'language', notifications: 'notifications', privacy: 'privacy', subscription: 'subscription', paymentMethods: 'payment', baridiMob: 'payment', idVerification: 'id-verification', linkedAccounts: 'linked-accounts', helpCenter: 'help', aboutApp: 'about', services: 'services' };
                   const page = pageMap[item.id]; if (page) setSubPage(page);
                 };
                 return (
-                  <button key={item.id} onClick={handleClick} className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all hover:bg-black/5 ${!isLast ? 'border-b' : ''}`} style={{ borderColor: themeConfig.colors.border + '60' }}>
+                  <button key={item.id} onClick={() => void handleClick()} className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all hover:bg-black/5 ${!isLast ? 'border-b' : ''}`} style={{ borderColor: themeConfig.colors.border + '60' }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: isDanger ? themeConfig.colors.error + '10' : themeConfig.colors.primary + '08' }}>
                       <Icon size={16} style={{ color: isDanger ? themeConfig.colors.error : themeConfig.colors.primary }} />
                     </div>
@@ -222,6 +278,40 @@ export default function ProfileTab() {
 }
 
 // ====== SUB PAGE COMPONENTS ======
+
+function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 'about' }) {
+  const { themeConfig } = useApp();
+  const isHelp = kind === 'help';
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{isHelp ? 'مركز المساعدة' : 'عن حلاقي'}</h2>
+      </div>
+      <div className="p-4 space-y-3">
+        {isHelp ? (
+          <>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الحجوزات</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع حالة الطلب من تبويب المواعيد. يمكنك الإلغاء قبل بدء الموعد.</p>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدفع والدعم</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>للمساعدة في دفعة أو حجز، أرسل تفاصيل المشكلة إلى support@hallaqi.app دون مشاركة كلمة المرور.</p>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
+            <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية تربط العملاء بالحلاقين وتسهّل اكتشاف الخدمات والحجز والتواصل والدفع الآمن.</p>
+            <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.0.0</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ThemeSelector({ onBack }: { onBack: () => void }) {
   const { themeConfig, currentTheme, setTheme } = useApp();
@@ -351,7 +441,40 @@ function PrivacySettings({ onBack }: { onBack: () => void }) {
 
 function SubscriptionPage({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
-  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const { appUser } = useAuth();
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState('free');
+  const [requestStatus, setRequestStatus] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    void Promise.all([
+      getSubscriptionPlans(),
+      appUser ? getLatestSubscriptionRequest(appUser.id) : Promise.resolve(null),
+    ]).then(([loadedPlans, latestRequest]) => {
+      setPlans(loadedPlans);
+      if (latestRequest) {
+        setSelectedPlan(latestRequest.plan_id);
+        setRequestStatus(latestRequest.status);
+      }
+    }).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الخطط'));
+  }, [appUser]);
+
+  const requestFreePlan = async () => {
+    if (!appUser) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const request = await createSubscriptionRequest(appUser.id, selectedPlan);
+      setRequestStatus(request.status);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إرسال الطلب');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
@@ -359,19 +482,39 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>خطط الاشتراك</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
-        {subscriptionPlans.map(plan => (
+        {requestStatus && (
+          <div className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.info + '12', color: themeConfig.colors.info }}>
+            حالة طلب الاشتراك: {requestStatus === 'pending' ? 'قيد المراجعة' : requestStatus}
+          </div>
+        )}
+        {plans.map(plan => {
+          const features = Array.isArray(plan.features) ? plan.features.filter((item): item is string => typeof item === 'string') : [];
+          return (
           <div key={plan.id} onClick={() => setSelectedPlan(plan.id)} className="rounded-2xl border-2 overflow-hidden transition-all cursor-pointer" style={{ backgroundColor: selectedPlan === plan.id ? themeConfig.colors.primary + '05' : themeConfig.colors.surface, borderColor: selectedPlan === plan.id ? themeConfig.colors.primary : themeConfig.colors.border }}>
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2"><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: plan.id === 'free' ? '#22C55E15' : plan.id === 'basic' ? '#3B82F615' : plan.id === 'pro' ? '#8B5CF615' : '#EAB30815' }}><Crown size={20} style={{ color: plan.id === 'free' ? '#22C55E' : plan.id === 'basic' ? '#3B82F6' : plan.id === 'pro' ? '#8B5CF6' : '#EAB308' }} /></div><div><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{plan.name}</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{plan.period}</p></div></div>
-                <div className="text-right"><p className="text-lg font-bold" style={{ color: themeConfig.colors.primary }}>{plan.price === 0 ? 'مجاني' : `${plan.price} دج`}</p></div>
+                <div className="flex items-center gap-2"><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: plan.id === 'free' ? '#22C55E15' : plan.id === 'basic' ? '#3B82F615' : plan.id === 'pro' ? '#8B5CF615' : '#EAB30815' }}><Crown size={20} style={{ color: plan.id === 'free' ? '#22C55E' : plan.id === 'basic' ? '#3B82F6' : plan.id === 'pro' ? '#8B5CF6' : '#EAB308' }} /></div><div><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{plan.name_ar}</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{plan.billing_period === 'monthly' ? 'شهرياً' : plan.billing_period}</p></div></div>
+                <div className="text-right"><p className="text-lg font-bold" style={{ color: themeConfig.colors.primary }}>{plan.price_dzd === 0 ? 'مجاني' : `${plan.price_dzd} دج`}</p></div>
               </div>
-              <div className="space-y-1.5">{plan.features.map((feature: string, i: number) => (<div key={i} className="flex items-center gap-2"><Check size={14} className="text-green-500 flex-shrink-0" /><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{feature}</span></div>))}</div>
-              {plan.price > 0 && (<div className="mt-3 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}><p className="text-[10px] font-medium mb-1.5" style={{ color: themeConfig.colors.textMuted }}>معلومات الدفع CCP:</p><div className="p-2 rounded-lg text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs font-mono" style={{ color: themeConfig.colors.text }}>{plan.ccpInfo.accountNumber}</p><p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>رقم البطاقة: {plan.ccpInfo.cardNumber}</p></div></div>)}
-              <button className="w-full h-10 rounded-xl text-sm font-bold text-white mt-3 transition-all" style={{ backgroundColor: selectedPlan === plan.id ? themeConfig.colors.primary : themeConfig.colors.border, opacity: selectedPlan === plan.id ? 1 : 0.6 }}>{selectedPlan === plan.id ? 'اختر هذا الباقة' : 'اختيار'}</button>
+              <div className="space-y-1.5">{features.map((feature, i) => (<div key={i} className="flex items-center gap-2"><Check size={14} className="text-green-500 flex-shrink-0" /><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{feature}</span></div>))}</div>
+              {plan.price_dzd > 0 && selectedPlan === plan.id && (
+                <div className="mt-3 p-3 rounded-xl text-[11px]" style={{ backgroundColor: themeConfig.colors.warning + '12', color: themeConfig.colors.warning }}>
+                  تفعيل الخطط المدفوعة متوقف مؤقتاً حتى اعتماد حساب التحصيل التجاري.
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={selectedPlan !== plan.id || plan.price_dzd > 0 || isSubmitting || requestStatus === 'pending'}
+                onClick={event => { event.stopPropagation(); void requestFreePlan(); }}
+                className="w-full h-10 rounded-xl text-sm font-bold text-white mt-3 transition-all disabled:opacity-50"
+                style={{ backgroundColor: selectedPlan === plan.id ? themeConfig.colors.primary : themeConfig.colors.border }}
+              >
+                {plan.price_dzd > 0 ? 'يتطلب تفعيل الدفع' : requestStatus === 'pending' ? 'الطلب قيد المراجعة' : 'اختيار الخطة المجانية'}
+              </button>
             </div>
           </div>
-        ))}
+        ); })}
+        {error && <p role="alert" className="text-xs p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>{error}</p>}
       </div>
     </div>
   );
@@ -379,6 +522,9 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
 
 function PaymentMethods({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
+  const ccpAccount = import.meta.env.VITE_CCP_ACCOUNT_NUMBER as string | undefined;
+  const ccpCard = import.meta.env.VITE_CCP_CARD_NUMBER as string | undefined;
+  const isConfigured = Boolean(ccpAccount && ccpCard);
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
@@ -387,12 +533,16 @@ function PaymentMethods({ onBack }: { onBack: () => void }) {
       </div>
       <div className="px-4 mt-4 space-y-3">
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#EAB30815' }}><CreditCard size={24} style={{ color: '#EAB308' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>CCP - حساب بريد الجزائر</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر الحساب البريدي</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">متاح</span></div>
-          <div className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>رقم الحساب البريدي</p><p className="text-sm font-mono font-bold mt-0.5" style={{ color: themeConfig.colors.text }}>007999990000000012345678</p><p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>رقم البطاقة</p><p className="text-sm font-mono font-bold mt-0.5" style={{ color: themeConfig.colors.text }}>1234 5678 9012 3456</p></div>
+          <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#EAB30815' }}><CreditCard size={24} style={{ color: '#EAB308' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>CCP - حساب بريد الجزائر</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر الحساب البريدي</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isConfigured ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{isConfigured ? 'متاح' : 'غير مهيأ'}</span></div>
+          {isConfigured ? (
+            <div className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>رقم الحساب البريدي</p><p className="text-sm font-mono font-bold mt-0.5" style={{ color: themeConfig.colors.text }}>{ccpAccount}</p><p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>رقم البطاقة</p><p className="text-sm font-mono font-bold mt-0.5" style={{ color: themeConfig.colors.text }}>{ccpCard}</p></div>
+          ) : (
+            <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>يتطلب تفعيل حساب التحصيل التجاري قبل إتاحة الدفع اليدوي.</p>
+          )}
         </div>
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#3B82F615' }}><Wallet size={24} style={{ color: '#3B82F6' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بريدي موب</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر تطبيق بريدي موب</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 font-bold">قريباً</span></div>
-          <div className="p-4 rounded-xl text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>سيتم دمج الدفع عبر بريدي موب قريباً</p><button className="mt-2 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>إشعاري عند التوفر</button></div>
+          <div className="p-4 rounded-xl text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>يتطلب حساب تحصيل تجاري معتمداً قبل التفعيل.</p></div>
         </div>
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E15' }}><CreditCard size={24} style={{ color: '#22C55E' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الدفع النقدي</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع مباشرة عند الزيارة</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">متاح</span></div>
@@ -404,7 +554,46 @@ function PaymentMethods({ onBack }: { onBack: () => void }) {
 
 function IDVerification({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
-  const isIdVerified = false;
+  const { appUser } = useAuth();
+  const [status, setStatus] = useState<string>(appUser?.verification_status || 'unverified');
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!appUser) return;
+    void getLatestIdVerificationRequest(appUser.id)
+      .then(request => {
+        if (request?.status === 'approved') setStatus('verified');
+        else if (request?.status) setStatus(request.status);
+      })
+      .catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل حالة التوثيق'));
+  }, [appUser]);
+
+  const submitDocument = async (file?: File) => {
+    if (!file || !appUser) return;
+    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+      setError('ارفع صورة أو ملف PDF صالحاً');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('حجم الملف يجب ألا يتجاوز 5 ميغابايت');
+      return;
+    }
+    setIsUploading(true);
+    setError('');
+    try {
+      const path = await uploadIdCard(appUser.id, file);
+      if (!path) throw new Error('فشل رفع ملف الهوية');
+      await createIdVerificationRequest(appUser.id, path);
+      setStatus('pending');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إرسال طلب التوثيق');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const isIdVerified = status === 'verified' || status === 'premium';
 
   return (
     <div className="pb-20">
@@ -420,15 +609,26 @@ function IDVerification({ onBack }: { onBack: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
+            {status === 'pending' && (
+              <div className="rounded-2xl border p-4 text-center" style={{ backgroundColor: themeConfig.colors.warning + '10', borderColor: themeConfig.colors.warning }}>
+                <Clock size={28} className="mx-auto" style={{ color: themeConfig.colors.warning }} />
+                <h3 className="text-sm font-bold mt-2" style={{ color: themeConfig.colors.text }}>طلبك قيد المراجعة</h3>
+                <p className="text-xs mt-1" style={{ color: themeConfig.colors.textMuted }}>سنحدّث حالة حسابك بعد مراجعة الوثيقة.</p>
+              </div>
+            )}
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <div className="flex items-center gap-3 mb-3"><Shield size={24} style={{ color: themeConfig.colors.primary }} /><div><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>لماذا التوثيق؟</h3></div></div>
               <div className="space-y-2">{['الوصول لقسم التعليقات الموجه للموثقين', 'المشاركة في المسابقات', 'ربط الحساب بالخدمات المالية', 'زيادة مصداقيتك في المنتدى', 'الحصول على شارة التوثيق'].map((item, i) => (<div key={i} className="flex items-center gap-2"><Check size={14} style={{ color: themeConfig.colors.primary }} /><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{item}</span></div>))}</div>
             </div>
-            <div className="rounded-2xl border p-4 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            {status !== 'pending' && <div className="rounded-2xl border p-4 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <div className="w-20 h-20 rounded-2xl border-2 border-dashed mx-auto mb-3 flex flex-col items-center justify-center" style={{ borderColor: themeConfig.colors.border }}><Shield size={24} style={{ color: themeConfig.colors.textMuted }} /><span className="text-[9px] mt-1" style={{ color: themeConfig.colors.textMuted }}>امسح البطاقة</span></div>
-              <button className="w-full h-10 rounded-xl text-sm font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>رفع صورة البطاقة التعريفية</button>
+              <label htmlFor="id-card-upload" className="w-full h-10 rounded-xl text-sm font-bold text-white flex items-center justify-center cursor-pointer" style={{ backgroundColor: themeConfig.colors.primary }}>
+                {isUploading ? 'جاري الرفع...' : 'رفع صورة البطاقة التعريفية'}
+                <input id="id-card-upload" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={isUploading} className="hidden" onChange={event => void submitDocument(event.target.files?.[0])} />
+              </label>
               <p className="text-[10px] mt-2" style={{ color: themeConfig.colors.textMuted }}>البيانات مشفرة وآمنة. لن يتم مشاركتها مع أحد.</p>
-            </div>
+            </div>}
+            {error && <p role="alert" className="text-xs p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>{error}</p>}
           </div>
         )}
       </div>

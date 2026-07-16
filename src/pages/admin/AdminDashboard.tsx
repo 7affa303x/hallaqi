@@ -5,10 +5,13 @@ import { supabase } from '@/supabase/client';
 import {
   adminListProfiles, adminUpdateUserRole, adminUpdateUserStatus,
   adminListPendingReviews, adminModerateReview, adminListPendingPayments,
+  adminListBookings, adminListPendingIdVerifications, adminReviewIdVerification,
+  updateBookingStatus,
   type AdminUserRow, type AdminReviewRow,
 } from '@/supabase/database';
 import { ccpProvider } from '@/lib/payment/ccp-provider';
 import { getSignedUrl } from '@/supabase/storage';
+import type { Database } from '@/types/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Users, Scissors, Calendar, CreditCard, Clock, Star, DollarSign, TrendingUp, ChevronRight, Shield, Check, X, ArrowRight } from 'lucide-react';
 
@@ -66,7 +69,7 @@ export default function AdminDashboard() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<'home' | 'users' | 'bookings' | 'payments' | 'reviews'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'users' | 'bookings' | 'payments' | 'reviews' | 'identity'>('home');
 
   const isAdmin = !!appUser && appUser.user_role === 'admin';
 
@@ -296,6 +299,7 @@ export default function AdminDashboard() {
     { label: 'إدارة المراجعات', action: () => setActiveSection('reviews'), icon: Star },
     { label: 'إدارة المستخدمين', action: () => setActiveSection('users'), icon: Users },
     { label: 'إدارة الحجوزات', action: () => setActiveSection('bookings'), icon: Calendar },
+    { label: 'توثيق الهويات', action: () => setActiveSection('identity'), icon: Shield },
   ];
 
   return (
@@ -451,12 +455,32 @@ interface PendingPaymentRow {
   receipt_url?: string | null;
 }
 
-function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookings' | 'payments' | 'reviews'; adminId: string; onBack: () => void }) {
+interface AdminBookingRow {
+  id: string;
+  booking_start_time: string;
+  status: string | null;
+  total_price: number;
+  profiles?: { full_name: string | null } | null;
+  professionals?: { business_name: string | null; profiles?: { full_name: string | null } | null } | null;
+  services?: { name: string | null } | null;
+}
+
+interface AdminIdVerificationRow {
+  id: string;
+  document_path: string;
+  created_at: string;
+  profiles?: { full_name: string | null } | null;
+}
+
+function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookings' | 'payments' | 'reviews' | 'identity'; adminId: string; onBack: () => void }) {
   const { themeConfig } = useApp();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [reviews, setReviews] = useState<AdminReviewRow[]>([]);
   const [payments, setPayments] = useState<PendingPaymentRow[]>([]);
+  const [bookings, setBookings] = useState<AdminBookingRow[]>([]);
+  const [identityRequests, setIdentityRequests] = useState<AdminIdVerificationRow[]>([]);
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
+  const [identityUrls, setIdentityUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -467,6 +491,17 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
     try {
       if (section === 'users') setUsers(await adminListProfiles());
       else if (section === 'reviews') setReviews(await adminListPendingReviews());
+      else if (section === 'bookings') setBookings((await adminListBookings()) as unknown as AdminBookingRow[]);
+      else if (section === 'identity') {
+        const rows = (await adminListPendingIdVerifications()) as unknown as AdminIdVerificationRow[];
+        setIdentityRequests(rows);
+        const signedEntries = await Promise.all(rows.map(request =>
+          getSignedUrl('id-cards', request.document_path)
+            .then(url => [request.id, url] as const)
+            .catch(() => null)
+        ));
+        setIdentityUrls(Object.fromEntries(signedEntries.filter((entry): entry is readonly [string, string] => entry !== null)));
+      }
       else if (section === 'payments') {
         const rows = (await adminListPendingPayments()) as unknown as PendingPaymentRow[];
         setPayments(rows);
@@ -488,7 +523,7 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
 
   useEffect(() => { load(); }, [load]);
 
-  const titles: Record<string, string> = { users: 'إدارة المستخدمين', bookings: 'إدارة الحجوزات', payments: 'مراجعة المدفوعات', reviews: 'إدارة المراجعات' };
+  const titles: Record<string, string> = { users: 'إدارة المستخدمين', bookings: 'إدارة الحجوزات', payments: 'مراجعة المدفوعات', reviews: 'إدارة المراجعات', identity: 'توثيق الهويات' };
 
   const changeRole = async (u: AdminUserRow, role: string) => {
     setBusyId(u.id);
@@ -510,6 +545,31 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
       else await ccpProvider.rejectPayment(p.id, adminId, 'مرفوض من الإدارة');
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : 'فشل'); } finally { setBusyId(null); }
+  };
+  const changeBookingStatus = async (booking: AdminBookingRow, status: string) => {
+    setBusyId(booking.id);
+    try {
+      await updateBookingStatus(
+        booking.id,
+        status as Database['public']['Enums']['booking_status']
+      );
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'فشل تحديث الحجز');
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const reviewIdentity = async (request: AdminIdVerificationRow, approve: boolean) => {
+    setBusyId(request.id);
+    try {
+      await adminReviewIdVerification(request.id, approve, approve ? undefined : 'الوثيقة غير واضحة أو غير صالحة');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'فشل مراجعة الهوية');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -576,9 +636,51 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
             );
           }))}
 
-        {!loading && section === 'bookings' && (
-          <p className="text-sm text-center py-6" style={{ color: themeConfig.colors.textMuted }}>تُدار الحجوزات من طرف الحلاقين من تبويب المواعيد.</p>
-        )}
+        {!loading && section === 'bookings' && (bookings.length === 0
+          ? <p className="text-sm text-center py-6" style={{ color: themeConfig.colors.textMuted }}>لا توجد حجوزات</p>
+          : bookings.map(booking => (
+            <div key={booking.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{booking.profiles?.full_name || 'عميل'}</p>
+                  <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
+                    {booking.professionals?.business_name || booking.professionals?.profiles?.full_name || 'حلاق'} · {booking.services?.name || 'خدمة'}
+                  </p>
+                </div>
+                <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{booking.total_price} دج</span>
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{new Date(booking.booking_start_time).toLocaleString('ar-DZ')}</span>
+                <select
+                  value={booking.status || 'pending'}
+                  disabled={busyId === booking.id}
+                  onChange={event => void changeBookingStatus(booking, event.target.value)}
+                  className="mr-auto text-[11px] px-2 py-1 rounded-lg border bg-transparent"
+                  style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
+                >
+                  {['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'].map(status => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </div>
+            </div>
+          )))}
+
+        {!loading && section === 'identity' && (identityRequests.length === 0
+          ? <p className="text-sm text-center py-6" style={{ color: themeConfig.colors.textMuted }}>لا توجد طلبات توثيق معلقة</p>
+          : identityRequests.map(request => (
+            <div key={request.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{request.profiles?.full_name || 'مستخدم'}</p>
+                  <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{new Date(request.created_at).toLocaleString('ar-DZ')}</p>
+                </div>
+                {identityUrls[request.id] && <a href={identityUrls[request.id]} target="_blank" rel="noreferrer" className="text-xs underline" style={{ color: themeConfig.colors.primary }}>عرض الوثيقة</a>}
+              </div>
+              <div className="flex gap-2">
+                <button disabled={busyId === request.id} onClick={() => void reviewIdentity(request, true)} className="flex-1 h-8 rounded-lg text-xs font-bold disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>قبول</button>
+                <button disabled={busyId === request.id} onClick={() => void reviewIdentity(request, false)} className="flex-1 h-8 rounded-lg text-xs font-bold disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.error + '15', color: themeConfig.colors.error }}>رفض</button>
+              </div>
+            </div>
+          )))}
       </div>
     </div>
   );

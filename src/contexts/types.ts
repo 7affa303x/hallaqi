@@ -2,7 +2,7 @@ import type {
   ThemeName, AnimationStyle, TabName, AppSettings, AppNotification,
   Booking, Barber, Chat, ForumPost, ScreenName, ScreenParams, User
 } from '@/types';
-import type { Profile } from '@/types/supabase';
+import type { Profile } from '@/types/supabase-aliases';
 import { themes } from '@/data/themes';
 
 interface DataLoadingState {

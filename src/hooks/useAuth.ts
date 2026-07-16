@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isDeveloperMode } from '@/supabase/client';
 import { signIn, signUp, signOut, resetPassword, fetchUserProfile } from '@/supabase/auth';
-import type { Profile } from '@/types/supabase';
+import type { Profile } from '@/types/supabase-aliases';
 import type { Session, User } from '@supabase/supabase-js';
 
 function getErrMsg(err: unknown): string {

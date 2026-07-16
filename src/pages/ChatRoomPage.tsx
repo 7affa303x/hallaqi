@@ -7,7 +7,7 @@ import {
   subscribeToMessages,
   markMessagesAsRead,
 } from '@/supabase/database';
-import type { Message } from '@/types/supabase';
+import type { Message } from '@/types/supabase-aliases';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send, User as UserIcon, Check, CheckCheck } from 'lucide-react';
 

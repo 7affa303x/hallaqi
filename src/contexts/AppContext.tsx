@@ -25,7 +25,7 @@ import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotific
 import { mapBookingRow, mapForumPost, mapNotificationRow } from '@/lib/mappers';
 import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User } from '@/types';
 import type { Database } from '@/types/supabase';
-import type { Profile } from '@/types/supabase';
+import type { Profile } from '@/types/supabase-aliases';
 
 const convertProfileToUser = (profile: Profile): User => ({
   id: profile.id,

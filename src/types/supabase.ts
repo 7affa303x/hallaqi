@@ -533,6 +533,57 @@ export type Database = {
           },
         ]
       }
+      id_verification_requests: {
+        Row: {
+          created_at: string
+          document_path: string
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_path: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_path?: string
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "id_verification_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "id_verification_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -712,6 +763,51 @@ export type Database = {
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professional_reports: {
+        Row: {
+          created_at: string
+          id: string
+          professional_id: string
+          reason: string
+          reporter_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          professional_id: string
+          reason: string
+          reporter_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          professional_id?: string
+          reason?: string
+          reporter_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_reports_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -976,6 +1072,103 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          billing_period: string
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          name_ar: string
+          price_dzd: number
+          updated_at: string
+        }
+        Insert: {
+          billing_period?: string
+          created_at?: string
+          features?: Json
+          id: string
+          is_active?: boolean
+          name_ar: string
+          price_dzd: number
+          updated_at?: string
+        }
+        Update: {
+          billing_period?: string
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          price_dzd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_requests: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          payment_provider: string | null
+          payment_reference: string | null
+          plan_id: string
+          reviewed_by: string | null
+          starts_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payment_provider?: string | null
+          payment_reference?: string | null
+          plan_id: string
+          reviewed_by?: string | null
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          payment_provider?: string | null
+          payment_reference?: string | null
+          plan_id?: string
+          reviewed_by?: string | null
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_requests_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_settings: {
         Row: {
           accessibility_preferences: Json
@@ -1021,6 +1214,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       mark_conversation_messages_as_read: {
         Args: { p_conversation_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      review_id_verification: {
+        Args: { approve: boolean; reason?: string; request_id: string }
         Returns: undefined
       }
     }
@@ -1201,24 +1398,3 @@ export const Constants = {
     },
   },
 } as const
-
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
-export type Professional = Database["public"]["Tables"]["professionals"]["Row"]
-export type Service = Database["public"]["Tables"]["services"]["Row"]
-export type Booking = Database["public"]["Tables"]["bookings"]["Row"]
-export type Review = Database["public"]["Tables"]["reviews"]["Row"]
-export type Favorite = Database["public"]["Tables"]["favorites"]["Row"]
-export type AvailabilitySchedule = Database["public"]["Tables"]["availability_schedules"]["Row"]
-export type AvailabilityException = Database["public"]["Tables"]["availability_exceptions"]["Row"]
-export type PortfolioItem = Database["public"]["Tables"]["portfolio_items"]["Row"]
-export type Conversation = Database["public"]["Tables"]["conversations"]["Row"]
-export type ConversationMember = Database["public"]["Tables"]["conversation_members"]["Row"]
-export type Message = Database["public"]["Tables"]["messages"]["Row"]
-export type Notification = Database["public"]["Tables"]["notifications"]["Row"]
-export type ForumPost = Database["public"]["Tables"]["forum_posts"]["Row"]
-export type ForumComment = Database["public"]["Tables"]["forum_comments"]["Row"]
-export type ForumCategory = Database["public"]["Tables"]["forum_categories"]["Row"]
-export type ForumLike = Database["public"]["Tables"]["forum_likes"]["Row"]
-export type ForumReport = Database["public"]["Tables"]["forum_reports"]["Row"]
-export type Payment = Database["public"]["Tables"]["payments"]["Row"]
-export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"]
