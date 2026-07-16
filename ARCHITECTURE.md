@@ -122,7 +122,8 @@ When not configured: setup screen shown (no fake data).
 3. If present → calls `supabase.auth.getSession()`
 4. Session found → fetches user profile → authenticated state
 5. No session → shows login prompt on protected screens
-6. Login/Register → Supabase Auth → profile created in `users` table
+6. Login/Register → Supabase Auth → profile created in `profiles`; barber
+   registration also creates the matching `professionals` row
 
 ## Key Decisions
 
@@ -131,3 +132,7 @@ When not configured: setup screen shown (no fake data).
 - **No Backend Server** — Supabase handles everything
 - **Feature Folders** — Tabs and pages are self-contained
 - **Lazy Loading** — All pages loaded on demand
+- **Database Enforcement** — RLS, secured RPCs, and exclusion constraints protect
+  authorization and booking integrity
+- **PWA Shell** — Workbox precaches application assets; authenticated API
+  responses are intentionally never cached

@@ -169,12 +169,14 @@ No changes needed to the booking logic, payment verification flow, or database s
 To enable webhook signature verification in production:
 
 1. Go to Stripe Dashboard → Developers → Webhooks
-2. Add endpoint: `https://npkmqlupkvijhumkldpm.supabase.co/functions/v1/stripe-webhook`
+2. Add endpoint: `https://cdwzbtjwqybnahhbhldy.supabase.co/functions/v1/stripe-webhook`
 3. Select events: `checkout.session.completed`, `checkout.session.expired`, `payment_intent.payment_failed`
 4. Copy the webhook signing secret
 5. Update Supabase secret: `STRIPE_WEBHOOK_SECRET` with the signing secret
 
-In test mode, the webhook handler works without signature verification.
+The webhook fails closed until `STRIPE_WEBHOOK_SECRET` is configured. Unsigned
+events are never accepted, including in test mode. The authenticated
+`verify-payment` return flow remains available for customer checkout returns.
 
 ---
 

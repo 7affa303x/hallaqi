@@ -8,27 +8,26 @@
 
 ## Step 1: Supabase
 
-### 1.1 Create Project
-1. Go to [supabase.com](https://supabase.com)
-2. Create new project
-3. Copy **Project URL** and **Anon Key** from Settings → API
+### 1.1 Official Project
+Production uses Supabase project `cdwzbtjwqybnahhbhldy`. Do not deploy Hallaqi
+schema or functions to similarly named projects.
 
 ### 1.2 Run Migrations
-1. Go to SQL Editor
-2. Run `supabase/migrations/001_initial_schema.sql`
-3. Run `supabase/migrations/002_seed_data.sql`
-4. Run `supabase/storage/policies.sql`
+1. Run `npx supabase link --project-ref cdwzbtjwqybnahhbhldy`
+2. Review with `npx supabase migration list --linked`
+3. Apply with `npx supabase db push`
 
 ### 1.3 Create Storage Buckets
-1. Go to Storage
-2. Create buckets: `avatars`, `portfolio`, `id-cards`, `review-images`
-3. Set `avatars`, `portfolio`, `review-images` as public
+Buckets and policies are migration-managed. Public: `avatars`, `covers`,
+`portfolio`, `forum-images`, `review-images`. Private: `id-cards`,
+`payment-receipts`.
 
 ### 1.4 Auth Settings
 1. Go to Authentication → Settings
 2. Enable Email provider
-3. (Optional) Enable Google OAuth
-4. Set Site URL to your production domain
+3. Enable Google OAuth
+4. Set Site URL to `https://www.hallaqi.app`
+5. Allow `https://hallaqi.app/**` and local development callback URLs
 
 ## Step 2: Vercel
 
@@ -45,6 +44,7 @@ Add these in Project Settings → Environment Variables:
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
 ```
 
 ### 2.3 Deploy
@@ -58,7 +58,10 @@ After deployment, verify:
 - [ ] Authentication works (sign up / sign in)
 - [ ] Barbers load from database
 - [ ] Forum posts display
+- [ ] Forum post/comment/like writes persist
 - [ ] Profile page loads
+- [ ] Cash booking completes and appears in appointments
+- [ ] Edge Functions reject unauthenticated calls
 - [ ] No console errors
 
 ## Local Development

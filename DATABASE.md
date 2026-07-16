@@ -1,7 +1,7 @@
 # Hallaqi Database
 
-**Source of Truth:** Live Database `npkmqlupkvijhumkldpm`
-**Last Updated:** 2026-07-15
+**Source of Truth:** Official production project `cdwzbtjwqybnahhbhldy`
+**Last Updated:** 2026-07-16
 
 ## Custom ENUM Types
 
@@ -292,8 +292,30 @@
 
 ## RLS Policies
 
-All 18 tables have RLS enabled with 48 total policies. Key patterns:
+All exposed tables have RLS enabled. Key patterns:
 - **Public read:** professionals, services, availability, portfolio, forum posts/comments/likes/categories
 - **Own only:** profiles (update), favorites, notifications, bookings, forum reports
 - **Member-only:** conversations, conversation_members, messages
 - **Author:** forum posts/comments (update/delete)
+
+## Foundation Additions
+
+The production foundation migrations also provide:
+
+- `payments` and private `payment-receipts` storage
+- `user_settings` for notification, privacy, and accessibility preferences
+- `id_verification_requests` with administrator review RPC
+- `professional_reports`
+- `subscription_plans` and `subscription_requests`
+- database-level non-overlapping booking constraints
+- protected profile/review moderation fields
+- administrator booking, review, payment, report, and identity policies
+
+Apply and inspect migrations with the Supabase CLI; do not run the legacy SQL
+files manually against production:
+
+```bash
+npx supabase link --project-ref cdwzbtjwqybnahhbhldy
+npx supabase migration list --linked
+npx supabase db push
+```

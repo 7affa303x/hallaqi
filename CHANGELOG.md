@@ -1,5 +1,29 @@
 # Hallaqi Changelog
 
+## v12.0.0 — Verified Production Foundation
+
+### Product
+- Wired availability exceptions into booking availability
+- Completed forum post, comment, like, image, and report flows
+- Added persisted notification preferences, realtime delivery, and read state
+- Added barber onboarding, review submission, ID verification, account export,
+  account deletion, and administrator booking/identity management
+- Replaced simulated QR scanning with real browser QR decoding
+
+### Reliability and Security
+- Added database overlap constraints and repaired invalid legacy booking duration
+- Protected privileged profile and review moderation fields
+- Secured chat RPCs, notification delivery, checkout, and payment verification
+- Made Stripe webhooks fail closed until signature verification is configured
+- Consolidated private receipt and identity-document access
+
+### Platform
+- Added PWA service worker, SEO metadata, sitemap, robots policy, image
+  optimization, lazy tab loading, Vitest, and npm-only dependency management
+- Verified the official Supabase project `cdwzbtjwqybnahhbhldy`
+
+---
+
 ## v11.0.0 — Production Foundation
 
 ### Infrastructure

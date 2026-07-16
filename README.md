@@ -1,6 +1,6 @@
 # Hallaqi - حلاقي
 
-**Hallaqi** is a production-ready Algerian barber booking platform. Built with React, TypeScript, Tailwind CSS, and Supabase.
+**Hallaqi** is an Algerian barber discovery, booking, community, and payments platform built with React, TypeScript, Tailwind CSS, and Supabase.
 
 ## Features
 
@@ -11,7 +11,7 @@
 - **Authentication** — Email/password and Google OAuth via Supabase Auth
 - **Real-time** — Live notifications and chat
 - **Arabic Interface** — Full RTL Arabic support
-- **PWA** — Installable progressive web app
+- **PWA** — Installable app shell with offline asset caching
 
 ## Tech Stack
 
@@ -44,16 +44,16 @@ cp .env.example .env
 ### 3. Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com)
-2. Run migrations in order:
+2. Link the official project and apply committed migrations:
    ```bash
-   supabase/migrations/001_initial_schema.sql
-   supabase/migrations/002_seed_data.sql
+   npx supabase link --project-ref cdwzbtjwqybnahhbhldy
+   npx supabase db push
    ```
-3. Run storage policies:
+3. Deploy Edge Functions:
    ```bash
-   supabase/storage/policies.sql
+   npx supabase functions deploy
    ```
-4. Create Storage buckets: `avatars`, `portfolio`, `id-cards`, `review-images`
+4. The migrations provision the canonical buckets: `avatars`, `covers`, `portfolio`, `forum-images`, `review-images`, `id-cards`, and `payment-receipts`.
 
 ### 4. Run
 
@@ -75,6 +75,9 @@ npm run build      # Production build
 |----------|----------|-------------|
 | `VITE_SUPABASE_URL` | Yes | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | For card payments | Stripe publishable key |
+| `VITE_CCP_ACCOUNT_NUMBER` | For manual payments | Approved merchant CCP account |
+| `VITE_CCP_CARD_NUMBER` | For manual payments | Approved merchant card number |
 
 ## Scripts
 
