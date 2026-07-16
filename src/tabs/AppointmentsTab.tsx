@@ -1,15 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import { SkeletonBookingCard } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import { motion } from 'framer-motion';
 import type { BookingStatus } from '@/types';
+import type { Database } from '@/types/supabase';
+import { getProfessionalBookings, updateBookingStatus, sendNotification, getOrCreateConversation } from '@/supabase/database';
 import {
   CalendarDays, Clock, MapPin, Car, CreditCard,
   CheckCircle2, XCircle, AlertCircle, MessageSquare,
-  Star, Navigation, LogIn
+  Star, Navigation, LogIn, User as UserIcon, Check, X, PlayCircle
 } from 'lucide-react';
+
+type DbBookingStatus = Database['public']['Enums']['booking_status'];
+
+interface ProBookingRow {
+  id: string;
+  client_id: string | null;
+  booking_start_time: string | null;
+  total_price: number | null;
+  notes: string | null;
+  status: BookingStatus;
+  profiles?: { full_name: string | null; avatar_url: string | null } | null;
+  services?: { name: string | null } | null;
+}
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
   pending: { label: 'قيد الانتظار', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
@@ -37,8 +52,21 @@ function openDirections(location: string) {
 
 export default function AppointmentsTab() {
   const { bookings, themeConfig, cancelBooking, navigate, isLoading } = useApp();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, appUser } = useAuth();
   const [activeFilter, setActiveFilter] = useState('upcoming');
+
+  const isProfessional = appUser?.user_role === 'barber' || appUser?.user_role === 'specialist';
+  if (isAuthenticated && isProfessional && appUser) {
+    return <BarberAppointments proId={appUser.id} />;
+  }
+
+  const openChatWith = async (otherId: string, name: string, avatar?: string) => {
+    if (!appUser) return;
+    try {
+      const conversationId = await getOrCreateConversation(appUser.id, otherId);
+      navigate('chat-room', { conversationId, participantName: name, participantAvatar: avatar, participantId: otherId });
+    } catch { /* ignore */ }
+  };
 
   const filteredBookings = bookings.filter(b => {
     if (activeFilter === 'upcoming') return ['pending', 'confirmed'].includes(b.status);
@@ -205,7 +233,7 @@ export default function AppointmentsTab() {
                   <div className="flex gap-2 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
                     {['pending', 'confirmed'].includes(booking.status) && (
                       <>
-                        <button onClick={() => navigate('chat-room', { chatId: 'c1' })}
+                        <button onClick={() => openChatWith(booking.barberId, booking.barberName, booking.barberAvatar)}
                           className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                           style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}>
                           <MessageSquare size={14} /> تواصل
@@ -253,6 +281,180 @@ export default function AppointmentsTab() {
           themeConfig={themeConfig}
         />
       )}
+    </div>
+  );
+}
+
+/* ================= BARBER VIEW: incoming bookings + accept/reject ================= */
+const barberTabs: { key: BookingStatus | 'all'; label: string }[] = [
+  { key: 'pending', label: 'طلبات جديدة' },
+  { key: 'confirmed', label: 'مؤكدة' },
+  { key: 'completed', label: 'مكتملة' },
+  { key: 'cancelled', label: 'ملغية' },
+];
+
+function BarberAppointments({ proId }: { proId: string }) {
+  const { themeConfig, navigate } = useApp();
+  const [rows, setRows] = useState<ProBookingRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<BookingStatus | 'all'>('pending');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getProfessionalBookings(proId);
+      setRows(data as unknown as ProBookingRow[]);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [proId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const act = async (b: ProBookingRow, status: BookingStatus, clientMessage: string) => {
+    setBusyId(b.id);
+    try {
+      await updateBookingStatus(b.id, status as unknown as DbBookingStatus);
+      if (b.client_id) {
+        try {
+          await sendNotification({ userId: b.client_id, title: 'تحديث حالة الحجز', message: clientMessage, type: 'booking' });
+        } catch { /* notification is best-effort */ }
+      }
+      await load();
+    } catch {
+      setBusyId(null);
+      return;
+    }
+    setBusyId(null);
+  };
+
+  const shown = rows.filter(r => filter === 'all' || r.status === filter);
+  const pendingCount = rows.filter(r => r.status === 'pending').length;
+
+  const fmt = (iso: string | null) => {
+    if (!iso) return { date: '', time: '' };
+    const d = new Date(iso);
+    return {
+      date: d.toLocaleDateString('ar-DZ', { weekday: 'short', day: 'numeric', month: 'short' }),
+      time: d.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }),
+    };
+  };
+
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
+        <div className="flex items-center gap-2 mb-3">
+          <img src="/logo-symbol.png" alt="Hallaqi" className="w-8 h-8 rounded-lg" />
+          <div>
+            <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>حجوزات العملاء</h1>
+            <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>إدارة طلبات الحجز الواردة</p>
+          </div>
+        </div>
+        <div className="flex gap-2 overflow-x-auto">
+          {barberTabs.map(tab => (
+            <button key={tab.key} onClick={() => setFilter(tab.key)}
+              className="flex-1 whitespace-nowrap py-2 px-2 rounded-xl text-xs font-bold transition-all"
+              style={{
+                backgroundColor: filter === tab.key ? themeConfig.colors.primary : themeConfig.colors.surface,
+                color: filter === tab.key ? '#fff' : themeConfig.colors.textMuted,
+                border: `1px solid ${filter === tab.key ? themeConfig.colors.primary : themeConfig.colors.border}`,
+              }}>
+              {tab.label}
+              {tab.key === 'pending' && pendingCount > 0 && (
+                <span className="mr-1 px-1.5 py-0.5 rounded-full text-[9px]" style={{ backgroundColor: filter === tab.key ? '#ffffff30' : themeConfig.colors.primary + '15', color: filter === tab.key ? '#fff' : themeConfig.colors.primary }}>{pendingCount}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 space-y-3 mt-2">
+        {loading ? (
+          <><SkeletonBookingCard /><SkeletonBookingCard /></>
+        ) : (
+          shown.map((b, index) => {
+            const status = statusConfig[b.status];
+            const StatusIcon = status.icon;
+            const { date, time } = fmt(b.booking_start_time);
+            return (
+              <motion.div key={b.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+                className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+                <div className="flex items-center justify-between px-4 py-2.5" style={{ backgroundColor: status.bg }}>
+                  <div className="flex items-center gap-1.5">
+                    <StatusIcon size={14} style={{ color: status.color }} />
+                    <span className="text-xs font-bold" style={{ color: status.color }}>{status.label}</span>
+                  </div>
+                  <span className="text-[10px]" style={{ color: status.color + '99' }}>{time} · {date}</span>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {b.profiles?.avatar_url
+                      ? <img src={b.profiles.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                      : <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}><UserIcon size={22} style={{ color: themeConfig.colors.primary }} /></div>}
+                    <div className="flex-1">
+                      <h3 className="font-bold text-sm text-right" style={{ color: themeConfig.colors.text }}>{b.profiles?.full_name || 'عميل'}</h3>
+                      <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{b.services?.name || 'خدمة'}</span>
+                    </div>
+                    <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{b.total_price ?? 0} دج</p>
+                  </div>
+                  {b.notes && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare size={12} style={{ color: themeConfig.colors.textMuted }} />
+                      <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{b.notes}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
+                    {b.status === 'pending' && (
+                      <>
+                        <button disabled={busyId === b.id} onClick={() => act(b, 'confirmed', 'تم تأكيد حجزك من طرف الحلاق')}
+                          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold disabled:opacity-50"
+                          style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>
+                          <Check size={14} /> قبول
+                        </button>
+                        <button disabled={busyId === b.id} onClick={() => act(b, 'cancelled', 'نعتذر، تم رفض طلب الحجز')}
+                          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold disabled:opacity-50"
+                          style={{ backgroundColor: themeConfig.colors.error + '15', color: themeConfig.colors.error }}>
+                          <X size={14} /> رفض
+                        </button>
+                      </>
+                    )}
+                    {b.status === 'confirmed' && (
+                      <>
+                        {b.client_id && (
+                          <button onClick={async () => {
+                            try {
+                              const conversationId = await getOrCreateConversation(proId, b.client_id as string);
+                              navigate('chat-room', { conversationId, participantName: b.profiles?.full_name || 'عميل', participantAvatar: b.profiles?.avatar_url || undefined, participantId: b.client_id as string });
+                            } catch { /* ignore */ }
+                          }}
+                            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold"
+                            style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}>
+                            <MessageSquare size={14} /> تواصل
+                          </button>
+                        )}
+                        <button disabled={busyId === b.id} onClick={() => act(b, 'completed', 'تم إكمال موعدك. نتمنى أن تكون راضياً عن الخدمة!')}
+                          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold disabled:opacity-50"
+                          style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>
+                          <PlayCircle size={14} /> إكمال
+                        </button>
+                      </>
+                    )}
+                    {(b.status === 'completed' || b.status === 'cancelled' || b.status === 'no_show') && (
+                      <span className="text-[11px] w-full text-center py-1" style={{ color: themeConfig.colors.textMuted }}>لا توجد إجراءات</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+        {!loading && shown.length === 0 && (
+          <EmptyState icon={CalendarDays} title="لا توجد حجوزات" description="ستظهر هنا طلبات الحجز من العملاء" themeConfig={themeConfig} />
+        )}
+      </div>
     </div>
   );
 }

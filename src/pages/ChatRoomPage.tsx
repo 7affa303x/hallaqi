@@ -1,42 +1,80 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from '@/contexts/useApp';
-import { motion } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
 import {
-  ArrowLeft, Phone, Info, Send, Image,
-  Mic, Check, CheckCheck
-} from 'lucide-react';
+  getConversationMessages,
+  sendMessage as dbSendMessage,
+  subscribeToMessages,
+  markMessagesAsRead,
+} from '@/supabase/database';
+import type { Message } from '@/types/supabase';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Send, User as UserIcon, Check, CheckCheck } from 'lucide-react';
+
+function formatTime(iso: string | null): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function ChatRoomPage() {
-  const { themeConfig, screenParams, chats, sendMessage, goBack, navigate } = useApp();
+  const { themeConfig, screenParams, goBack, navigate } = useApp();
+  const { appUser } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const chat = chats.find(c => c.id === screenParams?.chatId);
+  const conversationId = screenParams?.conversationId;
+  const participantName = screenParams?.participantName || 'محادثة';
+  const participantAvatar = screenParams?.participantAvatar;
+  const participantId = screenParams?.participantId;
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat?.messages.length]);
+  const load = useCallback(async () => {
+    if (!conversationId) return;
+    try {
+      setMessages(await getConversationMessages(conversationId));
+    } catch {
+      setMessages([]);
+    }
+  }, [conversationId]);
 
-  // Simulate typing indicator
+  useEffect(() => { load(); }, [load]);
+
   useEffect(() => {
-    if (!chat?.isOnline) return;
-    const t = setTimeout(() => setIsTyping(false), 3000);
-    return () => clearTimeout(t);
-  }, [chat?.messages.length, chat?.isOnline]);
+    if (!conversationId) return;
+    const channel = subscribeToMessages(conversationId, setMessages);
+    return () => { try { channel.unsubscribe(); } catch { /* ignore */ } };
+  }, [conversationId]);
 
-  if (!chat) {
+  useEffect(() => {
+    if (conversationId && appUser) markMessagesAsRead(conversationId, appUser.id).catch(() => {});
+  }, [conversationId, appUser, messages.length]);
+
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+
+  if (!conversationId || !appUser) {
     return (
       <div className="h-screen flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
         <img src="/logo-icon.png" alt="Hallaqi" className="w-16 h-16 mb-4 opacity-30" />
-        <p style={{ color: themeConfig.colors.textMuted }}>الدردشة غير موجودة</p>
+        <p style={{ color: themeConfig.colors.textMuted }}>الدردشة غير متاحة</p>
         <button onClick={goBack} className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>رجوع</button>
       </div>
     );
   }
 
-  const handleSend = () => {
-    if (!messageText.trim()) return;
-    sendMessage(chat.id, messageText.trim());
+  const handleSend = async () => {
+    const text = messageText.trim();
+    if (!text || sending) return;
     setMessageText('');
+    setSending(true);
+    try {
+      await dbSendMessage({ conversation_id: conversationId, sender_id: appUser.id, content: text, status: 'sent', type: 'text' });
+      await load();
+    } catch {
+      setMessageText(text);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -51,91 +89,47 @@ export default function ChatRoomPage() {
         <button onClick={goBack} className="w-10 h-10 rounded-xl flex items-center justify-center">
           <ArrowLeft size={22} style={{ color: themeConfig.colors.text }} />
         </button>
-        <button onClick={() => navigate('barber-detail', { barberId: chat.participantId })} className="relative">
-          <img src={chat.participantAvatar} alt={chat.participantName} className="w-10 h-10 rounded-xl object-cover" />
-          {chat.isOnline && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2" style={{ borderColor: themeConfig.colors.surface }} />
-          )}
+        <button onClick={() => participantId && navigate('barber-detail', { barberId: participantId })} className="flex items-center gap-3 flex-1 min-w-0 text-right">
+          {participantAvatar
+            ? <img src={participantAvatar} alt={participantName} className="w-10 h-10 rounded-xl object-cover" />
+            : <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}><UserIcon size={20} style={{ color: themeConfig.colors.primary }} /></div>}
+          <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{participantName}</p>
         </button>
-        <button onClick={() => navigate('barber-detail', { barberId: chat.participantId })} className="flex-1 min-w-0 text-right">
-          <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{chat.participantName}</p>
-          <p className="text-[10px]" style={{ color: chat.isOnline ? '#22C55E' : themeConfig.colors.textMuted }}>
-            {chat.isOnline ? (isTyping ? 'يكتب...' : 'متصل الآن') : 'آخر ظهور ' + chat.lastMessageTime}
-          </p>
-        </button>
-        <div className="flex gap-1">
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center"><Phone size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center"><Info size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
-        </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {/* Date separator */}
-        <div className="flex items-center justify-center">
-          <span className="text-[10px] px-3 py-1 rounded-full" style={{ backgroundColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>اليوم</span>
-        </div>
-
-        {chat.messages.map((msg) => {
-          const isMe = msg.senderId === 'me';
+        {messages.length === 0 && (
+          <p className="text-center text-xs mt-8" style={{ color: themeConfig.colors.textMuted }}>ابدأ المحادثة بإرسال رسالة</p>
+        )}
+        {messages.map((msg) => {
+          const isMe = msg.sender_id === appUser.id;
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[75%] ${isMe ? 'order-1' : 'order-2'}`}>
+              <div className="max-w-[75%]">
                 <div className="px-3.5 py-2.5 rounded-2xl"
                   style={{
                     backgroundColor: isMe ? themeConfig.colors.primary : themeConfig.colors.surface,
                     color: isMe ? '#fff' : themeConfig.colors.text,
-                    borderBottomRightRadius: isMe ? '4px' : undefined,
-                    borderBottomLeftRadius: !isMe ? '4px' : undefined,
                     border: !isMe ? `1px solid ${themeConfig.colors.border}` : undefined,
                   }}>
                   <p className="text-sm leading-relaxed">{msg.content}</p>
                 </div>
                 <div className={`flex items-center gap-1 mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
-                  <span className="text-[9px]" style={{ color: themeConfig.colors.textMuted }}>{msg.timestamp}</span>
-                  {isMe && (msg.isRead ? <CheckCheck size={10} className="text-sky-500" /> : <Check size={10} style={{ color: themeConfig.colors.textMuted }} />)}
+                  <span className="text-[9px]" style={{ color: themeConfig.colors.textMuted }}>{formatTime(msg.created_at)}</span>
+                  {isMe && (msg.status === 'read' ? <CheckCheck size={10} className="text-sky-500" /> : <Check size={10} style={{ color: themeConfig.colors.textMuted }} />)}
                 </div>
               </div>
             </div>
           );
         })}
-
-        {/* Typing indicator */}
-        {isTyping && chat.isOnline && (
-          <div className="flex justify-end">
-            <div className="px-4 py-3 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, borderBottomLeftRadius: '4px' }}>
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: themeConfig.colors.textMuted, animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: themeConfig.colors.textMuted, animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: themeConfig.colors.textMuted, animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
-
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="flex-shrink-0 px-4 pb-1">
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
-          {['هل أنت متوفر غداً؟', 'ما هي أوقات العمل؟', 'شكراً!'].map(q => (
-            <button key={q} onClick={() => { setMessageText(q); }}
-              className="px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap border flex-shrink-0"
-              style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted, backgroundColor: themeConfig.colors.surface }}>
-              {q}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Input */}
       <div className="flex-shrink-0 p-3 border-t backdrop-blur-lg"
         style={{ backgroundColor: `${themeConfig.colors.surface}ee`, borderColor: themeConfig.colors.border }}>
         <div className="max-w-lg mx-auto flex items-center gap-2">
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.background }}>
-            <Image size={18} style={{ color: themeConfig.colors.textMuted }} />
-          </button>
           <div className="flex-1 relative">
             <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)}
               placeholder="اكتب رسالة..."
@@ -143,15 +137,11 @@ export default function ChatRoomPage() {
               style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
           </div>
-          {messageText.trim() ? (
-            <button onClick={handleSend} className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary }}>
-              <Send size={18} className="text-white" />
-            </button>
-          ) : (
-            <button className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.background }}>
-              <Mic size={18} style={{ color: themeConfig.colors.textMuted }} />
-            </button>
-          )}
+          <button onClick={handleSend} disabled={!messageText.trim() || sending}
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-50"
+            style={{ backgroundColor: themeConfig.colors.primary }}>
+            <Send size={18} className="text-white" />
+          </button>
         </div>
       </div>
     </motion.div>
