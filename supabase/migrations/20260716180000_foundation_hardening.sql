@@ -338,6 +338,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_bookings_no_double_booking
   ON public.bookings (professional_id, booking_start_time)
   WHERE status NOT IN ('cancelled', 'no_show');
 
+-- Repair legacy rows that were written with an end time before the start time.
+-- The related service duration is authoritative; fall back to 30 minutes.
+UPDATE public.bookings booking
+SET
+  booking_end_time = booking.booking_start_time
+    + make_interval(mins => COALESCE(service.duration_minutes, 30)),
+  updated_at = now()
+FROM public.services service
+WHERE booking.service_id = service.id
+  AND booking.booking_end_time <= booking.booking_start_time;
+
+UPDATE public.bookings
+SET booking_end_time = booking_start_time + interval '30 minutes', updated_at = now()
+WHERE booking_end_time <= booking_start_time;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'bookings_valid_time_range'
+      AND conrelid = 'public.bookings'::regclass
+  ) THEN
+    ALTER TABLE public.bookings
+      ADD CONSTRAINT bookings_valid_time_range
+      CHECK (booking_end_time > booking_start_time);
+  END IF;
+END;
+$$;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
