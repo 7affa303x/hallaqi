@@ -1,4 +1,0 @@
-allowBuilds:
-  esbuild: set this to true or false
-minimumReleaseAgeExclude:
-  - '@stripe/stripe-js@9.10.0'

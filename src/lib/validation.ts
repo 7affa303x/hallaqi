@@ -14,6 +14,7 @@ export const registerSchema = z.object({
   email: z.string().min(1, 'أدخل البريد الإلكتروني').email('البريد الإلكتروني غير صالح'),
   password: z.string().min(1, 'أدخل كلمة المرور').min(6, 'يجب أن تكون 6 أحرف على الأقل'),
   confirm: z.string().min(1, 'أكد كلمة المرور'),
+  accountType: z.enum(['client', 'barber']),
   acceptedTerms: z.boolean().refine(v => v === true, 'يجب قبول الشروط'),
 }).refine(data => data.password === data.confirm, {
   message: 'كلمتا المرور غير متطابقتين',
@@ -117,6 +118,12 @@ export const paymentRejectSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const forumPostSchema = z.object({
+  title: z.string().trim().min(3, 'العنوان قصير جداً').max(120, 'العنوان طويل جداً'),
+  content: z.string().trim().min(10, 'اكتب تفاصيل أكثر').max(5000, 'المحتوى طويل جداً'),
+  categoryId: z.string().uuid('اختر تصنيفاً صالحاً'),
+});
+
 /* ------------------------------------------------------------------ */
 /*  Type exports                                                       */
 /* ------------------------------------------------------------------ */
@@ -133,3 +140,4 @@ export type AvailabilityExceptionFormData = z.infer<typeof availabilityException
 export type BookingStep3FormData = z.infer<typeof bookingStep3Schema>;
 export type ReceiptUploadFormData = z.infer<typeof receiptUploadSchema>;
 export type PaymentRejectFormData = z.infer<typeof paymentRejectSchema>;
+export type ForumPostFormData = z.infer<typeof forumPostSchema>;

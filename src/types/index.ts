@@ -145,6 +145,7 @@ export interface ForumPost {
   isVerified: boolean;
   title: string;
   content: string;
+  image?: string;
   category: ForumCategory;
   tags: string[];
   likes: number;
@@ -159,7 +160,10 @@ export interface ForumPost {
 export type ForumCategory =
   | 'general'
   | 'discussions'
+  | 'tips'
   | 'tips-tricks'
+  | 'products'
+  | 'hairstyles'
   | 'showcase'
   | 'questions'
   | 'competitions'
@@ -372,6 +376,7 @@ export type ScreenName =
   | 'chat-room'
   | 'notifications'
   | 'post-detail'
+  | 'create-post'
   | 'search'
   | 'onboarding'
   | 'splash'

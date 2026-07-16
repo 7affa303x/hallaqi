@@ -15,13 +15,23 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
 
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
-    if (!stripeSecretKey) {
-      throw new Error('STRIPE_SECRET_KEY not configured')
+    if (!stripeSecretKey || !webhookSecret) {
+      console.error('Stripe webhook secrets are not fully configured')
+      return new Response(JSON.stringify({ error: 'Webhook is not configured' }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const stripe = new Stripe(stripeSecretKey, {
@@ -39,20 +49,20 @@ serve(async (req) => {
 
     let event: Stripe.Event
 
-    // Verify webhook signature if secret is configured
-    if (webhookSecret && signature) {
-      try {
-        event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-      } catch (err) {
-        console.error('Webhook signature verification failed:', err.message)
-        return new Response(
-          JSON.stringify({ error: 'Invalid signature' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-    } else {
-      // In test/sandbox mode without webhook secret, parse directly
-      event = JSON.parse(body)
+    if (!signature) {
+      return new Response(JSON.stringify({ error: 'Missing signature' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err)
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     console.log(`Processing webhook event: ${event.type}`)

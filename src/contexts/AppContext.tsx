@@ -2,10 +2,27 @@ import { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 import { isSupabaseConfigured, isDeveloperMode } from '@/supabase/client';
-import { getProfessionals, getClientBookings, getForumPosts, getUserNotifications, updateBookingStatus, sendNotification } from '@/supabase/database';
+import {
+  getProfessionals,
+  getClientBookings,
+  getFavorites,
+  getForumPosts,
+  getUserLikedPostIds,
+  getUserNotifications,
+  getUserSettings,
+  markAllNotificationsRead as persistAllNotificationsRead,
+  markNotificationRead as persistNotificationRead,
+  sendNotification,
+  subscribeToNotifications,
+  toggleFavorite,
+  toggleForumLike,
+  updateBookingStatus,
+  upsertUserSettings,
+} from '@/supabase/database';
 import { AppContext } from './context';
 import { themes } from '@/data/themes';
 import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotifications } from '@/data/mockData';
+import { mapBookingRow, mapForumPost, mapNotificationRow } from '@/lib/mappers';
 import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User } from '@/types';
 import type { Database } from '@/types/supabase';
 import type { Profile } from '@/types/supabase';
@@ -36,33 +53,6 @@ const convertProfileToUser = (profile: Profile): User => ({
   linkedAccounts: [],
 });
 
-/** Transform a Supabase booking row into the app's Booking type */
-function transformBookingRow(row: Record<string, unknown>): Booking {
-  const startTime = (row.booking_start_time as string) || '';
-  const date = startTime ? startTime.split('T')[0] : '';
-  const time = startTime ? startTime.split('T')[1]?.substring(0, 5) : '';
-  return {
-    id: row.id as string,
-    barberId: (row.professional_id as string) || '',
-    barberName: '', // Fetched separately via join
-    barberAvatar: '',
-    services: [],
-    date,
-    time,
-    status: (row.status as Booking['status']) || 'pending',
-    totalPrice: (row.total_price as number) || 0,
-    note: (row.notes as string) || undefined,
-    createdAt: (row.created_at as string) || new Date().toISOString(),
-    location: '',
-    isMobileService: false,
-    paymentMethod: 'cash',
-    paymentStatus: (row.payment_status as Booking['paymentStatus']) || 'pending',
-    reviewed: false,
-    rating: undefined,
-    address: undefined,
-  };
-}
-
 interface HistoryEntry { screen: ScreenName; params?: ScreenParams }
 
 interface DataLoadingState {
@@ -86,22 +76,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* ---- Initialize screen from URL on mount ---- */
   useEffect(() => {
     const pathname = window.location.pathname;
-    if (pathname === '/reset-password') {
-      setScreen('reset-password');
-      setHistory([{ screen: 'reset-password' }]);
-    } else if (pathname === '/forgot-password') {
-      setScreen('forgot-password');
-      setHistory([{ screen: 'forgot-password' }]);
+    const query = new URLSearchParams(window.location.search);
+    const queryScreen = query.get('screen');
+    let initialScreen: ScreenName = 'home';
+    let initialParams: ScreenParams | undefined;
+
+    if (pathname === '/reset-password') initialScreen = 'reset-password';
+    else if (pathname === '/forgot-password') initialScreen = 'forgot-password';
+    else if (pathname.startsWith('/barber/')) {
+      initialScreen = 'barber-detail';
+      initialParams = { barberId: decodeURIComponent(pathname.slice('/barber/'.length)) };
+    } else if (pathname.startsWith('/post/')) {
+      initialScreen = 'post-detail';
+      initialParams = { postId: decodeURIComponent(pathname.slice('/post/'.length)) };
+    } else if (queryScreen === 'payment-success') {
+      initialScreen = 'payment-success';
+      initialParams = { bookingId: query.get('booking_id') || undefined };
+    } else if (queryScreen === 'booking-flow' && query.get('barberId')) {
+      initialScreen = 'booking-flow';
+      initialParams = { barberId: query.get('barberId') || undefined };
     }
+
+    setScreen(initialScreen);
+    setScreenParams(initialParams);
+    setHistory([{ screen: initialScreen, params: initialParams }]);
   }, []);
 
   const navigate = useCallback((nextScreen: ScreenName, params?: ScreenParams) => {
     setScreen(nextScreen);
     setScreenParams(params);
     setHistory(prev => [...prev, { screen: nextScreen, params }]);
-    if (nextScreen === 'reset-password' || nextScreen === 'forgot-password') {
-      window.history.pushState({}, '', `/${nextScreen}`);
+    let url = '/';
+    if (nextScreen === 'reset-password' || nextScreen === 'forgot-password') url = `/${nextScreen}`;
+    else if (nextScreen === 'barber-detail' && params?.barberId) url = `/barber/${encodeURIComponent(params.barberId)}`;
+    else if (nextScreen === 'post-detail' && params?.postId) url = `/post/${encodeURIComponent(params.postId)}`;
+    else if (nextScreen !== 'home') {
+      const query = new URLSearchParams({ screen: nextScreen });
+      for (const [key, value] of Object.entries(params || {})) {
+        if (value) query.set(key, value);
+      }
+      url = `/?${query.toString()}`;
     }
+    window.history.pushState({}, '', url);
   }, []);
 
   const goBack = useCallback(() => {
@@ -151,7 +167,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [chats] = useState<Chat[]>([]);
   const [forumPosts, setForumPosts] = useState<ForumPost[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [currentUser] = useState<User | null>(isDeveloperMode ? mockCurrentUser : (appUser ? convertProfileToUser(appUser) : null));
+  const currentUser: User | null = isDeveloperMode
+    ? mockCurrentUser
+    : (appUser ? convertProfileToUser(appUser) : null);
 
   const [isLoading, setIsLoading] = useState<DataLoadingState>({
     barbers: false, bookings: false, forumPosts: false, notifications: false,
@@ -169,6 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsLoading({ barbers: false, bookings: false, forumPosts: false, notifications: false });
         return;
       }
+      setDataError('تعذر الاتصال بخدمة البيانات. تحقق من إعدادات التطبيق.');
       return;
     }
 
@@ -177,15 +196,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       const barbersData = await getProfessionals();
-      if (barbersData && barbersData.length > 0) setBarbers(barbersData);
-    } catch (err) { console.warn('[AppContext] professionals fetch failed:', err); }
+      if (appUser) {
+        const favorites = await getFavorites(appUser.id);
+        const favoriteIds = new Set(favorites.map(item => item.professional_id));
+        setBarbers(barbersData.map(barber => ({ ...barber, isFollowing: favoriteIds.has(barber.id) })));
+      } else {
+        setBarbers(barbersData);
+      }
+    } catch (err) {
+      console.warn('[AppContext] professionals fetch failed:', err);
+      setDataError('تعذر تحميل قائمة الحلاقين.');
+    }
     finally { setIsLoading(p => ({ ...p, barbers: false })); }
 
     if (appUser) {
       try {
         const bookingsData = await getClientBookings(appUser.id);
         if (bookingsData && bookingsData.length > 0) {
-          setBookings(bookingsData.map(transformBookingRow));
+          setBookings(bookingsData.map(mapBookingRow));
         } else {
           setBookings([]);
         }
@@ -194,7 +222,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       try {
         const notifData = await getUserNotifications(appUser.id);
-        if (notifData && notifData.length > 0) setNotifications(notifData as unknown as AppNotification[]);
+        setNotifications(notifData.map(mapNotificationRow));
       } catch (err) { console.warn('[AppContext] notifications fetch failed:', err); }
       finally { setIsLoading(p => ({ ...p, notifications: false })); }
     } else {
@@ -204,7 +232,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       const postsData = await getForumPosts();
-      if (postsData && postsData.length > 0) setForumPosts(postsData as unknown as ForumPost[]);
+      const likedIds = appUser ? await getUserLikedPostIds(appUser.id) : new Set<string>();
+      setForumPosts(postsData.map(post => mapForumPost(post, likedIds.has(post.id))));
     } catch (err) { console.warn('[AppContext] forum fetch failed:', err); }
     finally { setIsLoading(p => ({ ...p, forumPosts: false })); }
   }, [appUser]);
@@ -215,10 +244,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
+      const query = new URLSearchParams(window.location.search);
       if (pathname === '/reset-password') {
         setScreen('reset-password');
       } else if (pathname === '/forgot-password') {
         setScreen('forgot-password');
+      } else if (pathname.startsWith('/barber/')) {
+        setScreen('barber-detail');
+        setScreenParams({ barberId: decodeURIComponent(pathname.slice('/barber/'.length)) });
+        return;
+      } else if (pathname.startsWith('/post/')) {
+        setScreen('post-detail');
+        setScreenParams({ postId: decodeURIComponent(pathname.slice('/post/'.length)) });
+        return;
+      } else if (query.get('screen') === 'payment-success') {
+        setScreen('payment-success');
+        setScreenParams({ bookingId: query.get('booking_id') || undefined });
+        return;
       } else {
         setScreen('home');
       }
@@ -252,35 +294,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (newSettings.theme) useStore.getState().setTheme(newSettings.theme);
       if (newSettings.animationStyle) useStore.getState().setAnimationStyle(newSettings.animationStyle);
       if (newSettings.language) useStore.getState().setLanguage(newSettings.language);
+      if (appUser && isSupabaseConfigured() && !isDeveloperMode) {
+        void upsertUserSettings(appUser.id, updated).catch(err => {
+          console.error('[AppContext] Failed to persist settings:', err);
+          setDataError('تعذر حفظ الإعدادات. حاول مرة أخرى.');
+        });
+      }
       return updated;
     });
-  }, []);
+  }, [appUser]);
+
+  useEffect(() => {
+    if (!appUser || !isSupabaseConfigured() || isDeveloperMode) return;
+    void getUserSettings(appUser.id)
+      .then(saved => {
+        if (saved) setSettings(prev => ({ ...prev, ...saved }));
+      })
+      .catch(err => console.warn('[AppContext] settings fetch failed:', err));
+  }, [appUser]);
+
+  useEffect(() => {
+    if (!appUser || !isSupabaseConfigured() || isDeveloperMode) return;
+    const channel = subscribeToNotifications(appUser.id, rows => {
+      setNotifications(rows.map(mapNotificationRow));
+    });
+    return () => { void channel.unsubscribe(); };
+  }, [appUser]);
 
   /* ---- Actions ---- */
-  const toggleFollow = useCallback((barberId: string) => {
+  const toggleFollow = useCallback(async (barberId: string) => {
+    const current = barbers.find(barber => barber.id === barberId);
+    const nextFavorite = !current?.isFollowing;
     setBarbers(prev => prev.map(b =>
       b.id === barberId
-        ? { ...b, isFollowing: !b.isFollowing, followers: b.isFollowing ? b.followers - 1 : b.followers + 1 }
+        ? { ...b, isFollowing: nextFavorite, followers: Math.max(0, b.followers + (nextFavorite ? 1 : -1)) }
         : b
     ));
     if (isSupabaseConfigured() && appUser && !isDeveloperMode) {
-      import('@/supabase/database').then(m => m.toggleFavorite(appUser.id, barberId, true).catch(() => {}));
+      try {
+        await toggleFavorite(appUser.id, barberId, nextFavorite);
+      } catch (err) {
+        setBarbers(prev => prev.map(b => b.id === barberId ? { ...b, isFollowing: current?.isFollowing } : b));
+        setDataError('تعذر تحديث المفضلة.');
+        console.error('[AppContext] favorite update failed:', err);
+      }
     }
-  }, [appUser]);
+  }, [appUser, barbers]);
 
-  const toggleLike = useCallback((postId: string) => {
+  const toggleLike = useCallback(async (postId: string) => {
+    const current = forumPosts.find(post => post.id === postId);
+    if (!appUser) {
+      navigate('login', { redirectScreen: 'post-detail', postId });
+      return;
+    }
     setForumPosts(prev => prev.map(p =>
       p.id === postId ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 } : p
     ));
-  }, []);
+    try {
+      await toggleForumLike(appUser.id, postId);
+    } catch (err) {
+      setForumPosts(prev => prev.map(p => p.id === postId && current ? current : p));
+      setDataError('تعذر تحديث الإعجاب.');
+      console.error('[AppContext] forum like failed:', err);
+    }
+  }, [appUser, forumPosts, navigate]);
 
-  const markNotificationRead = useCallback((id: string) => {
+  const markNotificationRead = useCallback(async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    if (!isDeveloperMode && isSupabaseConfigured()) {
+      try {
+        await persistNotificationRead(id);
+      } catch (err) {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: false } : n));
+        console.error('[AppContext] notification read update failed:', err);
+      }
+    }
   }, []);
 
-  const markAllNotificationsRead = useCallback(() => {
+  const markAllNotificationsRead = useCallback(async () => {
+    const unreadIds = new Set(notifications.filter(n => !n.read).map(n => n.id));
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    if (appUser && !isDeveloperMode && isSupabaseConfigured()) {
+      try {
+        await persistAllNotificationsRead(appUser.id);
+      } catch (err) {
+        setNotifications(prev => prev.map(n => unreadIds.has(n.id) ? { ...n, read: false } : n));
+        console.error('[AppContext] mark all notifications failed:', err);
+      }
+    }
+  }, [appUser, notifications]);
 
   const addBooking = useCallback((booking: Booking) => {
     setBookings(prev => [booking, ...prev]);
@@ -288,24 +390,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const cancelBooking = useCallback(async (id: string) => {
     const booking = bookings.find(b => b.id === id);
+    if (!booking) return;
+    const previousStatus = booking.status;
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'cancelled' as const } : b));
     if (!isDeveloperMode && isSupabaseConfigured()) {
       try {
         await updateBookingStatus(id, 'cancelled' as unknown as Database["public"]["Enums"]["booking_status"]);
-        // Notify the client that their booking was cancelled
-        if (booking && appUser) {
+        if (appUser) {
           try {
             await sendNotification({
-              userId: appUser.id,
-              title: 'تم إلغاء الحجز',
-              message: `تم إلغاء حجزك مع ${booking.barberName}`,
+              userId: booking.barberId,
+              title: 'ألغى العميل الحجز',
+              message: `ألغى ${appUser.full_name || 'العميل'} الحجز بتاريخ ${booking.date}`,
               type: 'booking',
+              metadata: { booking_id: id },
             });
           } catch (err) {
             console.error('[AppContext] Failed to send cancel notification:', err);
           }
         }
       } catch (err) {
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: previousStatus } : b));
+        setDataError('تعذر إلغاء الحجز.');
         console.error('[AppContext] Failed to cancel booking:', err);
       }
     }
@@ -313,24 +419,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const confirmBooking = useCallback(async (id: string) => {
     const booking = bookings.find(b => b.id === id);
+    if (!booking) return;
+    const previousStatus = booking.status;
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'confirmed' as const } : b));
     if (!isDeveloperMode && isSupabaseConfigured()) {
       try {
         await updateBookingStatus(id, 'confirmed' as unknown as Database["public"]["Enums"]["booking_status"]);
-        // Notify the client that their booking was confirmed
-        if (booking && appUser) {
+        if (appUser) {
           try {
             await sendNotification({
-              userId: appUser.id,
+              userId: booking.barberId,
               title: 'تم تأكيد الحجز',
-              message: `تم تأكيد حجزك مع ${booking.barberName} - ${booking.date} ${booking.time}`,
+              message: `تم تأكيد الحجز بواسطة ${appUser.full_name || 'العميل'} - ${booking.date} ${booking.time}`,
               type: 'booking',
+              metadata: { booking_id: id },
             });
           } catch (err) {
             console.error('[AppContext] Failed to send confirm notification:', err);
           }
         }
       } catch (err) {
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: previousStatus } : b));
+        setDataError('تعذر تأكيد الحجز.');
         console.error('[AppContext] Failed to confirm booking:', err);
       }
     }

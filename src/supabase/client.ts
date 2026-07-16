@@ -9,6 +9,7 @@ export const isSupabaseConfigured = (): boolean => {
 };
 
 export const isDeveloperMode = (() => {
+  if (!import.meta.env.DEV) return false;
   try {
     return typeof window !== 'undefined' && window.localStorage?.getItem('hallaqi_dev_mode') === 'true';
   } catch {
@@ -17,6 +18,7 @@ export const isDeveloperMode = (() => {
 })();
 
 export function toggleDeveloperMode() {
+  if (!import.meta.env.DEV) return;
   try {
     const current = localStorage.getItem('hallaqi_dev_mode') === 'true';
     localStorage.setItem('hallaqi_dev_mode', (!current).toString());
@@ -64,7 +66,10 @@ export const STORAGE = {
   AVATARS: 'avatars',
   COVERS: 'covers',
   PORTFOLIO: 'portfolio',
-  REVIEWS: 'reviews',
+  REVIEWS: 'review-images',
+  FORUM: 'forum-images',
+  ID_CARDS: 'id-cards',
+  PAYMENT_RECEIPTS: 'payment-receipts',
 } as const;
 
 export default supabase;

@@ -48,7 +48,7 @@ type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'notificatio
   'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile' | 'services';
 
 export default function ProfileTab() {
-  const { themeConfig, navigate } = useApp();
+  const { themeConfig, navigate, unreadCount } = useApp();
   const { isAuthenticated, appUser, user, logout, isLoading: authLoading } = useAuth();
   const [subPage, setSubPage] = useState<ProfileSubPage>('main');
 
@@ -120,6 +120,18 @@ export default function ProfileTab() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-bold text-white">البروفايل</h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('notifications')}
+              aria-label="الإشعارات"
+              className="relative w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+            >
+              <Bell size={16} className="text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center">
+                  {Math.min(unreadCount, 99)}
+                </span>
+              )}
+            </button>
             <button onClick={handleLogout} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10" title="تسجيل الخروج"><LogOut size={16} className="text-white" /></button>
             <button onClick={() => setSubPage('edit-profile')} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><Settings size={16} className="text-white" /></button>
           </div>

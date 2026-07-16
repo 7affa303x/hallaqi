@@ -11,11 +11,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+})
+
+function returnUrl(base: string, values: Record<string, string>) {
+  const url = new URL(base)
+  for (const [key, value] of Object.entries(values)) url.searchParams.set(key, value)
+  return url.toString()
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
@@ -28,10 +40,14 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const authorization = req.headers.get('Authorization')
+    const token = authorization?.replace(/^Bearer\s+/i, '')
+    if (!token) return json({ error: 'Authentication required' }, 401)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '')
+    const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token)
+    if (authError || !user) return json({ error: 'Invalid session' }, 401)
 
     const {
       bookingId,
@@ -47,11 +63,34 @@ serve(async (req) => {
     } = await req.json()
 
     // Validate required fields
-    if (!bookingId || !lineItems || !totalAmount || !successUrl || !cancelUrl) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: bookingId, lineItems, totalAmount, successUrl, cancelUrl' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!bookingId || !Array.isArray(lineItems) || lineItems.length === 0 || !totalAmount || !successUrl || !cancelUrl) {
+      return json({ error: 'Missing required fields: bookingId, lineItems, totalAmount, successUrl, cancelUrl' }, 400)
+    }
+
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('client_id, professional_id, total_price')
+      .eq('id', bookingId)
+      .single()
+    if (bookingError || !booking) return json({ error: 'Booking not found' }, 404)
+    if (booking.client_id !== user.id || clientId !== user.id || professionalId !== booking.professional_id) {
+      return json({ error: 'Not authorized for this booking' }, 403)
+    }
+    if (Math.abs(Number(totalAmount) - Number(booking.total_price)) > 0.01) {
+      return json({ error: 'Payment amount does not match booking' }, 400)
+    }
+    const lineItemsTotal = lineItems.reduce((sum: number, item: {
+      amount?: number
+      quantity?: number
+    }) => sum + Number(item.amount || 0) * Number(item.quantity || 0), 0)
+    if (!Number.isFinite(lineItemsTotal)
+      || Math.abs(lineItemsTotal - Number(booking.total_price) * 100) > 1) {
+      return json({ error: 'Line items do not match booking total' }, 400)
+    }
+
+    const allowedHosts = new Set(['hallaqi.app', 'www.hallaqi.app', 'localhost', '127.0.0.1'])
+    if (!allowedHosts.has(new URL(successUrl).hostname) || !allowedHosts.has(new URL(cancelUrl).hostname)) {
+      return json({ error: 'Invalid return URL' }, 400)
     }
 
     // Build Stripe line items dynamically from booking data
@@ -72,8 +111,11 @@ serve(async (req) => {
       payment_method_types: ['card'],
       line_items: stripeLineItems,
       mode: 'payment',
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&booking_id=${bookingId}`,
-      cancel_url: `${cancelUrl}?booking_id=${bookingId}`,
+      success_url: returnUrl(successUrl, {
+        session_id: '{CHECKOUT_SESSION_ID}',
+        booking_id: bookingId,
+      }),
+      cancel_url: returnUrl(cancelUrl, { booking_id: bookingId }),
       metadata: {
         booking_id: bookingId,
         client_id: clientId || '',
@@ -96,21 +138,16 @@ serve(async (req) => {
 
     if (dbError) {
       console.error('Failed to save payment record:', dbError)
-      // Don't fail the request - the session is created, webhook will handle status
+      await stripe.checkout.sessions.expire(session.id)
+      throw dbError
     }
 
-    return new Response(
-      JSON.stringify({
-        sessionId: session.id,
-        checkoutUrl: session.url,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({
+      sessionId: session.id,
+      checkoutUrl: session.url,
+    })
   } catch (error) {
     console.error('Error creating checkout session:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ error: 'Unable to create checkout session' }, 500)
   }
 })

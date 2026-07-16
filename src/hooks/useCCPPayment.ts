@@ -8,7 +8,7 @@ import { useState, useCallback } from 'react';
 import { ccpProvider } from '@/lib/payment/ccp-provider';
 import type { CCPPaymentRecord } from '@/lib/payment/ccp-provider';
 import type { PaymentSessionStatus } from '@/lib/payment/types';
-import { insertNotification } from '@/supabase/database';
+import { sendNotification } from '@/supabase/database';
 
 export interface UseCCPPaymentReturn {
   isProcessing: boolean;
@@ -116,8 +116,8 @@ export function useCCPPayment(): UseCCPPaymentReturn {
 
       // Notify barber about receipt upload
       try {
-        await insertNotification({
-          user_id: params.professionalId,
+        await sendNotification({
+          userId: params.professionalId,
           title: 'إيصال دفع جديد',
           message: `قام ${params.clientName} برفع إيصال الدفع. يرجى مراجعته والموافقة عليه.`,
           type: 'booking',
@@ -133,8 +133,8 @@ export function useCCPPayment(): UseCCPPaymentReturn {
 
       // Notify customer that receipt was submitted
       try {
-        await insertNotification({
-          user_id: params.clientId,
+        await sendNotification({
+          userId: params.clientId,
           title: 'تم إرسال إيصال الدفع',
           message: 'تم رفع إيصال الدفع بنجاح. سيتم مراجعته قريباً.',
           type: 'booking',
@@ -169,16 +169,18 @@ export function useCCPPayment(): UseCCPPaymentReturn {
     setError(null);
     try {
       await ccpProvider.approvePayment(paymentId, approverId);
+      const approvedPayment = await ccpProvider.getPaymentById(paymentId);
 
       // Notify customer
       try {
-        await insertNotification({
-          user_id: clientId,
+        await sendNotification({
+          userId: clientId,
           title: 'تمت الموافقة على الدفع ✓',
           message: `تمت الموافقة على إيصال الدفع من قبل ${barberName}. حجزك مؤكد!`,
           type: 'booking',
           metadata: {
             payment_id: paymentId,
+            booking_id: approvedPayment?.bookingId || '',
             action: 'payment_approved',
           },
         });
@@ -207,16 +209,18 @@ export function useCCPPayment(): UseCCPPaymentReturn {
     setError(null);
     try {
       await ccpProvider.rejectPayment(paymentId, rejectorId, reason);
+      const rejectedPayment = await ccpProvider.getPaymentById(paymentId);
 
       // Notify customer
       try {
-        await insertNotification({
-          user_id: clientId,
+        await sendNotification({
+          userId: clientId,
           title: 'تم رفض إيصال الدفع',
           message: `تم رفض إيصال الدفع من قبل ${barberName}${reason ? `: ${reason}` : '. يرجى إعادة الرفع.'}`,
           type: 'booking',
           metadata: {
             payment_id: paymentId,
+            booking_id: rejectedPayment?.bookingId || '',
             action: 'payment_rejected',
             reason: reason || '',
           },

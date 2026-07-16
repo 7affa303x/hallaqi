@@ -6,7 +6,7 @@ import { getErrMsg } from '@/lib/error';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserPlus, Mail, Lock, Eye, EyeOff, ArrowRight, User,
-  Chrome, AlertCircle, WifiOff, ShieldCheck, Check
+  Chrome, AlertCircle, WifiOff, ShieldCheck, Check, Scissors
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,12 +50,14 @@ export default function RegisterScreen() {
       email: '',
       password: '',
       confirm: '',
+      accountType: 'client',
       acceptedTerms: false,
     },
   });
 
   const [localError, setLocalError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   const error = localError || authError || '';
   const password = watch('password', '');
@@ -68,9 +70,19 @@ export default function RegisterScreen() {
   const onSubmit = async (data: RegisterFormData) => {
     clearErrors();
     try {
-      await register(data.email, data.password, data.name.trim());
-      setAuthenticated(true);
-      navigate('home');
+      const result = await register(
+        data.email,
+        data.password,
+        data.name.trim(),
+        data.accountType
+      );
+      if (result.session) {
+        setAuthenticated(true);
+        navigate('home');
+      } else {
+        setAuthenticated(false);
+        setVerificationEmail(data.email);
+      }
     } catch (err) {
       const msg = getErrMsg(err);
       if (msg.includes('email-already') || msg.includes('مستخدم')) {
@@ -119,6 +131,41 @@ export default function RegisterScreen() {
     if (isTouched) return themeConfig.colors.primary + '40';
     return themeConfig.colors.border;
   };
+
+  if (verificationEmail) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{ backgroundColor: themeConfig.colors.background }}
+      >
+        <div
+          className="w-full max-w-sm rounded-3xl p-6 text-center border"
+          style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+        >
+          <div
+            className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
+            style={{ backgroundColor: themeConfig.colors.primary + '15' }}
+          >
+            <Mail size={30} style={{ color: themeConfig.colors.primary }} />
+          </div>
+          <h1 className="text-xl font-black mt-4" style={{ color: themeConfig.colors.text }}>
+            تحقق من بريدك
+          </h1>
+          <p className="text-sm leading-relaxed mt-2" style={{ color: themeConfig.colors.textMuted }}>
+            أرسلنا رابط تأكيد إلى {verificationEmail}. أكد البريد ثم سجل الدخول لإكمال حسابك.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('login')}
+            className="w-full h-12 rounded-2xl text-sm font-bold text-white mt-5"
+            style={{ backgroundColor: themeConfig.colors.primary }}
+          >
+            الانتقال إلى تسجيل الدخول
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -334,6 +381,44 @@ export default function RegisterScreen() {
           </div>
           <AnimatePresence>{renderFieldError('confirm')}</AnimatePresence>
         </div>
+
+        {/* Account type */}
+        <Controller
+          name="accountType"
+          control={control}
+          render={({ field }) => (
+            <fieldset>
+              <legend className="block text-xs font-bold mb-2 px-0.5" style={{ color: themeConfig.colors.text }}>
+                نوع الحساب
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: 'client', label: 'عميل', icon: User },
+                  { value: 'barber', label: 'حلاق', icon: Scissors },
+                ] as const).map(option => {
+                  const Icon = option.icon;
+                  const selected = field.value === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => field.onChange(option.value)}
+                      className="h-12 rounded-2xl border-2 flex items-center justify-center gap-2 text-xs font-bold"
+                      style={{
+                        borderColor: selected ? themeConfig.colors.primary : themeConfig.colors.border,
+                        backgroundColor: selected ? themeConfig.colors.primary + '10' : themeConfig.colors.surface,
+                        color: selected ? themeConfig.colors.primary : themeConfig.colors.textMuted,
+                      }}
+                    >
+                      <Icon size={16} />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+        />
 
         {/* Terms */}
         <Controller

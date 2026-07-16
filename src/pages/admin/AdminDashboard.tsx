@@ -8,6 +8,7 @@ import {
   type AdminUserRow, type AdminReviewRow,
 } from '@/supabase/database';
 import { ccpProvider } from '@/lib/payment/ccp-provider';
+import { getSignedUrl } from '@/supabase/storage';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Users, Scissors, Calendar, CreditCard, Clock, Star, DollarSign, TrendingUp, ChevronRight, Shield, Check, X, ArrowRight } from 'lucide-react';
 
@@ -447,6 +448,7 @@ interface PendingPaymentRow {
   provider: string | null;
   created_at: string | null;
   metadata: unknown;
+  receipt_url?: string | null;
 }
 
 function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookings' | 'payments' | 'reviews'; adminId: string; onBack: () => void }) {
@@ -454,6 +456,7 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [reviews, setReviews] = useState<AdminReviewRow[]>([]);
   const [payments, setPayments] = useState<PendingPaymentRow[]>([]);
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -464,7 +467,18 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
     try {
       if (section === 'users') setUsers(await adminListProfiles());
       else if (section === 'reviews') setReviews(await adminListPendingReviews());
-      else if (section === 'payments') setPayments((await adminListPendingPayments()) as unknown as PendingPaymentRow[]);
+      else if (section === 'payments') {
+        const rows = (await adminListPendingPayments()) as unknown as PendingPaymentRow[];
+        setPayments(rows);
+        const signedEntries = await Promise.all(rows.flatMap(payment =>
+          payment.receipt_url
+            ? [getSignedUrl('payment-receipts', payment.receipt_url)
+                .then(url => [payment.id, url] as const)
+                .catch(() => null)]
+            : []
+        ));
+        setReceiptUrls(Object.fromEntries(signedEntries.filter((entry): entry is readonly [string, string] => entry !== null)));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل التحميل');
     } finally {
@@ -548,12 +562,11 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
         {!loading && section === 'payments' && (payments.length === 0
           ? <p className="text-sm text-center py-6" style={{ color: themeConfig.colors.textMuted }}>لا توجد مدفوعات بانتظار المراجعة</p>
           : payments.map(p => {
-            const meta = (p.metadata as Record<string, string>) || {};
             return (
               <div key={p.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{p.amount ?? 0} دج · {p.provider}</p>
-                  {meta.receipt_url && <a href={meta.receipt_url} target="_blank" rel="noreferrer" className="text-[11px] underline" style={{ color: themeConfig.colors.primary }}>عرض الإيصال</a>}
+                  {receiptUrls[p.id] && <a href={receiptUrls[p.id]} target="_blank" rel="noreferrer" className="text-[11px] underline" style={{ color: themeConfig.colors.primary }}>عرض الإيصال</a>}
                 </div>
                 <div className="flex gap-2">
                   <button disabled={busyId === p.id} onClick={() => decidePayment(p, true)} className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg text-xs font-bold disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}><Check size={13} /> قبول الدفع</button>

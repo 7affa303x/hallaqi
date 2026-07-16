@@ -190,14 +190,10 @@ export class CCPProvider implements PaymentProvider {
       throw new Error(`فشل في رفع الإيصال: ${uploadError.message}`);
     }
 
-    const { data: urlData } = supabase.storage
-      .from(RECEIPTS_BUCKET)
-      .getPublicUrl(filePath);
-
     onProgress?.(100);
 
     return {
-      receiptUrl: urlData.publicUrl,
+      receiptUrl: filePath,
       filePath,
     };
   }
@@ -226,9 +222,10 @@ export class CCPProvider implements PaymentProvider {
       .update({
         transaction_id: params.transactionReference || null,
         status: 'processing',
+        receipt_url: params.receiptUrl,
         metadata: {
           ...existingMeta,
-          receipt_url: params.receiptUrl,
+          receipt_path: params.receiptUrl,
           transaction_reference: params.transactionReference || '',
           submitted_at: new Date().toISOString(),
         },

@@ -200,16 +200,29 @@ export function useAuth() {
   }, []);
 
   /* ---- Sign Up ---- */
-  const register = useCallback(async (email: string, password: string, displayName: string) => {
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    displayName: string,
+    accountType: 'client' | 'barber' = 'client'
+  ) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
       setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: { id: 'dev-user' } as User, appUser: { ...DEV_PROFILE, full_name: displayName } }));
-      return { user: { id: 'dev-user' } as User };
+      return { user: { id: 'dev-user' } as User, session: null };
     }
     try {
-      const { user } = await signUp(email, password, displayName);
-      setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
-      return user;
+      const { user, session } = await signUp(email, password, displayName, accountType);
+      const profile = session?.user ? await fetchUserProfile(session.user.id) : null;
+      setState(s => ({
+        ...s,
+        user: session?.user || null,
+        appUser: profile,
+        session,
+        isLoading: false,
+        isAuthenticated: !!session,
+      }));
+      return { user, session };
     } catch (err) {
       setState(s => ({ ...s, isLoading: false, error: getErrMsg(err) }));
       throw err;

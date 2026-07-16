@@ -19,6 +19,7 @@ const BookingFlowPage = lazy(() => import('@/pages/BookingFlowPage'));
 const ChatRoomPage = lazy(() => import('@/pages/ChatRoomPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const PostDetailPage = lazy(() => import('@/pages/PostDetailPage'));
+const CreateForumPostPage = lazy(() => import('@/pages/CreateForumPostPage'));
 const ComingSoonPage = lazy(() => import('@/components/ComingSoon'));
 const LoginScreen = lazy(() => import('@/pages/LoginScreen'));
 const RegisterScreen = lazy(() => import('@/pages/RegisterScreen'));
@@ -42,7 +43,7 @@ function ScreenRouter() {
   const { screen, screenParams, activeTab } = useApp();
   const { isAuthenticated } = useAuth();
 
-  const authRequiredScreens = ['booking-flow', 'chat-room'];
+  const authRequiredScreens = ['booking-flow', 'chat-room', 'create-post'];
   const needsAuth = authRequiredScreens.includes(screen) && !isAuthenticated;
 
   if (needsAuth) {
@@ -64,6 +65,8 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><NotificationsPage /></Suspense>;
     case 'post-detail':
       return <Suspense fallback={<LoadingFallback />}><PostDetailPage /></Suspense>;
+    case 'create-post':
+      return <Suspense fallback={<LoadingFallback />}><CreateForumPostPage /></Suspense>;
     case 'login':
       return <Suspense fallback={<LoadingFallback />}><LoginScreen /></Suspense>;
     case 'register':
@@ -113,7 +116,7 @@ function NetworkStatusBar() {
 
 
 function AppContent() {
-  const { themeConfig, animationStyle, screen } = useApp();
+  const { themeConfig, animationStyle, screen, dataError, refreshData } = useApp();
   const { isLoading: authLoading } = useAuth();
   const showNav = screen === 'home';
   const setIsOnline = useStore(s => s.setIsOnline);
@@ -164,6 +167,18 @@ function AppContent() {
   return (
     <div className={`min-h-screen anim-${animationStyle}`} style={{ ...cssVars, backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text, fontFamily: themeConfig.fontFamily, transition: 'background-color 0.5s ease, color 0.5s ease' }}>
       <NetworkStatusBar />
+      {dataError && (
+        <div
+          role="alert"
+          className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-md rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
+          style={{ backgroundColor: themeConfig.colors.error, color: '#fff' }}
+        >
+          <span className="text-xs flex-1">{dataError}</span>
+          <button type="button" onClick={() => void refreshData()} className="text-xs font-bold underline">
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
       <main className={`max-w-lg mx-auto min-h-screen ${showNav ? 'pb-16' : ''}`}>
         {/* Developer Mode toggle — dev builds only; stripped from production. */}
         {import.meta.env.DEV && (

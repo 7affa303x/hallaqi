@@ -24,13 +24,18 @@ function getAuthErrorMessage(err: { message?: string; code?: string; status?: nu
 }
 
 /* ========== SIGN UP ========== */
-export async function signUp(email: string, password: string, fullName: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  accountType: 'client' | 'barber' = 'client'
+) {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: { data: { full_name: fullName, account_type: accountType } },
   });
   if (error) throw new Error(getAuthErrorMessage(error));
 

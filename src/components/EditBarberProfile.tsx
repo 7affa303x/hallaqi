@@ -30,9 +30,10 @@ const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PORTFOLIO_ITEMS = 10;
 
-export default function EditBarberProfile({ onBack, userRole: _userRole }: EditBarberProfileProps) {
+export default function EditBarberProfile({ onBack, userRole }: EditBarberProfileProps) {
   const { themeConfig } = useApp();
   const { appUser } = useAuth();
+  const isBarber = userRole === 'barber' || userRole === 'specialist';
 
   const {
     register,
@@ -77,13 +78,13 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
       setAvatarPreviewUrl((profileData.avatar_url as string) || null);
       setIsFetching(false);
 
-      if (appUser.id) {
+      if (appUser.id && isBarber) {
         loadPortfolioItems(appUser.id);
       }
     } else {
       setIsFetching(false);
     }
-  }, [appUser, setValue]);
+  }, [appUser, isBarber, setValue]);
 
   const loadPortfolioItems = async (proId: string) => {
     try {
@@ -174,14 +175,16 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
         updated_at: new Date().toISOString(),
       });
 
-      await updateProfessionalProfile(appUser.id, {
-        bio: data.bio?.trim() || null,
-        business_name: data.business_name?.trim() || null,
-        business_address: data.business_address?.trim() || null,
-        business_phone: data.business_phone?.trim() || null,
-        business_email: data.business_email?.trim() || null,
-        website_url: data.website_url?.trim() || null,
-      });
+      if (isBarber) {
+        await updateProfessionalProfile(appUser.id, {
+          bio: data.bio?.trim() || null,
+          business_name: data.business_name?.trim() || null,
+          business_address: data.business_address?.trim() || null,
+          business_phone: data.business_phone?.trim() || null,
+          business_email: data.business_email?.trim() || null,
+          website_url: data.website_url?.trim() || null,
+        });
+      }
 
       if (avatarFile && appUser.id) {
         const { uploadAvatar } = await import('@/supabase/storage');
@@ -189,8 +192,8 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
         if (avatarUrl) await updateProfile(appUser.id, { avatar_url: avatarUrl });
       }
 
-      const activeItems = portfolioItems.filter(p => !p.isDeleted);
-      const deletedItems = portfolioItems.filter(p => p.isDeleted && !p.isNew);
+      const activeItems = isBarber ? portfolioItems.filter(p => !p.isDeleted) : [];
+      const deletedItems = isBarber ? portfolioItems.filter(p => p.isDeleted && !p.isNew) : [];
 
       const uploadPromises = activeItems.filter(p => p.isNew && p.file).map(async (item, idx) => {
         if (!item.file || !appUser?.id) return;
@@ -354,6 +357,8 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
           </div>
         </div>
 
+        {isBarber && (
+          <>
         {/* Business Info */}
         <div>
           <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>معلومات العمل</h3>
@@ -480,9 +485,11 @@ export default function EditBarberProfile({ onBack, userRole: _userRole }: EditB
           <div>
             <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>أيام الإغلاق</h3>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <AvailabilityExceptions />
+              <AvailabilityExceptions barberId={appUser.id} />
             </div>
           </div>
+        )}
+          </>
         )}
 
         {/* Submit */}

@@ -11,10 +11,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+})
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
@@ -27,32 +33,45 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const authorization = req.headers.get('Authorization')
+    const token = authorization?.replace(/^Bearer\s+/i, '')
+    if (!token) return json({ error: 'Authentication required' }, 401)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '')
+    const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token)
+    if (authError || !user) return json({ error: 'Invalid session' }, 401)
 
     const { sessionId, provider } = await req.json()
 
     if (!sessionId) {
-      return new Response(
-        JSON.stringify({ error: 'sessionId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return json({ error: 'sessionId is required' }, 400)
     }
 
     if (provider !== 'stripe') {
-      return new Response(
-        JSON.stringify({ error: `Provider "${provider}" verification not implemented` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      return json({ error: `Provider "${provider}" verification not implemented` }, 400)
     }
+
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('booking_id')
+      .eq('session_id', sessionId)
+      .eq('provider', 'stripe')
+      .single()
+    if (paymentError || !payment?.booking_id) return json({ error: 'Payment not found' }, 404)
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('client_id')
+      .eq('id', payment.booking_id)
+      .single()
+    if (!booking || booking.client_id !== user.id) return json({ error: 'Not authorized' }, 403)
 
     // Retrieve session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId)
 
     const isCompleted = session.payment_status === 'paid'
     const bookingId = session.metadata?.booking_id
+    if (bookingId !== payment.booking_id) return json({ error: 'Payment metadata mismatch' }, 409)
 
     // Map Stripe status to our status
     let status: string = 'pending'
@@ -71,7 +90,7 @@ serve(async (req) => {
         ? session.payment_intent
         : session.payment_intent?.id
 
-      await supabase
+      const { error: updatePaymentError } = await supabase
         .from('payments')
         .update({
           status: 'completed',
@@ -79,9 +98,10 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('session_id', sessionId)
+      if (updatePaymentError) throw updatePaymentError
 
       // Confirm booking
-      await supabase
+      const { error: updateBookingError } = await supabase
         .from('bookings')
         .update({
           status: 'confirmed',
@@ -89,24 +109,19 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', bookingId)
+      if (updateBookingError) throw updateBookingError
     }
 
-    return new Response(
-      JSON.stringify({
-        verified: isCompleted,
-        status,
-        transactionId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
-        amount: session.amount_total,
-        currency: session.currency,
-        metadata: session.metadata,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({
+      verified: isCompleted,
+      status,
+      transactionId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
+      amount: session.amount_total,
+      currency: session.currency,
+      metadata: session.metadata,
+    })
   } catch (error) {
     console.error('Verify payment error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Verification failed' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return json({ error: 'Verification failed' }, 500)
   }
 })

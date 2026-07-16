@@ -4,9 +4,15 @@ import { useApp } from '@/contexts/useApp';
 import { SkeletonBookingCard } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import { motion } from 'framer-motion';
-import type { BookingStatus } from '@/types';
+import type { Booking, BookingStatus } from '@/types';
 import type { Database } from '@/types/supabase';
-import { getProfessionalBookings, updateBookingStatus, sendNotification, getOrCreateConversation } from '@/supabase/database';
+import {
+  createReview,
+  getProfessionalBookings,
+  updateBookingStatus,
+  sendNotification,
+  getOrCreateConversation,
+} from '@/supabase/database';
 import {
   CalendarDays, Clock, MapPin, Car, CreditCard,
   CheckCircle2, XCircle, AlertCircle, MessageSquare,
@@ -51,9 +57,14 @@ function openDirections(location: string) {
 }
 
 export default function AppointmentsTab() {
-  const { bookings, themeConfig, cancelBooking, navigate, isLoading } = useApp();
+  const { bookings, themeConfig, cancelBooking, navigate, isLoading, refreshData } = useApp();
   const { isAuthenticated, appUser } = useAuth();
   const [activeFilter, setActiveFilter] = useState('upcoming');
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const isProfessional = appUser?.user_role === 'barber' || appUser?.user_role === 'specialist';
   if (isAuthenticated && isProfessional && appUser) {
@@ -66,6 +77,29 @@ export default function AppointmentsTab() {
       const conversationId = await getOrCreateConversation(appUser.id, otherId);
       navigate('chat-room', { conversationId, participantName: name, participantAvatar: avatar, participantId: otherId });
     } catch { /* ignore */ }
+  };
+
+  const submitReview = async () => {
+    if (!appUser || !reviewBooking) return;
+    setIsReviewing(true);
+    setReviewError('');
+    try {
+      await createReview({
+        booking_id: reviewBooking.id,
+        reviewer_id: appUser.id,
+        professional_id: reviewBooking.barberId,
+        rating: reviewRating,
+        comment: reviewComment.trim() || null,
+      });
+      await refreshData();
+      setReviewBooking(null);
+      setReviewComment('');
+      setReviewRating(5);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : 'تعذر إرسال التقييم');
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   const filteredBookings = bookings.filter(b => {
@@ -251,7 +285,7 @@ export default function AppointmentsTab() {
                       </>
                     )}
                     {booking.status === 'completed' && !booking.reviewed && (
-                      <button className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
+                      <button onClick={() => setReviewBooking(booking)} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                         style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}>
                         <Star size={14} /> تقييم
                       </button>
@@ -280,6 +314,41 @@ export default function AppointmentsTab() {
           onAction={activeFilter === 'upcoming' ? () => navigate('home') : undefined}
           themeConfig={themeConfig}
         />
+      )}
+
+      {reviewBooking && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-5" onClick={() => setReviewBooking(null)}>
+          <div
+            className="w-full max-w-sm rounded-2xl p-5"
+            style={{ backgroundColor: themeConfig.colors.surface }}
+            onClick={event => event.stopPropagation()}
+          >
+            <h2 className="font-bold" style={{ color: themeConfig.colors.text }}>قيّم {reviewBooking.barberName}</h2>
+            <div className="flex justify-center gap-2 my-5" dir="ltr">
+              {[1, 2, 3, 4, 5].map(value => (
+                <button key={value} type="button" onClick={() => setReviewRating(value)} aria-label={`${value} نجوم`}>
+                  <Star size={30} fill={value <= reviewRating ? '#F59E0B' : 'transparent'} color="#F59E0B" />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reviewComment}
+              onChange={event => setReviewComment(event.target.value)}
+              maxLength={1000}
+              rows={4}
+              placeholder="اكتب تعليقاً اختيارياً"
+              className="w-full rounded-xl border p-3 text-sm resize-none"
+              style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
+            />
+            {reviewError && <p role="alert" className="text-xs mt-2" style={{ color: themeConfig.colors.error }}>{reviewError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => setReviewBooking(null)} className="flex-1 h-10 rounded-xl border text-xs font-bold" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>إلغاء</button>
+              <button type="button" onClick={() => void submitReview()} disabled={isReviewing} className="flex-1 h-10 rounded-xl text-white text-xs font-bold disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.primary }}>
+                {isReviewing ? 'جاري الإرسال...' : 'إرسال التقييم'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -320,7 +389,13 @@ function BarberAppointments({ proId }: { proId: string }) {
       await updateBookingStatus(b.id, status as unknown as DbBookingStatus);
       if (b.client_id) {
         try {
-          await sendNotification({ userId: b.client_id, title: 'تحديث حالة الحجز', message: clientMessage, type: 'booking' });
+          await sendNotification({
+            userId: b.client_id,
+            title: 'تحديث حالة الحجز',
+            message: clientMessage,
+            type: 'booking',
+            metadata: { booking_id: b.id },
+          });
         } catch { /* notification is best-effort */ }
       }
       await load();

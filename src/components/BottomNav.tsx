@@ -11,27 +11,24 @@ import {
   QrCode
 } from 'lucide-react';
 
-const tabs: { key: TabName; label: string; icon: typeof Scissors; badge?: string; special?: boolean; authRequired?: boolean }[] = [
+const tabs: { key: TabName; label: string; icon: typeof Scissors; special?: boolean; authRequired?: boolean }[] = [
   { key: 'booking', label: 'الحجز', icon: Scissors },
-  { key: 'appointments', label: 'المواعيد', icon: CalendarDays, badge: '2', authRequired: true },
+  { key: 'appointments', label: 'المواعيد', icon: CalendarDays, authRequired: true },
   { key: 'camera', label: 'QR', icon: QrCode, special: true },
-  { key: 'forum', label: 'المنتدى', icon: MessageSquare, badge: '3' },
+  { key: 'forum', label: 'المنتدى', icon: MessageSquare },
   { key: 'profile', label: 'البروفايل', icon: User },
 ];
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate } = useApp();
+  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, bookings } = useApp();
   const { isAuthenticated } = useAuth();
 
   const getTabBadge = (tab: typeof tabs[0]) => {
     if (tab.key === 'appointments') {
       // Only show badge if authenticated
       if (!isAuthenticated) return undefined;
-      const count = 2;
+      const count = bookings.filter(booking => ['pending', 'confirmed'].includes(booking.status)).length;
       return count > 0 ? count.toString() : undefined;
-    }
-    if (tab.key === 'forum') {
-      return '3';
     }
     return undefined;
   };
@@ -47,6 +44,7 @@ export default function BottomNav() {
 
   return (
     <nav
+      aria-label="التنقل الرئيسي"
       className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl"
       style={{
         backgroundColor: `${themeConfig.colors.surface}dd`,
@@ -63,6 +61,8 @@ export default function BottomNav() {
             <button
               key={tab.key}
               onClick={() => handleTabClick(tab)}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300"
               style={{
                 backgroundColor: isActive ? `${themeConfig.colors.primary}12` : 'transparent',

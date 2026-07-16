@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import { SkeletonForumPost } from '@/components/Skeleton';
@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { forumCategories, mockCompetitions } from '@/data/mockData';
 import type { ForumCategory, ForumPost, ScreenName, ScreenParams } from '@/types';
 import { themes } from '@/data/themes';
+import { getForumCategories } from '@/supabase/database';
 import {
   MessageCircle, Trophy, Eye, Shield, BadgeCheck, Pin,
   Megaphone, Heart, MessageSquare, Share2, Bookmark,
@@ -21,6 +22,23 @@ export default function ForumTab() {
   const { forumPosts, themeConfig, navigate, isLoading } = useApp();
   const { isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory | 'all'>('all');
+  const [categories, setCategories] = useState<Array<{ key: string; label: string; color: string }>>(
+    forumCategories.map(category => ({ ...category }))
+  );
+
+  useEffect(() => {
+    getForumCategories()
+      .then(rows => {
+        if (rows.length > 0) {
+          setCategories(rows.map(row => ({
+            key: row.slug,
+            label: row.name,
+            color: row.color || themeConfig.colors.primary,
+          })));
+        }
+      })
+      .catch(() => { /* static categories remain available */ });
+  }, [themeConfig.colors.primary]);
 
   const filteredPosts = selectedCategory === 'all'
     ? forumPosts
@@ -45,7 +63,8 @@ export default function ForumTab() {
           <div className="flex gap-2">
             {isAuthenticated && (
               <button
-                onClick={() => navigate('coming-soon', { title: 'نشر جديد', description: 'إنشاء منشور جديد في المنتدى', eta: 'قريباً' })}
+                onClick={() => navigate('create-post')}
+                aria-label="إنشاء منشور جديد"
                 className="w-9 h-9 rounded-xl flex items-center justify-center border"
                 style={{ backgroundColor: themeConfig.colors.primary, borderColor: themeConfig.colors.primary, color: '#fff' }}
               >
@@ -67,7 +86,7 @@ export default function ForumTab() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all"
             style={{ backgroundColor: selectedCategory === 'all' ? themeConfig.colors.primary : themeConfig.colors.surface, color: selectedCategory === 'all' ? '#fff' : themeConfig.colors.textMuted, border: `1.5px solid ${selectedCategory === 'all' ? themeConfig.colors.primary : themeConfig.colors.border}` }}
           >الكل</button>
-          {forumCategories.map(cat => (
+          {categories.map(cat => (
             <button key={cat.key} onClick={() => setSelectedCategory(cat.key as ForumCategory)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all"
               style={{ backgroundColor: selectedCategory === cat.key ? cat.color + '15' : themeConfig.colors.surface, color: selectedCategory === cat.key ? cat.color : themeConfig.colors.textMuted, border: `1.5px solid ${selectedCategory === cat.key ? cat.color : themeConfig.colors.border}` }}

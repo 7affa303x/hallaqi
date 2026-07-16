@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { useAuth } from '@/hooks/useAuth';
+import { addForumComment, getPostComments, reportForumContent } from '@/supabase/database';
+import { mapForumComments } from '@/lib/mappers';
+import type { ForumComment } from '@/types';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Heart, MessageSquare, Eye, Share2,
@@ -11,12 +15,28 @@ const roleColors: Record<string, string> = { admin: '#EF4444', expert: '#8B5CF6'
 
 export default function PostDetailPage() {
   const { themeConfig, screenParams, forumPosts, toggleLike, navigate, goBack } = useApp();
+  const { appUser } = useAuth();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [comments, setComments] = useState<ForumComment[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
 
   const post = forumPosts.find(p => p.id === screenParams?.postId);
+
+  const loadComments = useCallback(async () => {
+    if (!screenParams?.postId) return;
+    try {
+      const rows = await getPostComments(screenParams.postId);
+      setComments(mapForumComments(rows));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر تحميل التعليقات');
+    }
+  }, [screenParams?.postId]);
+
+  useEffect(() => { void loadComments(); }, [loadComments]);
 
   if (!post) {
     return (
@@ -28,10 +48,57 @@ export default function PostDetailPage() {
     );
   }
 
-  const handleSendComment = () => {
+  const handleSendComment = async () => {
     if (!commentText.trim()) return;
-    setCommentText('');
-    setReplyTo(null);
+    if (!appUser || !post) {
+      navigate('login', { redirectScreen: 'post-detail', postId: post?.id });
+      return;
+    }
+    setIsSending(true);
+    setError('');
+    try {
+      await addForumComment({
+        post_id: post.id,
+        author_id: appUser.id,
+        content: commentText.trim(),
+        parent_id: replyTo,
+      });
+      setCommentText('');
+      setReplyTo(null);
+      await loadComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إضافة التعليق');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!appUser || !post) {
+      setShowReport(false);
+      navigate('login', { redirectScreen: 'post-detail', postId: post?.id });
+      return;
+    }
+    try {
+      await reportForumContent({
+        reporterId: appUser.id,
+        postId: post.id,
+        reason: reportReason,
+      });
+      setShowReport(false);
+      setReportReason('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إرسال البلاغ');
+    }
+  };
+
+  const sharePost = async () => {
+    const url = `${window.location.origin}/post/${post?.id || ''}`;
+    if (navigator.share) {
+      await navigator.share({ title: post?.title, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+    }
   };
 
   // Check if author is a barber and linkable
@@ -53,7 +120,7 @@ export default function PostDetailPage() {
         <button onClick={() => setShowReport(true)} className="w-10 h-10 rounded-xl flex items-center justify-center">
           <Flag size={18} style={{ color: themeConfig.colors.error }} />
         </button>
-        <button className="w-10 h-10 rounded-xl flex items-center justify-center">
+        <button onClick={() => void sharePost()} aria-label="مشاركة المنشور" className="w-10 h-10 rounded-xl flex items-center justify-center">
           <Share2 size={18} style={{ color: themeConfig.colors.textMuted }} />
         </button>
       </div>
@@ -87,6 +154,9 @@ export default function PostDetailPage() {
         {/* Title & Content */}
         <h2 className="text-lg font-bold mb-2" style={{ color: themeConfig.colors.text }}>{post.title}</h2>
         <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: themeConfig.colors.textMuted }}>{post.content}</p>
+        {post.image && (
+          <img src={post.image} alt="" className="w-full max-h-96 object-cover rounded-2xl mt-4" />
+        )}
         <div className="flex gap-1.5 mt-3 flex-wrap">
           {post.tags.map(tag => (
             <span key={tag} className="text-[10px] px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: themeConfig.colors.primary + '08', color: themeConfig.colors.primary }}>#{tag}</span>
@@ -100,22 +170,23 @@ export default function PostDetailPage() {
           </button>
           <div className="flex items-center gap-1.5">
             <MessageSquare size={18} style={{ color: themeConfig.colors.textMuted }} />
-            <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{post.comments.length}</span>
+            <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{comments.length}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Eye size={18} style={{ color: themeConfig.colors.textMuted }} />
             <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{post.views}</span>
           </div>
           <button><Bookmark size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
-          <button><Share2 size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
+          <button onClick={() => void sharePost()} aria-label="مشاركة المنشور"><Share2 size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
         </div>
       </div>
 
       {/* Comments */}
       <div className="px-4 mt-2">
-        <h3 className="text-sm font-bold mb-3" style={{ color: themeConfig.colors.text }}>التعليقات ({post.comments.length})</h3>
+        <h3 className="text-sm font-bold mb-3" style={{ color: themeConfig.colors.text }}>التعليقات ({comments.length})</h3>
+        {error && <p role="alert" className="text-xs mb-3 p-2 rounded-lg" style={{ color: themeConfig.colors.error, backgroundColor: themeConfig.colors.error + '10' }}>{error}</p>}
         <div className="space-y-3">
-          {post.comments.map(comment => (
+          {comments.map(comment => (
             <div key={comment.id} className="border rounded-xl p-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               {/* Comment Author */}
               <div className="flex items-center gap-2 mb-2">
@@ -164,12 +235,13 @@ export default function PostDetailPage() {
               placeholder={replyTo ? 'اكتب رداً...' : 'اكتب تعليقاً...'}
               className="w-full h-10 px-4 pr-10 text-sm rounded-xl outline-none"
               style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendComment()} />
+              disabled={isSending}
+              onKeyDown={(e) => e.key === 'Enter' && void handleSendComment()} />
             {replyTo && (
               <button onClick={() => setReplyTo(null)} className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: themeConfig.colors.error }}>إلغاء</button>
             )}
           </div>
-          <button onClick={handleSendComment}
+          <button onClick={() => void handleSendComment()} disabled={isSending}
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: commentText.trim() ? themeConfig.colors.primary : themeConfig.colors.border }}>
             <Send size={16} className={commentText.trim() ? 'text-white' : ''} style={{ color: commentText.trim() ? '#fff' : themeConfig.colors.textMuted }} />
@@ -195,7 +267,7 @@ export default function PostDetailPage() {
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowReport(false)} className="flex-1 h-10 rounded-xl text-xs font-bold border" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>إلغاء</button>
-              <button onClick={() => setShowReport(false)} disabled={!reportReason}
+              <button onClick={() => void submitReport()} disabled={!reportReason}
                 className="flex-1 h-10 rounded-xl text-xs font-bold text-white disabled:opacity-40" style={{ backgroundColor: themeConfig.colors.error }}>إرسال</button>
             </div>
           </motion.div>

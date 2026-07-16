@@ -7,8 +7,14 @@ import {
   Scissors, Heart, Share2, Phone, MessageSquare,
   Calendar, Navigation, Globe, AlertTriangle
 } from 'lucide-react';
-import { getProfessionalSchedules, getProfessionalExceptions, getPortfolioItems } from '@/supabase/database';
+import {
+  getProfessionalById,
+  getProfessionalSchedules,
+  getProfessionalExceptions,
+  getPortfolioItems,
+} from '@/supabase/database';
 import type { PortfolioItem } from '@/types/supabase';
+import type { Barber } from '@/types';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
 const daysArSchedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
@@ -41,14 +47,20 @@ export default function BarberDetailPage() {
   const [availabilityExceptions, setAvailabilityExceptions] = useState<Array<{ date: string; type: string; reason: string }>>([]);
 
   const { barbers } = useApp();
-  const barber = barbers.find(b => b.id === screenParams?.barberId);
+  const listedBarber = barbers.find(b => b.id === screenParams?.barberId);
+  const [barber, setBarber] = useState<Barber | undefined>(listedBarber);
 
   useEffect(() => {
-    if (!barber?.id) return;
+    const barberId = screenParams?.barberId;
+    if (!barberId) return;
+    if (listedBarber) setBarber(listedBarber);
+    void getProfessionalById(barberId).then(details => {
+      if (details) setBarber(details);
+    });
     const fetchPortfolio = async () => {
       setLoadingPortfolio(true);
       try {
-        const items = await getPortfolioItems(barber.id);
+        const items = await getPortfolioItems(barberId);
         setPortfolioItems(items);
       } catch (err) {
         console.error('Failed to fetch portfolio items:', err);
@@ -61,8 +73,8 @@ export default function BarberDetailPage() {
     const fetchAvailability = async () => {
       try {
         const [schedData, excData] = await Promise.all([
-          getProfessionalSchedules(barber.id),
-          getProfessionalExceptions(barber.id),
+          getProfessionalSchedules(barberId),
+          getProfessionalExceptions(barberId),
         ]);
         setAvailabilitySchedule(schedData.map(s => ({
           day_of_week: s.day_of_week as number,
@@ -80,7 +92,7 @@ export default function BarberDetailPage() {
       }
     };
     fetchAvailability();
-  }, [barber?.id]);
+  }, [listedBarber, screenParams?.barberId]);
 
   if (!barber) {
     return (

@@ -9,6 +9,7 @@ import type {
 } from '@/types/supabase';
 import type { Json } from '@/types/supabase';
 import type { BookingStatus } from '@/types';
+import type { AppSettings } from '@/types';
 import { transformToBarber } from '@/lib/utils'; // Import app-level BookingStatus
 
 function guard(): void {
@@ -24,7 +25,13 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
-export async function updateProfile(userId: string, updates: Partial<Profile>) {
+type EditableProfile = Pick<
+  Profile,
+  'username' | 'full_name' | 'avatar_url' | 'website' | 'phone_number'
+  | 'address' | 'city' | 'country'
+>;
+
+export async function updateProfile(userId: string, updates: Partial<EditableProfile>) {
   guard();
   const { data, error } = await supabase
     .from('profiles')
@@ -42,7 +49,7 @@ export async function getProfessionals(filters?: { city?: string; search?: strin
   guard();
   let query = supabase
     .from('professionals')
-    .select('*, profiles(full_name, avatar_url, city, user_role), services(*)')
+    .select('*, profiles(full_name, avatar_url, city, phone_number, user_role, verification_status), services(*), availability_schedules(*)')
     .order('average_rating', { ascending: false });
 
   if (filters?.city) {
@@ -58,7 +65,7 @@ export async function getProfessionalById(id: string) {
   guard();
   const { data, error } = await supabase
     .from('professionals')
-    .select('*, profiles(*), services(*), portfolio_items(*)')
+    .select('*, profiles(*), services(*), portfolio_items(*), availability_schedules(*), reviews(*, profiles!reviews_reviewer_id_fkey(full_name, avatar_url, user_role, verification_status))')
     .eq('id', id)
     .single();
   if (error) return null;
@@ -75,6 +82,12 @@ export async function updateProfessionalProfile(proId: string, updates: Partial<
     .single();
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function completeBarberOnboarding() {
+  guard();
+  const { error } = await supabase.rpc('complete_barber_onboarding');
+  if (error) throw new Error(error.message);
 }
 
 export async function getProfessionalWithProfile(proId: string) {
@@ -144,7 +157,7 @@ export async function getClientBookings(clientId: string, statusFilter?: (Databa
   guard();
   let query = supabase
     .from('bookings')
-    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*)')
+    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*), reviews(id, rating)')
     .eq('client_id', clientId)
     .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
@@ -415,6 +428,7 @@ export async function sendNotification(params: {
   title: string;
   message: string;
   type: string;
+  metadata?: Record<string, Json | undefined>;
 }) {
   guard();
   try {
@@ -424,6 +438,7 @@ export async function sendNotification(params: {
         title: params.title,
         message: params.message,
         type: params.type,
+        metadata: params.metadata || {},
       },
     });
     if (error) {
@@ -539,6 +554,44 @@ export async function markNotificationRead(notificationId: string) {
   if (error) throw new Error(error.message);
 }
 
+export async function markAllNotificationsRead(userId: string) {
+  guard();
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  if (error) throw new Error(error.message);
+}
+
+export async function getUserSettings(userId: string): Promise<Partial<AppSettings> | null> {
+  guard();
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('notification_preferences, privacy_preferences, accessibility_preferences')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    notifications: data.notification_preferences as unknown as AppSettings['notifications'],
+    privacy: data.privacy_preferences as unknown as AppSettings['privacy'],
+    accessibility: data.accessibility_preferences as unknown as AppSettings['accessibility'],
+  };
+}
+
+export async function upsertUserSettings(userId: string, settings: AppSettings) {
+  guard();
+  const { error } = await supabase.from('user_settings').upsert({
+    user_id: userId,
+    notification_preferences: settings.notifications as unknown as Json,
+    privacy_preferences: settings.privacy as unknown as Json,
+    accessibility_preferences: settings.accessibility as unknown as Json,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+  if (error) throw new Error(error.message);
+}
+
 /* ========== FORUM ========== */
 
 export async function getForumCategories(): Promise<ForumCategory[]> {
@@ -555,7 +608,7 @@ export async function getForumPosts(categorySlug?: string) {
   guard();
   let query = supabase
     .from('forum_posts')
-    .select('*, profiles(full_name, avatar_url, user_role), forum_categories(name, slug)')
+    .select('*, profiles(full_name, avatar_url, user_role, verification_status), forum_categories(name, slug, color)')
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
   if (categorySlug && categorySlug !== 'all') {
@@ -570,7 +623,7 @@ export async function getPostComments(postId: string) {
   guard();
   const { data, error } = await supabase
     .from('forum_comments')
-    .select('*, profiles(full_name, avatar_url)')
+    .select('*, profiles(full_name, avatar_url, user_role, verification_status)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
@@ -626,6 +679,35 @@ export async function isPostLikedByUser(userId: string, postId: string): Promise
     .eq('post_id', postId)
     .maybeSingle();
   return !!data;
+}
+
+export async function getUserLikedPostIds(userId: string): Promise<Set<string>> {
+  guard();
+  const { data, error } = await supabase
+    .from('forum_likes')
+    .select('post_id')
+    .eq('user_id', userId)
+    .not('post_id', 'is', null);
+  if (error) throw new Error(error.message);
+  return new Set((data || []).flatMap(item => item.post_id ? [item.post_id] : []));
+}
+
+export async function reportForumContent(params: {
+  reporterId: string;
+  reason: string;
+  postId?: string;
+  commentId?: string;
+}) {
+  guard();
+  if (!params.postId && !params.commentId) throw new Error('المحتوى غير محدد');
+  const { error } = await supabase.from('forum_reports').insert({
+    reporter_id: params.reporterId,
+    post_id: params.postId || null,
+    comment_id: params.commentId || null,
+    reason: params.reason,
+    status: 'pending',
+  });
+  if (error) throw new Error(error.message);
 }
 
 /* ========== REAL-TIME ========== */

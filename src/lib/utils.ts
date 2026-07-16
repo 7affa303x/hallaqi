@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 import type { Barber, WorkingHours, BarberTag, Service, ServiceCategory } from '@/types';
+import { mapReviewRow } from '@/lib/mappers';
 
 type SubscriptionPlan = NonNullable<Barber['subscriptionPlan']>;
 
@@ -21,6 +22,13 @@ interface RawService {
 }
 
 type RawPortfolioItem = string | { url?: string | null };
+
+interface RawAvailabilitySchedule {
+  day_of_week?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  is_active?: boolean | null;
+}
 
 interface RawProfile {
   full_name?: string | null;
@@ -57,6 +65,8 @@ export interface RawProfessional {
   profiles?: RawProfile | RawProfile[] | null;
   services?: RawService[] | null;
   portfolio_items?: RawPortfolioItem[] | null;
+  availability_schedules?: RawAvailabilitySchedule[] | null;
+  reviews?: unknown[] | null;
 }
 
 export function transformToBarber(professional: RawProfessional): Barber {
@@ -75,16 +85,28 @@ export function transformToBarber(professional: RawProfessional): Barber {
     image: s.image || undefined,
   }));
 
-  // Default working hours
+  // The database/editor uses 0=Saturday through 6=Friday.
+  const dayKeys = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   const defaultWorkingHours: WorkingHours = {
     sunday: { open: '09:00', close: '17:00', isOpen: true },
     monday: { open: '09:00', close: '17:00', isOpen: true },
     tuesday: { open: '09:00', close: '17:00', isOpen: true },
     wednesday: { open: '09:00', close: '17:00', isOpen: true },
     thursday: { open: '09:00', close: '17:00', isOpen: true },
-    friday: { open: '09:00', close: '17:00', isOpen: false },
+    friday: { open: 'closed', close: 'closed', isOpen: false },
     saturday: { open: '09:00', close: '17:00', isOpen: true },
   };
+  const workingHours = { ...defaultWorkingHours };
+  for (const schedule of professional.availability_schedules || []) {
+    const dayKey = typeof schedule.day_of_week === 'number' ? dayKeys[schedule.day_of_week] : undefined;
+    if (!dayKey) continue;
+    const isOpen = schedule.is_active === true;
+    workingHours[dayKey] = {
+      open: isOpen ? (schedule.start_time || '09:00').slice(0, 5) : 'closed',
+      close: isOpen ? (schedule.end_time || '17:00').slice(0, 5) : 'closed',
+      isOpen,
+    };
+  }
 
   // Derive tags
   const tags: BarberTag[] = [];
@@ -122,7 +144,7 @@ export function transformToBarber(professional: RawProfessional): Barber {
     tags: tags.length > 0 ? tags : ['new'],
     services,
     priceRange,
-    workingHours: defaultWorkingHours,
+    workingHours,
     isMobile: professional.is_mobile || false,
     usesScissors: professional.uses_scissors || false,
     yearsOfExperience: professional.years_of_experience || 0,
@@ -137,6 +159,6 @@ export function transformToBarber(professional: RawProfessional): Barber {
     following: professional.following_count || 0,
     likes: professional.likes_count || 0,
     isFollowing: false,
-    reviews: [],
+    reviews: (professional.reviews || []).map(mapReviewRow),
   };
 }

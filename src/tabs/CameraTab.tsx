@@ -6,6 +6,7 @@ import {
   Aperture, Share2, Download, Copy, Check
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { BrowserQRCodeReader, type IScannerControls } from '@zxing/browser';
 
 type CameraMode = 'scanner' | 'generator' | 'camera';
 
@@ -13,14 +14,21 @@ export default function CameraTab() {
   const { themeConfig, navigate, barbers } = useApp();
   const [mode, setMode] = useState<CameraMode>('scanner');
   const [scannedResult, setScannedResult] = useState('');
+  const [scannedBarberId, setScannedBarberId] = useState('');
   const [selectedBarberId, setSelectedBarberId] = useState(barbers[0]?.id || '');
   const [flashOn, setFlashOn] = useState(false);
   const [frontCamera, setFrontCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scannerControlsRef = useRef<IScannerControls | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
 
   const selectedBarber = barbers.find(b => b.id === selectedBarberId);
+
+  useEffect(() => {
+    if (!selectedBarberId && barbers[0]) setSelectedBarberId(barbers[0].id);
+  }, [barbers, selectedBarberId]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -32,12 +40,16 @@ export default function CameraTab() {
         videoRef.current.srcObject = stream;
       }
       setCameraActive(true);
+      setCameraError('');
     } catch {
       setCameraActive(false);
+      setCameraError('تعذر الوصول إلى الكاميرا. تحقق من الإذن.');
     }
   }, [frontCamera]);
 
   const stopCamera = useCallback(() => {
+    scannerControlsRef.current?.stop();
+    scannerControlsRef.current = null;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -45,30 +57,117 @@ export default function CameraTab() {
     setCameraActive(false);
   }, []);
 
-  useEffect(() => {
-    if (mode === 'scanner' || mode === 'camera') {
-      startCamera();
-    } else {
-      stopCamera();
+  const parseBarberId = useCallback((text: string): string => {
+    try {
+      const parsed = JSON.parse(text) as { id?: unknown; url?: unknown };
+      if (typeof parsed.id === 'string') return parsed.id;
+      if (typeof parsed.url === 'string') text = parsed.url;
+    } catch {
+      // Plain URL QR codes are supported too.
     }
-    return () => stopCamera();
-  }, [mode, startCamera, stopCamera]);
+    try {
+      const url = new URL(text);
+      const match = url.pathname.match(/^\/barber\/([^/]+)$/);
+      return match?.[1] ? decodeURIComponent(match[1]) : '';
+    } catch {
+      return '';
+    }
+  }, []);
 
-  const handleScan = () => {
-    setScannedResult('https://hallaqi.app/barber/6');
-  };
+  const startScanner = useCallback(async () => {
+    if (!videoRef.current) return;
+    stopCamera();
+    try {
+      const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 250 });
+      scannerControlsRef.current = await reader.decodeFromConstraints(
+        { video: { facingMode: frontCamera ? 'user' : { ideal: 'environment' } } },
+        videoRef.current,
+        result => {
+          if (!result) return;
+          const text = result.getText();
+          const barberId = parseBarberId(text);
+          setScannedResult(text);
+          setScannedBarberId(barberId);
+          scannerControlsRef.current?.stop();
+        }
+      );
+      setCameraActive(true);
+      setCameraError('');
+    } catch {
+      setCameraActive(false);
+      setCameraError('تعذر تشغيل ماسح QR. تحقق من إذن الكاميرا.');
+    }
+  }, [frontCamera, parseBarberId, stopCamera]);
+
+  useEffect(() => {
+    if (mode === 'scanner') void startScanner();
+    else if (mode === 'camera') void startCamera();
+    else stopCamera();
+    return () => stopCamera();
+  }, [mode, startCamera, startScanner, stopCamera]);
 
   const qrData = selectedBarber
     ? JSON.stringify({
         id: selectedBarber.id,
         name: selectedBarber.name,
-        url: `https://hallaqi.app/barber/${selectedBarber.id}`,
+        url: `${window.location.origin}/barber/${selectedBarber.id}`,
         timestamp: Date.now(),
       })
     : '';
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
+  };
+
+  const shareQr = async () => {
+    if (!selectedBarber) return;
+    const url = `${window.location.origin}/barber/${selectedBarber.id}`;
+    if (navigator.share) await navigator.share({ title: selectedBarber.name, url });
+    else await navigator.clipboard.writeText(url);
+  };
+
+  const downloadQr = () => {
+    const svg = document.getElementById('hallaqi-profile-qr');
+    if (!svg || !selectedBarber) return;
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hallaqi-${selectedBarber.id}.svg`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `hallaqi-photo-${Date.now()}.jpg`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, 'image/jpeg', 0.9);
+  };
+
+  const toggleFlash = async () => {
+    const next = !flashOn;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track) {
+      try {
+        await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      } catch {
+        setCameraError('الفلاش غير مدعوم في هذا الجهاز.');
+        return;
+      }
+    }
+    setFlashOn(next);
   };
 
   return (
@@ -99,6 +198,7 @@ export default function CameraTab() {
             {/* QR Code */}
             <div className="relative p-4 rounded-3xl bg-white shadow-xl">
               <QRCodeSVG
+                id="hallaqi-profile-qr"
                 value={qrData}
                 size={220}
                 bgColor="#FFFFFF"
@@ -134,6 +234,7 @@ export default function CameraTab() {
                 نسخ
               </button>
               <button
+                onClick={() => void shareQr()}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
                 style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}
               >
@@ -141,6 +242,7 @@ export default function CameraTab() {
                 مشاركة
               </button>
               <button
+                onClick={downloadQr}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
                 style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}
               >
@@ -172,7 +274,7 @@ export default function CameraTab() {
           </>
         )}
 
-        {/* Simulated Scan Result */}
+        {/* Scan Result */}
         {scannedResult && (
           <div className="absolute bottom-24 left-4 right-4 p-4 rounded-2xl bg-white/95 backdrop-blur shadow-xl">
             <div className="flex items-center gap-3">
@@ -184,7 +286,8 @@ export default function CameraTab() {
                 <p className="text-xs truncate" style={{ color: themeConfig.colors.textMuted }}>{scannedResult}</p>
               </div>
               <button
-                onClick={() => navigate('barber-detail', { barberId: '6' })}
+                onClick={() => scannedBarberId && navigate('barber-detail', { barberId: scannedBarberId })}
+                disabled={!scannedBarberId}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: themeConfig.colors.primary }}
               >
@@ -205,24 +308,15 @@ export default function CameraTab() {
               {mode === 'scanner' ? 'ماسح QR Code' : 'الكاميرا'}
             </p>
             <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>
-              يلزم إذن الوصول للكاميرا
+              {cameraError || 'يلزم إذن الوصول للكاميرا'}
             </p>
             <button
-              onClick={startCamera}
+              onClick={() => mode === 'scanner' ? void startScanner() : void startCamera()}
               className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold text-white"
               style={{ backgroundColor: themeConfig.colors.primary }}
             >
               تشغيل الكاميرا
             </button>
-            {mode === 'scanner' && (
-              <button
-                onClick={handleScan}
-                className="mt-2 px-6 py-2.5 rounded-xl text-sm font-bold"
-                style={{ backgroundColor: themeConfig.colors.accent + '15', color: themeConfig.colors.accent }}
-              >
-                محاكاة مسح QR
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -257,7 +351,7 @@ export default function CameraTab() {
         <div className="flex items-center justify-center gap-8">
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={() => setFlashOn(!flashOn)}
+            onClick={() => void toggleFlash()}
             className="w-12 h-12 rounded-full flex items-center justify-center"
             style={{ backgroundColor: flashOn ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)' }}
           >
@@ -267,7 +361,7 @@ export default function CameraTab() {
           {/* Shutter / Scan Button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onClick={mode === 'scanner' ? handleScan : undefined}
+            onClick={mode === 'camera' ? capturePhoto : mode === 'scanner' ? () => void startScanner() : undefined}
             className="w-18 h-18 rounded-full flex items-center justify-center p-1"
             style={{
               border: mode === 'scanner' ? '3px solid #F59E0B' : '3px solid #fff',

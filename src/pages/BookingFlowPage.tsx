@@ -6,7 +6,13 @@ import {
   ArrowLeft, Check, Clock, MapPin, Car, CreditCard,
   Wallet, Banknote, Calendar, X, AlertTriangle
 } from 'lucide-react';
-import { createBooking, getProfessionalBookings, sendNotification } from '@/supabase/database';
+import {
+  createBooking,
+  getProfessionalBookings,
+  getProfessionalExceptions,
+  isSlotAvailable,
+  sendNotification,
+} from '@/supabase/database';
 import { usePayment } from '@/hooks/usePayment';
 import { useCCPPayment } from '@/hooks/useCCPPayment';
 import { ReceiptUpload } from '@/components/payment/ReceiptUpload';
@@ -100,6 +106,11 @@ export default function BookingFlowPage() {
     booking_end_time: string | null;
     status: BookingStatus | null;
   }>>([]);
+  const [dayExceptions, setDayExceptions] = useState<Array<{
+    type: string;
+    start_time: string | null;
+    end_time: string | null;
+  }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
@@ -135,11 +146,24 @@ export default function BookingFlowPage() {
     const fetch = async () => {
       setIsLoadingSlots(true);
       try {
-        const bookings = await getProfessionalBookings(barber.id);
-        if (!cancelled) setExistingBookings(bookings.map(b => ({ ...b, status: b.status as unknown as BookingStatus })) || []);
+        const [bookings, exceptions] = await Promise.all([
+          getProfessionalBookings(barber.id),
+          getProfessionalExceptions(barber.id, selectedDate, selectedDate),
+        ]);
+        if (!cancelled) {
+          setExistingBookings(bookings.map(b => ({ ...b, status: b.status as unknown as BookingStatus })) || []);
+          setDayExceptions(exceptions.map(item => ({
+            type: item.type,
+            start_time: item.start_time,
+            end_time: item.end_time,
+          })));
+        }
       } catch (err) {
         console.error('Failed to fetch existing bookings:', err);
-        if (!cancelled) setExistingBookings([]);
+        if (!cancelled) {
+          setExistingBookings([]);
+          setDayExceptions([]);
+        }
       } finally {
         if (!cancelled) setIsLoadingSlots(false);
       }
@@ -161,13 +185,19 @@ export default function BookingFlowPage() {
     const hours = getDayHours(dateStr);
     if (!hours) return false;
     if (hours.open === 'closed' || hours.close === 'closed') return false;
+    if (dateStr === selectedDate && dayExceptions.some(exception => !exception.start_time && !exception.end_time)) {
+      return false;
+    }
     return true;
-  }, [getDayHours]);
+  }, [dayExceptions, getDayHours, selectedDate]);
 
   /** Get available time slots for a specific date */
   const getAvailableTimeSlots = useCallback((dateStr: string): string[] => {
     const hours = getDayHours(dateStr);
     if (!hours || hours.open === 'closed' || hours.close === 'closed') return [];
+    if (dateStr === selectedDate && dayExceptions.some(exception => !exception.start_time && !exception.end_time)) {
+      return [];
+    }
 
     // 1. Start with slots within working hours
     let slots = generateTimeSlotsForRange(hours.open, hours.close);
@@ -182,9 +212,15 @@ export default function BookingFlowPage() {
         !isSlotOverlapping(slot, totalDuration, existingBookings, dateStr)
       );
     }
+    if (dateStr === selectedDate) {
+      slots = slots.filter(slot => !dayExceptions.some(exception => {
+        if (!exception.start_time || !exception.end_time) return false;
+        return slot >= exception.start_time.slice(0, 5) && slot < exception.end_time.slice(0, 5);
+      }));
+    }
 
     return slots;
-  }, [getDayHours, selectedDate, existingBookings, barber?.services, selectedServices]);
+  }, [getDayHours, selectedDate, existingBookings, dayExceptions, barber?.services, selectedServices]);
 
   /** Memoize available time slots for selected date */
   const timeSlots = useMemo(() => {
@@ -241,8 +277,12 @@ export default function BookingFlowPage() {
         return;
       }
 
-      const bookingStartTime = `${selectedDate}T${selectedTime}`;
+      const bookingStartTime = new Date(`${selectedDate}T${selectedTime}`).toISOString();
       const bookingEndTime = computeEndTime(selectedDate, selectedTime, totalDuration);
+      if (!await isSlotAvailable(barber.id, bookingStartTime, bookingEndTime)) {
+        setSaveError('هذا الوقت لم يعد متاحاً. يرجى اختيار وقت آخر.');
+        return;
+      }
 
       // Build Supabase booking row with Live DB column names
       const bookingRow = {
@@ -255,6 +295,9 @@ export default function BookingFlowPage() {
         total_price: totalPrice,
         notes: data.note || null,
         payment_status: 'pending' as PaymentStatus,
+        payment_method: data.paymentMethod,
+        is_mobile_service: data.isMobileService,
+        service_address: data.isMobileService ? data.address || null : null,
       };
 
       const saved = await createBooking({ ...bookingRow, status: bookingRow.status as unknown as Database["public"]["Enums"]["booking_status"] });
@@ -284,7 +327,7 @@ export default function BookingFlowPage() {
               booking_time: selectedTime,
             },
             successUrl: `${baseUrl}/?screen=payment-success`,
-            cancelUrl: `${baseUrl}/?screen=booking-flow&barberId=${barber.id}`,
+            cancelUrl: `${baseUrl}/?screen=booking-flow&barberId=${encodeURIComponent(barber.id)}`,
             customerEmail: undefined, // email from auth session if needed
           });
           // User will be redirected to Stripe, no need to continue
@@ -323,6 +366,7 @@ export default function BookingFlowPage() {
             title: 'حجز جديد',
             message: `لديك حجز جديد من ${appUser.full_name || 'عميل'} - ${selectedDate} ${selectedTime}`,
             type: 'booking',
+            metadata: { booking_id: saved.id },
           });
         } catch (err) {
           console.error('Failed to notify barber:', err);
@@ -335,6 +379,7 @@ export default function BookingFlowPage() {
             title: 'تم إرسال طلب الحجز',
             message: `تم إرسال طلب الحجز إلى ${barber.name} - سيتم تأكيده قريباً`,
             type: 'booking',
+            metadata: { booking_id: saved.id },
           });
         } catch (err) {
           console.error('Failed to notify client:', err);

@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
-import { CalendarOff, Plus, AlertCircle, Info } from 'lucide-react';
+import { CalendarOff, Plus, AlertCircle, Info, Trash2 } from 'lucide-react';
+import {
+  addAvailabilityException,
+  deleteAvailabilityException,
+  getProfessionalExceptions,
+} from '@/supabase/database';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { availabilityExceptionSchema } from '@/lib/validation';
@@ -14,16 +19,17 @@ interface ExceptionItem {
 }
 
 const EXCEPTION_TYPES = [
-  { key: 'holiday', label: 'عطلة رسمية' },
-  { key: 'vacation', label: 'إجازة شخصية' },
-  { key: 'closed', label: 'مغلق' },
+  { key: 'holiday', dbValue: 'holiday', label: 'عطلة رسمية' },
+  { key: 'vacation', dbValue: 'special', label: 'إجازة شخصية' },
+  { key: 'closed', dbValue: 'unavailable', label: 'مغلق' },
 ];
 
-export default function AvailabilityExceptions() {
+export default function AvailabilityExceptions({ barberId }: { barberId: string }) {
   const { themeConfig } = useApp();
-  const [exceptions] = useState<ExceptionItem[]>([]);
+  const [exceptions, setExceptions] = useState<ExceptionItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     register: registerException,
@@ -42,11 +48,47 @@ export default function AvailabilityExceptions() {
 
   const watchedType = watchException('type');
 
-  const onAddException = async () => {
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    getProfessionalExceptions(barberId)
+      .then(rows => {
+        if (active) {
+          setExceptions(rows.map(row => ({
+            id: row.id,
+            date: row.date,
+            type: row.type,
+            reason: row.reason || '',
+          })));
+        }
+      })
+      .catch(err => {
+        if (active) setError(err instanceof Error ? err.message : 'فشل تحميل الاستثناءات');
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => { active = false; };
+  }, [barberId]);
+
+  const onAddException = async (data: AvailabilityExceptionFormData) => {
     setError(null);
     try {
-      // availability_exceptions table does not exist — show informational message
-      setError('ميزة إدارة الاستثناءات غير متاحة حالياً. يرجى تحديث ساعات العمل من إعدادات البروفايل.');
+      const selectedType = EXCEPTION_TYPES.find(item => item.key === data.type);
+      const created = await addAvailabilityException({
+        professional_id: barberId,
+        date: data.date,
+        type: selectedType?.dbValue || 'unavailable',
+        reason: data.reason?.trim() || null,
+        start_time: null,
+        end_time: null,
+      });
+      setExceptions(prev => [...prev, {
+        id: created.id,
+        date: created.date,
+        type: created.type,
+        reason: created.reason || '',
+      }].sort((a, b) => a.date.localeCompare(b.date)));
       setShowForm(false);
       resetExceptionForm({ date: '', type: 'closed', reason: '' });
     } catch (err) {
@@ -54,7 +96,19 @@ export default function AvailabilityExceptions() {
     }
   };
 
-  const getTypeLabel = (type: string) => EXCEPTION_TYPES.find(t => t.key === type)?.label || type;
+  const removeException = async (id: string) => {
+    const previous = exceptions;
+    setExceptions(items => items.filter(item => item.id !== id));
+    try {
+      await deleteAvailabilityException(id);
+    } catch (err) {
+      setExceptions(previous);
+      setError(err instanceof Error ? err.message : 'فشل حذف الاستثناء');
+    }
+  };
+
+  const getTypeLabel = (type: string) =>
+    EXCEPTION_TYPES.find(t => t.key === type || t.dbValue === type)?.label || type;
 
   const formatDate = (dateStr: string) => {
     try {
@@ -75,7 +129,7 @@ export default function AvailabilityExceptions() {
       <div className="flex items-center gap-2 p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.info + '10', border: `1px solid ${themeConfig.colors.info}25` }}>
         <Info size={16} style={{ color: themeConfig.colors.info }} />
         <p className="text-xs flex-1" style={{ color: themeConfig.colors.info }}>
-          إدارة الاستثناءات متاحة عبر تحديث حقل workingHours في جدول الحلاقين
+          أضف أيام الإغلاق والإجازات ليتم استبعادها تلقائياً من مواعيد الحجز.
         </p>
       </div>
 
@@ -184,7 +238,13 @@ export default function AvailabilityExceptions() {
       )}
 
       {/* Exceptions List */}
-      {exceptions.length === 0 && !showForm && (
+      {isLoading && (
+        <p className="text-[10px] text-center py-4" style={{ color: themeConfig.colors.textMuted }}>
+          جاري تحميل أيام الإغلاق...
+        </p>
+      )}
+
+      {!isLoading && exceptions.length === 0 && !showForm && (
         <p className="text-[10px] text-center py-4" style={{ color: themeConfig.colors.textMuted }}>
           لا توجد أيام إغلاق مسجلة
         </p>
@@ -216,6 +276,15 @@ export default function AvailabilityExceptions() {
               >
                 {getTypeLabel(exception.type)}
               </span>
+              <button
+                type="button"
+                onClick={() => void removeException(exception.id)}
+                aria-label="حذف يوم الإغلاق"
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}
+              >
+                <Trash2 size={13} />
+              </button>
             </div>
           </div>
         ))}
