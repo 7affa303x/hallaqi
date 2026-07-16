@@ -145,10 +145,10 @@ export default function ProfileTab() {
         </div>
 
         <div className="flex gap-3 mt-4">
-          <button onClick={() => setSubPage('stats')} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
+          <button onClick={() => setSubPage("stats")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-white">{stats.totalBookings}</p><p className="text-[10px] text-white/60">حجوزات</p>
           </button>
-          <button onClick={() => setSubPage('badges')} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
+          <button onClick={() => setSubPage("badges")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-white">{badges.length}</p><p className="text-[10px] text-white/60">شارات</p>
           </button>
           <div className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
@@ -159,6 +159,19 @@ export default function ProfileTab() {
           </div>
         </div>
       </div>
+
+      {appUser?.user_role === 'admin' && (
+        <div className="px-4 mt-4">
+          <button
+            onClick={() => navigate('admin-dashboard')}
+            className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl transition-all active:scale-95"
+            style={{ backgroundColor: themeConfig.colors.primary, color: themeConfig.colors.surface }}
+          >
+            <Shield size={20} />
+            <span className="text-sm font-bold">لوحة التحكم</span>
+          </button>
+        </div>
+      )}
 
       <div className="px-4 mt-4 space-y-4">
         {settingsSections.map(section => (
