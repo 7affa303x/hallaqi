@@ -10,6 +10,10 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       manifest: false,
       includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js"],
       workbox: {

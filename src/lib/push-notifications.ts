@@ -18,9 +18,18 @@ export function isWebPushSupported(): boolean {
     && 'Notification' in window;
 }
 
+async function serviceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error('تعذر تجهيز خدمة الإشعارات. حدّث الصفحة وحاول مجدداً')), 8000);
+    }),
+  ]);
+}
+
 export async function getPushSubscription(): Promise<PushSubscription | null> {
   if (!isWebPushSupported()) return null;
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await serviceWorkerRegistration();
   return registration.pushManager.getSubscription();
 }
 
@@ -32,7 +41,7 @@ export async function enableWebPush(userId: string): Promise<PushSubscription> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('يجب السماح بالإشعارات من إعدادات المتصفح');
 
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await serviceWorkerRegistration();
   const existing = await registration.pushManager.getSubscription();
   const subscription = existing || await registration.pushManager.subscribe({
     userVisibleOnly: true,

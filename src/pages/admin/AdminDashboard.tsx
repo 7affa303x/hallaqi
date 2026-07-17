@@ -463,6 +463,7 @@ interface AdminBookingRow {
   profiles?: { full_name: string | null } | null;
   professionals?: { business_name: string | null; profiles?: { full_name: string | null } | null } | null;
   services?: { name: string | null } | null;
+  booking_services?: Array<{ services?: { name: string | null } | null }>;
 }
 
 interface AdminIdVerificationRow {
@@ -644,7 +645,7 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
                 <div>
                   <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{booking.profiles?.full_name || 'عميل'}</p>
                   <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
-                    {booking.professionals?.business_name || booking.professionals?.profiles?.full_name || 'حلاق'} · {booking.services?.name || 'خدمة'}
+                    {booking.professionals?.business_name || booking.professionals?.profiles?.full_name || 'حلاق'} · {booking.booking_services?.map(item => item.services?.name).filter(Boolean).join(' + ') || booking.services?.name || 'خدمة'}
                   </p>
                 </div>
                 <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{booking.total_price} دج</span>

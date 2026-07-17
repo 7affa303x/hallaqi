@@ -627,17 +627,14 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
   const { appUser } = useAuth();
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState('');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
 
   useEffect(() => {
     if (!isWebPushSupported()) {
       setPushMessage('الإشعارات الفورية غير مدعومة على هذا الجهاز');
       return;
     }
-    void getPushSubscription().then(subscription => {
-      if (subscription && !settings.notifications.pushEnabled) {
-        updateSettings({ notifications: { ...settings.notifications, pushEnabled: true } });
-      }
-    });
+    void getPushSubscription().then(subscription => setPushSubscribed(!!subscription));
   }, []);
 
   const toggleNotification = async (key: keyof typeof settings.notifications, enabled: boolean) => {
@@ -651,10 +648,12 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
     try {
       if (enabled) {
         await disableWebPush();
+        setPushSubscribed(false);
         updateSettings({ notifications: { ...settings.notifications, pushEnabled: false } });
         setPushMessage('تم إيقاف الإشعارات على هذا الجهاز');
       } else {
         await enableWebPush(appUser.id);
+        setPushSubscribed(true);
         updateSettings({ notifications: { ...settings.notifications, pushEnabled: true } });
         setPushMessage('تم تفعيل الإشعارات الفورية بنجاح');
       }
@@ -677,7 +676,7 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الإشعارات</h2>
       </div>
       <div className="px-4 mt-4"><div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-        {items.map((item, index) => { const Icon = item.icon; const isEnabled = settings.notifications[item.key as keyof typeof settings.notifications]; return (
+        {items.map((item, index) => { const Icon = item.icon; const isEnabled = item.key === 'pushEnabled' ? pushSubscribed : settings.notifications[item.key as keyof typeof settings.notifications]; return (
           <div key={item.key} className={`flex items-center gap-3 px-4 py-3.5 ${index < items.length - 1 ? 'border-b' : ''}`} style={{ borderColor: themeConfig.colors.border + '60' }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary + '08' }}><Icon size={16} style={{ color: themeConfig.colors.primary }} /></div>
             <div className="flex-1"><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{item.label}</p></div>

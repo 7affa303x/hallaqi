@@ -204,7 +204,7 @@ export async function getClientBookings(clientId: string, statusFilter?: (Databa
   guard();
   let query = supabase
     .from('bookings')
-    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*), booking_services(*, services(*)), reviews(id, rating)')
+    .select('*, professionals(*, profiles(full_name, avatar_url)), services!bookings_service_id_fkey(*), booking_services(*, services!booking_services_service_id_fkey(*)), reviews(id, rating)')
     .eq('client_id', clientId)
     .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
@@ -217,7 +217,7 @@ export async function getProfessionalBookings(proId: string, statusFilter?: (Dat
   guard();
   let query = supabase
     .from('bookings')
-    .select('*, profiles(*), services(*), booking_services(*, services(*))')
+    .select('*, profiles(*), services!bookings_service_id_fkey(*), booking_services(*, services!booking_services_service_id_fkey(*))')
     .eq('professional_id', proId)
     .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
@@ -1030,7 +1030,7 @@ export async function adminListBookings(limit = 100) {
   guard();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, profiles!bookings_client_id_fkey(full_name), professionals(business_name, profiles(full_name)), services(name)')
+    .select('*, profiles!bookings_client_id_fkey(full_name), professionals(business_name, profiles(full_name)), services!bookings_service_id_fkey(name), booking_services(*, services!booking_services_service_id_fkey(name))')
     .order('booking_start_time', { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
