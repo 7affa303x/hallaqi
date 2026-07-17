@@ -8,6 +8,7 @@ import { isDeveloperMode } from '@/supabase/client';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import BottomNav from '@/components/BottomNav';
 import BrandLogo from '@/components/BrandLogo';
+import InstallPrompt from '@/components/InstallPrompt';
 import BookingTab from '@/tabs/BookingTab';
 import './App.css';
 
@@ -211,6 +212,7 @@ function AppContent() {
         <ScreenRouter />
       </main>
       {showNav && <BottomNav />}
+      <InstallPrompt />
     </div>
   );
 }

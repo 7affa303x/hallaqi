@@ -1,7 +1,7 @@
 {
-  "name": "my-app",
+  "name": "hallaqi",
   "private": true,
-  "version": "0.0.0",
+  "version": "12.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test:run && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

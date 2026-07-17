@@ -6,14 +6,26 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0?target=deno'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = new Set([
+  'https://www.hallaqi.app',
+  'https://hallaqi.app',
+  'https://hallaqi.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+])
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('origin') || 'https://www.hallaqi.app'
+  return {
+    'Access-Control-Allow-Origin': allowedOrigins.has(origin) ? origin : 'https://www.hallaqi.app',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  }
 }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
 })
 
 function returnUrl(base: string, values: Record<string, string>) {
@@ -25,9 +37,9 @@ function returnUrl(base: string, values: Record<string, string>) {
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(req) })
   }
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405)
 
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
@@ -42,12 +54,12 @@ serve(async (req) => {
 
     const authorization = req.headers.get('Authorization')
     const token = authorization?.replace(/^Bearer\s+/i, '')
-    if (!token) return json({ error: 'Authentication required' }, 401)
+    if (!token) return json(req, { error: 'Authentication required' }, 401)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY') ?? '')
     const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
     const { data: { user }, error: authError } = await authClient.auth.getUser(token)
-    if (authError || !user) return json({ error: 'Invalid session' }, 401)
+    if (authError || !user) return json(req, { error: 'Invalid session' }, 401)
 
     const {
       bookingId,
@@ -64,7 +76,7 @@ serve(async (req) => {
 
     // Validate required fields
     if (!bookingId || !Array.isArray(lineItems) || lineItems.length === 0 || !totalAmount || !successUrl || !cancelUrl) {
-      return json({ error: 'Missing required fields: bookingId, lineItems, totalAmount, successUrl, cancelUrl' }, 400)
+      return json(req, { error: 'Missing required fields: bookingId, lineItems, totalAmount, successUrl, cancelUrl' }, 400)
     }
 
     const { data: booking, error: bookingError } = await supabase
@@ -72,12 +84,12 @@ serve(async (req) => {
       .select('client_id, professional_id, total_price')
       .eq('id', bookingId)
       .single()
-    if (bookingError || !booking) return json({ error: 'Booking not found' }, 404)
+    if (bookingError || !booking) return json(req, { error: 'Booking not found' }, 404)
     if (booking.client_id !== user.id || clientId !== user.id || professionalId !== booking.professional_id) {
-      return json({ error: 'Not authorized for this booking' }, 403)
+      return json(req, { error: 'Not authorized for this booking' }, 403)
     }
     if (Math.abs(Number(totalAmount) - Number(booking.total_price)) > 0.01) {
-      return json({ error: 'Payment amount does not match booking' }, 400)
+      return json(req, { error: 'Payment amount does not match booking' }, 400)
     }
     const lineItemsTotal = lineItems.reduce((sum: number, item: {
       amount?: number
@@ -85,12 +97,12 @@ serve(async (req) => {
     }) => sum + Number(item.amount || 0) * Number(item.quantity || 0), 0)
     if (!Number.isFinite(lineItemsTotal)
       || Math.abs(lineItemsTotal - Number(booking.total_price) * 100) > 1) {
-      return json({ error: 'Line items do not match booking total' }, 400)
+      return json(req, { error: 'Line items do not match booking total' }, 400)
     }
 
     const allowedHosts = new Set(['hallaqi.app', 'www.hallaqi.app', 'localhost', '127.0.0.1'])
     if (!allowedHosts.has(new URL(successUrl).hostname) || !allowedHosts.has(new URL(cancelUrl).hostname)) {
-      return json({ error: 'Invalid return URL' }, 400)
+      return json(req, { error: 'Invalid return URL' }, 400)
     }
 
     // Build Stripe line items dynamically from booking data
@@ -142,12 +154,12 @@ serve(async (req) => {
       throw dbError
     }
 
-    return json({
+    return json(req, {
       sessionId: session.id,
       checkoutUrl: session.url,
     })
   } catch (error) {
     console.error('Error creating checkout session:', error)
-    return json({ error: 'Unable to create checkout session' }, 500)
+    return json(req, { error: 'Unable to create checkout session' }, 500)
   }
 })

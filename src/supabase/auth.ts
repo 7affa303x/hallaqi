@@ -114,18 +114,4 @@ export async function updateUserProfile(userId: string, updates: Partial<Profile
   return data;
 }
 
-/* ========== GOOGLE OAUTH ========== */
-export async function signInWithGoogle() {
-  if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
-  });
-  if (error) throw new Error(getAuthErrorMessage(error));
-  return data;
-}
-
 export { supabase };

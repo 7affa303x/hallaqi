@@ -28,25 +28,6 @@ const INITIAL_STATE: AuthState = {
   session: null,
 };
 
-/** Build a complete default client profile for a freshly-authenticated user. */
-function createDefaultProfile(user: User): Profile {
-  return {
-    id: user.id,
-    username: null,
-    full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'مستخدم',
-    avatar_url: null,
-    website: null,
-    phone_number: null,
-    address: null,
-    city: null,
-    country: null,
-    user_role: 'client',
-    user_status: 'active',
-    verification_status: 'unverified',
-    updated_at: new Date().toISOString(),
-  };
-}
-
 // Dev mode mock profile aligned with Live DB schema
 const DEV_PROFILE: Profile = {
   id: 'dev-user',
@@ -86,90 +67,48 @@ export function useAuth() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const applySession = async (session: Session | null) => {
       if (!mounted) return;
-      if (session?.user) {
-        fetchUserProfile(session.user.id).then(profile => {
-          if (!mounted) return;
-          if (profile) {
-            setState({
-              user: session.user,
-              appUser: profile,
-              isLoading: false,
-              isAuthenticated: true,
-              error: null,
-              session,
-            });
-          } else {
-            // Profile doesn't exist - create it
-            const newProfile = createDefaultProfile(session.user);
-            Promise.resolve(supabase.from('profiles').insert(newProfile).select().single()).then(({ data }) => {
-              if (!mounted) return;
-              setState({
-                user: session.user,
-                appUser: data || newProfile,
-                isLoading: false,
-                isAuthenticated: true,
-                error: null,
-                session,
-              });
-            }).catch(() => {
-              if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: session.user, session }));
-            });
-          }
-        }).catch(() => {
-          if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
-        });
-      } else {
-        setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
-      }
-    }).catch(() => {
-      if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      if (session?.user) {
-        fetchUserProfile(session.user.id).then(profile => {
-          if (!mounted) return;
-          if (profile) {
-            setState({
-              user: session.user,
-              appUser: profile,
-              isLoading: false,
-              isAuthenticated: true,
-              error: null,
-              session,
-            });
-          } else {
-            // Profile doesn't exist - create it
-            const newProfile = createDefaultProfile(session.user);
-            Promise.resolve(supabase.from('profiles').insert(newProfile).select().single()).then(({ data }) => {
-              if (!mounted) return;
-              setState({
-                user: session.user,
-                appUser: data || newProfile,
-                isLoading: false,
-                isAuthenticated: true,
-                error: null,
-                session,
-              });
-            }).catch(() => {
-              if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: session.user, session }));
-            });
-          }
-        }).catch(() => {
-          if (mounted) setState({
-            user: null, appUser: null, isLoading: false,
-            isAuthenticated: false, error: null, session: null,
-          });
-        });
-      } else {
+      if (!session?.user) {
         setState({
           user: null, appUser: null, isLoading: false,
           isAuthenticated: false, error: null, session: null,
         });
+        return;
       }
+      try {
+        // The database trigger creates profiles synchronously. A short retry
+        // handles replica/API propagation without duplicating profile writes.
+        let profile: Profile | null = null;
+        for (let attempt = 0; attempt < 3 && !profile; attempt += 1) {
+          profile = await fetchUserProfile(session.user.id);
+          if (!profile && attempt < 2) {
+            await new Promise(resolve => window.setTimeout(resolve, 150 * (attempt + 1)));
+          }
+        }
+        if (!mounted) return;
+        setState({
+          user: session.user,
+          appUser: profile,
+          isLoading: false,
+          isAuthenticated: true,
+          error: profile ? null : 'تعذر تحميل ملف الحساب. حاول تحديث الصفحة.',
+          session,
+        });
+      } catch {
+        if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
+      }
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => applySession(session))
+      .catch(() => {
+        if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      void Promise.resolve().then(() => applySession(session));
     });
 
     return () => { mounted = false; subscription.unsubscribe(); };

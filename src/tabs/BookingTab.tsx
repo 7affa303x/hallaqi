@@ -299,7 +299,7 @@ export default function BookingTab() {
                 style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.accent + '50' }}
               >
                 <div className="flex items-center gap-2">
-                  <img src={recommendation.barber.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                  <img src={recommendation.barber.avatar} alt="" loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold truncate" style={{ color: themeConfig.colors.text }}>{recommendation.barber.name}</p>
                     <p className="text-[10px]" style={{ color: themeConfig.colors.accent }}>توافق {recommendation.score}%</p>
@@ -336,7 +336,7 @@ export default function BookingTab() {
             >
               {/* Cover */}
               <div className="relative h-32 overflow-hidden">
-                <img src={barber.coverImage} alt={barber.name} className="w-full h-full object-cover" />
+                <img src={barber.coverImage} alt={barber.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute top-2 left-2 flex gap-1">
                   {barber.isActive && (
@@ -367,7 +367,7 @@ export default function BookingTab() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <img
-                      src={barber.avatar} alt={barber.name}
+                      src={barber.avatar} alt={barber.name} loading="lazy" decoding="async"
                       className="w-12 h-12 rounded-xl object-cover border-2"
                       style={{ borderColor: themeConfig.colors.primary + '40' }}
                     />

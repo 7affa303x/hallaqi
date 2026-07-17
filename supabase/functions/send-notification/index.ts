@@ -1,24 +1,36 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = new Set([
+  'https://www.hallaqi.app',
+  'https://hallaqi.app',
+  'https://hallaqi.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+])
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('origin') || 'https://www.hallaqi.app'
+  return {
+    'Access-Control-Allow-Origin': allowedOrigins.has(origin) ? origin : 'https://www.hallaqi.app',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  }
 }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
 })
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
+  if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405)
 
   try {
     const authorization = req.headers.get('Authorization')
     const token = authorization?.replace(/^Bearer\s+/i, '')
-    if (!token) return json({ error: 'Authentication required' }, 401)
+    if (!token) return json(req, { error: 'Authentication required' }, 401)
 
     const url = Deno.env.get('SUPABASE_URL') ?? ''
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -26,7 +38,7 @@ Deno.serve(async (req) => {
     const authClient = createClient(url, anonKey)
     const adminClient = createClient(url, serviceKey)
     const { data: { user }, error: authError } = await authClient.auth.getUser(token)
-    if (authError || !user) return json({ error: 'Invalid session' }, 401)
+    if (authError || !user) return json(req, { error: 'Invalid session' }, 401)
 
     const body = await req.json()
     const userId = typeof body.user_id === 'string' ? body.user_id : ''
@@ -35,7 +47,7 @@ Deno.serve(async (req) => {
     const type = typeof body.type === 'string' ? body.type : 'system'
     const metadata = body.metadata && typeof body.metadata === 'object' ? body.metadata : {}
     if (!userId || !title || !message || title.length > 160 || message.length > 2000) {
-      return json({ error: 'Invalid notification payload' }, 400)
+      return json(req, { error: 'Invalid notification payload' }, 400)
     }
 
     let authorized = user.id === userId
@@ -69,7 +81,7 @@ Deno.serve(async (req) => {
       authorized = memberIds.includes(user.id) && memberIds.includes(userId)
     }
 
-    if (!authorized) return json({ error: 'Not authorized for this recipient' }, 403)
+    if (!authorized) return json(req, { error: 'Not authorized for this recipient' }, 403)
 
     const { data: notification, error } = await adminClient.from('notifications').insert({
       user_id: userId,
@@ -132,9 +144,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ success: true, delivered })
+    return json(req, { success: true, delivered })
   } catch (error) {
     console.error('send-notification failed', error)
-    return json({ error: 'Unable to send notification' }, 500)
+    return json(req, { error: 'Unable to send notification' }, 500)
   }
 })

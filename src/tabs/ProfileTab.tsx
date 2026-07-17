@@ -750,7 +750,7 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
     }).catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل الخطط'));
   }, [appUser]);
 
-  const requestFreePlan = async () => {
+  const requestPlan = async () => {
     if (!appUser) return;
     setIsSubmitting(true);
     setError('');
@@ -793,12 +793,12 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
               )}
               <button
                 type="button"
-                disabled={selectedPlan !== plan.id || plan.price_dzd > 0 || isSubmitting || requestStatus === 'pending'}
-                onClick={event => { event.stopPropagation(); void requestFreePlan(); }}
+                disabled={selectedPlan !== plan.id || isSubmitting || requestStatus === 'pending'}
+                onClick={event => { event.stopPropagation(); void requestPlan(); }}
                 className="w-full h-10 rounded-xl text-sm font-bold text-white mt-3 transition-all disabled:opacity-50"
                 style={{ backgroundColor: selectedPlan === plan.id ? themeConfig.colors.primary : themeConfig.colors.border }}
               >
-                {plan.price_dzd > 0 ? 'يتطلب تفعيل الدفع' : requestStatus === 'pending' ? 'الطلب قيد المراجعة' : 'اختيار الخطة المجانية'}
+                {requestStatus === 'pending' ? 'الطلب قيد المراجعة' : plan.price_dzd > 0 ? 'طلب التفعيل' : 'اختيار الخطة المجانية'}
               </button>
             </div>
           </div>
