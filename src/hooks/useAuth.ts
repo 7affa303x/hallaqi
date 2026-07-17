@@ -10,6 +10,18 @@ function getErrMsg(err: unknown): string {
   return 'حدث خطأ غير متوقع';
 }
 
+function clearStaleAuthStorage() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Storage may be unavailable in private browser contexts.
+  }
+}
+
 export interface AuthState {
   user: User | null;
   appUser: Profile | null;
@@ -101,8 +113,15 @@ export function useAuth() {
     };
 
     supabase.auth.getSession()
-      .then(({ data: { session } }) => applySession(session))
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          clearStaleAuthStorage();
+          return applySession(null);
+        }
+        return applySession(session);
+      })
       .catch(() => {
+        clearStaleAuthStorage();
         if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
       });
 
