@@ -75,7 +75,7 @@ type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'notificatio
   'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security';
 
 export default function ProfileTab() {
-  const { themeConfig, settings, navigate, unreadCount, bookings, barbers } = useApp();
+  const { themeConfig, settings, navigate, setActiveTab, unreadCount, bookings, barbers } = useApp();
   const { isAuthenticated, appUser, user, logout, isLoading: authLoading } = useAuth();
   const [subPage, setSubPage] = useState<ProfileSubPage>('main');
   const [actionError, setActionError] = useState('');
@@ -259,6 +259,35 @@ export default function ProfileTab() {
           >
             <Shield size={20} />
             <span className="text-sm font-bold">لوحة التحكم</span>
+          </button>
+        </div>
+      )}
+
+      {(userRole === 'barber' || userRole === 'specialist') && (
+        <div className="px-4 mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('appointments')}
+            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Scissors size={16} style={{ color: themeConfig.colors.primary }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>استوديو العمل</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>يومي + إدخال سريع</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('ai-advisor')}
+            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مساعد Gemini</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>نصائح وتصور قصات</span>
+            </span>
           </button>
         </div>
       )}

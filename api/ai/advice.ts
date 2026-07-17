@@ -1,6 +1,12 @@
 import { APICallError, generateText, Output } from 'ai';
 import { z } from 'zod';
 import { authenticateSupabaseRequest, consumeAiQuota } from '../_lib/auth.js';
+import {
+  aiUnavailableMessage,
+  getGoogleProvider,
+  getTextModelId,
+  isAiGenerationEnabled,
+} from '../_lib/ai-provider.js';
 
 const requestSchema = z.object({
   question: z.string().trim().min(5).max(500),
@@ -23,10 +29,11 @@ export async function POST(request: Request) {
     return Response.json({ code: 'INVALID_INPUT' }, { status: 400 });
   }
 
-  if (process.env.AI_GENERATION_ENABLED !== 'true') {
+  const google = getGoogleProvider();
+  if (!isAiGenerationEnabled() || !google) {
     return Response.json({
       code: 'AI_NOT_CONFIGURED',
-      message: 'Generative advice is temporarily unavailable.',
+      message: aiUnavailableMessage(),
     }, { status: 503 });
   }
   if (!await consumeAiQuota(user, 'advice')) {
@@ -35,10 +42,10 @@ export async function POST(request: Request) {
 
   try {
     const { output, usage } = await generateText({
-      model: process.env.AI_TEXT_MODEL || 'openai/gpt-5.4',
+      model: google(getTextModelId()),
       instructions: [
         'You are Hallaqi, a concise Algerian barbering and grooming advisor.',
-        'Answer in Arabic. Give practical, conservative advice.',
+        'Answer in Arabic (Algerian dialect welcome when natural). Give practical, conservative advice.',
         'Do not diagnose medical conditions. Recommend a clinician for scalp disease, injury, or unexplained hair loss.',
         'Never claim certainty about a style without an in-person consultation.',
       ].join(' '),
@@ -49,12 +56,6 @@ export async function POST(request: Request) {
         schema: responseSchema,
       }),
       maxOutputTokens: 600,
-      providerOptions: {
-        gateway: {
-          user: user.id,
-          tags: ['feature:grooming-advice', 'product:hallaqi'],
-        },
-      },
     });
 
     return Response.json({ advice: output, usage });
@@ -63,9 +64,8 @@ export async function POST(request: Request) {
       userId: user.id,
       statusCode: APICallError.isInstance(error) ? error.statusCode : undefined,
     });
-    if (APICallError.isInstance(error)) {
-      if (error.statusCode === 402) return Response.json({ code: 'AI_BUDGET_EXCEEDED' }, { status: 503 });
-      if (error.statusCode === 429) return Response.json({ code: 'AI_RATE_LIMITED' }, { status: 429 });
+    if (APICallError.isInstance(error) && error.statusCode === 429) {
+      return Response.json({ code: 'AI_RATE_LIMITED' }, { status: 429 });
     }
     return Response.json({ code: 'AI_UNAVAILABLE' }, { status: 503 });
   }

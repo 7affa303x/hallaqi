@@ -24,38 +24,48 @@ Vercel Functions own all model calls:
 - `GET /api/ai/capabilities`
 - `POST /api/ai/advice`
 - `POST /api/ai/style-image`
+- `POST /api/ai/barber-assist`
 
 The functions:
 
 1. validate the Supabase bearer token,
 2. validate bounded input with Zod,
-3. select server-owned models,
-4. route through Vercel AI Gateway using deployment OIDC,
-5. tag usage by user and feature,
+3. select server-owned Gemini models via `@ai-sdk/google`,
+4. read `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` (never exposed to Vite),
+5. enforce per-user daily quotas in Postgres,
 6. map budget/rate/provider failures to safe unavailable states.
 
-No model key, model identifier, or cost control is exposed to the browser.
-Advice is stateless and does not reuse human chat conversations.
+No model key is exposed to the browser. Advice is stateless and does not reuse
+human chat conversations.
 
-Current verified model identifiers:
+Current default model identifiers:
 
-- text: `openai/gpt-5.4`
-- image reference: `google/gemini-3.1-flash-image-preview`
+- text: `gemini-2.0-flash`
+- image reference: `gemini-2.0-flash-preview-image-generation`
+- barber assist: same text model
 
 ## Activation
 
-Generation is intentionally off unless the server environment contains:
+Generation turns on when the server has a Gemini key (or when
+`AI_GENERATION_ENABLED=true` with a key):
 
 ```env
 AI_GENERATION_ENABLED=true
-AI_TEXT_MODEL=openai/gpt-5.4
-AI_IMAGE_MODEL=google/gemini-3.1-flash-image-preview
+AI_TEXT_MODEL=gemini-2.0-flash
+AI_IMAGE_MODEL=gemini-2.0-flash-preview-image-generation
+GEMINI_API_KEY=your_key_here
+# optional alias also supported:
+# GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
 ```
 
-The linked Vercel OIDC flow is valid, but a live request currently returns
-`customer_verification_required`: the Vercel team must add a valid billing card
-to unlock Gateway credits. Configure per-user rate limits and a hard budget
-before setting `AI_GENERATION_ENABLED=true`.
+Set these on Vercel Project → Settings → Environment Variables (Production +
+Preview). Never prefix the key with `VITE_`.
+
+Daily quotas (Postgres `consume_ai_quota`):
+
+- advice: 20 / day
+- style-image: 3 / day
+- barber-assist: 30 / day
 
 ## Safety boundary
 
@@ -63,3 +73,6 @@ The style-image endpoint generates generic adult hairstyle references only. It
 does not accept faces. Face-based virtual try-on remains blocked until Hallaqi
 defines explicit consent, private storage, retention/deletion, and provider data
 processing policies.
+
+Barber assist is for operational help (briefs, message drafts, service tips). It
+must not invent medical diagnoses or claim fabricated market prices as facts.

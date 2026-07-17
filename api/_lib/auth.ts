@@ -32,7 +32,7 @@ export async function authenticateSupabaseRequest(
 
 export async function consumeAiQuota(
   user: AuthenticatedUser,
-  feature: 'advice' | 'style-image'
+  feature: 'advice' | 'style-image' | 'barber-assist'
 ): Promise<boolean> {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const apiKey = process.env.VITE_SUPABASE_ANON_KEY;

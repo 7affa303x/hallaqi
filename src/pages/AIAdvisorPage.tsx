@@ -85,7 +85,12 @@ export default function AIAdvisorPage() {
           />
           {!enabled && (
             <p className="text-[11px] mt-2 p-2 rounded-lg" style={{ color: themeConfig.colors.warning, backgroundColor: themeConfig.colors.warning + '10' }}>
-              الواجهة جاهزة وآمنة؛ التوليد متوقف حتى تفعيل AI Gateway والميزانية.
+              {capabilities.externalBlocker || 'المساعد التوليدي ينتظر إعداد GEMINI_API_KEY على الخادم.'}
+            </p>
+          )}
+          {enabled && capabilities.provider === 'gemini' && (
+            <p className="text-[11px] mt-2" style={{ color: themeConfig.colors.textMuted }}>
+              يعمل عبر Gemini مباشرة.
             </p>
           )}
           <button

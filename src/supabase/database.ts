@@ -273,6 +273,33 @@ export async function createBooking(booking: Database['public']['Tables']['booki
   return data;
 }
 
+/** Desk / walk-in booking created by the professional (no app client). */
+export async function createWalkInBooking(params: {
+  serviceIds: string[];
+  startsAt?: string;
+  guestName?: string;
+  note?: string;
+  paymentMethod?: string;
+  markCompleted?: boolean;
+}) {
+  guard();
+  const { data, error } = await supabase.rpc('create_walk_in_booking', {
+    selected_services: params.serviceIds,
+    starts_at: params.startsAt || new Date().toISOString(),
+    guest_name: params.guestName || undefined,
+    note: params.note || undefined,
+    payment_method_name: params.paymentMethod || 'cash',
+    mark_completed: params.markCompleted ?? false,
+  });
+  if (error) {
+    if (error.message.includes('create_walk_in_booking') || error.code === 'PGRST202') {
+      throw new Error('ميزة العميل المباشر تحتاج تحديث قاعدة البيانات. طبّق الـ migration أولاً.');
+    }
+    throw new Error(error.message);
+  }
+  return data;
+}
+
 export async function createBookingWithServices(params: {
   professionalId: string;
   serviceIds: string[];

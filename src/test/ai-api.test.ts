@@ -6,6 +6,9 @@ describe('AI API contracts', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.AI_GENERATION_ENABLED;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.VITE_SUPABASE_ANON_KEY;
   });
@@ -18,6 +21,18 @@ describe('AI API contracts', () => {
       optimizedScheduling: true,
       generativeAdvice: false,
       hairstyleImageGeneration: false,
+    }));
+  });
+
+  it('reports gemini provider when a server key is present', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const body = await capabilitiesGet().json();
+    expect(body).toEqual(expect.objectContaining({
+      generativeAdvice: true,
+      barberAssist: true,
+      provider: 'gemini',
+      externalBlocker: null,
     }));
   });
 
