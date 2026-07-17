@@ -1717,6 +1717,42 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_walk_in_booking: {
+        Args: {
+          selected_services: string[]
+          starts_at?: string
+          guest_name?: string
+          note?: string
+          payment_method_name?: string
+          mark_completed?: boolean
+        }
+        Returns: {
+          booking_end_time: string
+          booking_start_time: string
+          client_id: string | null
+          created_at: string | null
+          discount_amount: number
+          id: string
+          is_mobile_service: boolean
+          loyalty_redemption_id: string | null
+          notes: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          professional_id: string | null
+          service_address: string | null
+          service_id: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          total_price: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_or_create_conversation: {
         Args: { user1_id: string; user2_id: string }
         Returns: string

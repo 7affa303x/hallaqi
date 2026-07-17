@@ -1,6 +1,12 @@
 import { APICallError, generateText } from 'ai';
 import { z } from 'zod';
 import { authenticateSupabaseRequest, consumeAiQuota } from '../_lib/auth.js';
+import {
+  aiUnavailableMessage,
+  getGoogleProvider,
+  getImageModelId,
+  isAiGenerationEnabled,
+} from '../_lib/ai-provider.js';
 
 const requestSchema = z.object({
   description: z.string().trim().min(10).max(600),
@@ -12,10 +18,12 @@ export async function POST(request: Request) {
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ code: 'INVALID_INPUT' }, { status: 400 });
-  if (process.env.AI_GENERATION_ENABLED !== 'true' || !process.env.AI_IMAGE_MODEL) {
+
+  const google = getGoogleProvider();
+  if (!isAiGenerationEnabled() || !google) {
     return Response.json({
       code: 'AI_IMAGE_NOT_CONFIGURED',
-      message: 'Style image generation requires an enabled AI Gateway image model.',
+      message: aiUnavailableMessage(),
     }, { status: 503 });
   }
   if (!await consumeAiQuota(user, 'style-image')) {
@@ -24,7 +32,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await generateText({
-      model: process.env.AI_IMAGE_MODEL,
+      model: google(getImageModelId()),
       instructions: [
         'Generate a clean editorial hairstyle reference image for an adult.',
         'Show hair and grooming only. Do not imitate a real person or use a supplied face.',
@@ -32,9 +40,8 @@ export async function POST(request: Request) {
       ].join(' '),
       prompt: parsed.data.description,
       providerOptions: {
-        gateway: {
-          user: user.id,
-          tags: ['feature:hairstyle-image', 'product:hallaqi'],
+        google: {
+          responseModalities: ['TEXT', 'IMAGE'],
         },
       },
     });

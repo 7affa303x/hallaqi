@@ -1,0 +1,52 @@
+name: Launch Barber Studio
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase@2.109.1
+
+      - name: Apply Supabase migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: cdwzbtjwqybnahhbhldy
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes
+          supabase db push --linked --yes
+
+      - name: Configure Vercel environment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'hallaqi' }}
+        run: |
+          npm install -g vercel@56.3.1
+          for env in production preview; do
+            printf '%s' "$GEMINI_API_KEY" | vercel env add GEMINI_API_KEY "$env" --force --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" || true
+            printf '%s' "$GEMINI_API_KEY" | vercel env add GOOGLE_GENERATIVE_AI_API_KEY "$env" --force --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" || true
+            printf 'true' | vercel env add AI_GENERATION_ENABLED "$env" --force --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" || true
+            printf 'gemini-2.0-flash' | vercel env add AI_TEXT_MODEL "$env" --force --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" || true
+            printf 'gemini-2.0-flash-preview-image-generation' | vercel env add AI_IMAGE_MODEL "$env" --force --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" || true
+          done
+          vercel deploy --prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT" --yes || true
+
+      - name: Smoke check capabilities endpoint
+        run: |
+          curl -fsS "https://www.hallaqi.app/api/ai/capabilities" | tee capabilities.json
+          node -e "const b=require('./capabilities.json'); if(!b.generativeAdvice) { console.error('AI not enabled yet'); process.exit(1);} console.log('AI enabled via', b.provider);"

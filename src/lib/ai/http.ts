@@ -5,6 +5,8 @@ export interface AICapabilities {
   optimizedScheduling: boolean;
   generativeAdvice: boolean;
   hairstyleImageGeneration: boolean;
+  barberAssist?: boolean;
+  provider?: string | null;
   externalBlocker: string | null;
 }
 
@@ -14,6 +16,12 @@ export interface GroomingAdvice {
   cautions: string[];
 }
 
+export interface BarberAssistResult {
+  answer: string;
+  suggestedActions: string[];
+  messageDraft?: string;
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
   if (!data.session?.access_token) throw new Error('يجب تسجيل الدخول لاستخدام المساعد');
@@ -21,6 +29,16 @@ async function authHeaders(): Promise<Record<string, string>> {
     authorization: `Bearer ${data.session.access_token}`,
     'content-type': 'application/json',
   };
+}
+
+function mapAiError(code?: string, fallback = 'تعذر تنفيذ الطلب حالياً'): never {
+  if (code === 'AI_NOT_CONFIGURED' || code === 'AI_IMAGE_NOT_CONFIGURED') {
+    throw new Error('المساعد يحتاج مفتاح Gemini على الخادم');
+  }
+  if (code === 'AI_RATE_LIMITED') {
+    throw new Error('وصلت للحد اليومي للمساعد. جرّب غداً.');
+  }
+  throw new Error(fallback);
 }
 
 export async function getAICapabilities(): Promise<AICapabilities> {
@@ -44,15 +62,9 @@ export async function requestGroomingAdvice(input: {
     advice?: GroomingAdvice;
   };
   if (!response.ok || !body.advice) {
-    if (body.code === 'AI_NOT_CONFIGURED') {
-      throw new Error('المساعد التوليدي ينتظر تفعيل AI Gateway');
-    }
-    if (body.code === 'AI_RATE_LIMITED') {
-      throw new Error('وصلت للحد اليومي للمساعد. جرّب غداً.');
-    }
-    throw new Error('تعذر الحصول على النصيحة حالياً');
+    mapAiError(body.code, 'تعذر الحصول على النصيحة حالياً');
   }
-  return body.advice;
+  return body.advice!;
 }
 
 export async function requestStyleImage(description: string): Promise<string> {
@@ -63,13 +75,34 @@ export async function requestStyleImage(description: string): Promise<string> {
   });
   const body = await response.json() as { code?: string; image?: string };
   if (!response.ok || !body.image) {
-    if (body.code === 'AI_IMAGE_NOT_CONFIGURED') {
-      throw new Error('توليد صور التسريحات ينتظر تفعيل نموذج الصور');
-    }
-    if (body.code === 'AI_RATE_LIMITED') {
-      throw new Error('وصلت للحد اليومي لتوليد الصور. جرّب غداً.');
-    }
-    throw new Error('تعذر توليد الصورة حالياً');
+    mapAiError(body.code, 'تعذر توليد الصورة حالياً');
   }
-  return body.image;
+  return body.image!;
+}
+
+export async function requestBarberAssist(input: {
+  intent?: 'client_brief' | 'reply_review' | 'service_suggestion' | 'message_draft' | 'free';
+  question: string;
+  context?: {
+    clientName?: string;
+    serviceName?: string;
+    notes?: string;
+    visitHistory?: string;
+    reviewText?: string;
+    reviewRating?: number;
+  };
+}): Promise<BarberAssistResult> {
+  const response = await fetch('/api/ai/barber-assist', {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify(input),
+  });
+  const body = await response.json() as {
+    code?: string;
+    assist?: BarberAssistResult;
+  };
+  if (!response.ok || !body.assist) {
+    mapAiError(body.code, 'تعذر الحصول على مساعدة الحلاق حالياً');
+  }
+  return body.assist!;
 }

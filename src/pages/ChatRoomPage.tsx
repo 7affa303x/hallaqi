@@ -10,6 +10,7 @@ import {
 import type { Message } from '@/types/supabase-aliases';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send, User as UserIcon, Check, CheckCheck, Phone, Video } from 'lucide-react';
+import { BARBER_MESSAGE_TEMPLATES } from '@/lib/barber/messageTemplates';
 
 function formatTime(iso: string | null): string {
   if (!iso) return '';
@@ -23,12 +24,14 @@ export default function ChatRoomPage() {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [callMessage, setCallMessage] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversationId = screenParams?.conversationId;
   const participantName = screenParams?.participantName || 'محادثة';
   const participantAvatar = screenParams?.participantAvatar;
   const participantId = screenParams?.participantId;
+  const isProfessional = appUser?.user_role === 'barber' || appUser?.user_role === 'specialist';
 
   const load = useCallback(async () => {
     if (!conversationId) return;
@@ -39,7 +42,7 @@ export default function ChatRoomPage() {
     }
   }, [conversationId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -63,16 +66,17 @@ export default function ChatRoomPage() {
     );
   }
 
-  const handleSend = async () => {
-    const text = messageText.trim();
+  const handleSend = async (preset?: string) => {
+    const text = (preset ?? messageText).trim();
     if (!text || sending) return;
-    setMessageText('');
+    if (!preset) setMessageText('');
     setSending(true);
+    setShowTemplates(false);
     try {
       await dbSendMessage({ conversation_id: conversationId, sender_id: appUser.id, content: text, status: 'sent', type: 'text' });
       await load();
     } catch {
-      setMessageText(text);
+      if (!preset) setMessageText(text);
     } finally {
       setSending(false);
     }
@@ -84,7 +88,6 @@ export default function ChatRoomPage() {
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       className="h-screen flex flex-col" style={{ backgroundColor: themeConfig.colors.background }}>
 
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b backdrop-blur-lg flex-shrink-0"
         style={{ backgroundColor: `${themeConfig.colors.surface}ee`, borderColor: themeConfig.colors.border }}>
         <button onClick={goBack} className="w-10 h-10 rounded-xl flex items-center justify-center">
@@ -101,7 +104,6 @@ export default function ChatRoomPage() {
       </div>
       {callMessage && <button onClick={() => setCallMessage('')} className="mx-4 mt-2 p-2 rounded-xl text-[11px] text-center" style={{ backgroundColor: themeConfig.colors.warning + '12', color: themeConfig.colors.warning }}>{callMessage}</button>}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <p className="text-center text-xs mt-8" style={{ color: themeConfig.colors.textMuted }}>ابدأ المحادثة بإرسال رسالة</p>
@@ -130,18 +132,43 @@ export default function ChatRoomPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {isProfessional && showTemplates && (
+        <div className="px-3 pb-2 flex gap-2 overflow-x-auto">
+          {BARBER_MESSAGE_TEMPLATES.map(tpl => (
+            <button
+              key={tpl.id}
+              type="button"
+              onClick={() => void handleSend(tpl.body)}
+              className="whitespace-nowrap px-3 h-8 rounded-full text-[11px] font-bold shrink-0"
+              style={{ backgroundColor: themeConfig.colors.primary + '14', color: themeConfig.colors.primary }}
+            >
+              {tpl.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex-shrink-0 p-3 border-t backdrop-blur-lg"
         style={{ backgroundColor: `${themeConfig.colors.surface}ee`, borderColor: themeConfig.colors.border }}>
         <div className="max-w-lg mx-auto flex items-center gap-2">
+          {isProfessional && (
+            <button
+              type="button"
+              onClick={() => setShowTemplates(v => !v)}
+              className="h-10 px-3 rounded-xl text-[11px] font-bold shrink-0"
+              style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.primary }}
+            >
+              قوالب
+            </button>
+          )}
           <div className="flex-1 relative">
             <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)}
               placeholder="اكتب رسالة..."
               className="w-full h-10 px-4 text-sm rounded-xl outline-none"
               style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
+              onKeyDown={(e) => e.key === 'Enter' && void handleSend()} />
           </div>
-          <button onClick={handleSend} disabled={!messageText.trim() || sending}
+          <button onClick={() => void handleSend()} disabled={!messageText.trim() || sending}
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-50"
             style={{ backgroundColor: themeConfig.colors.primary }}>
             <Send size={18} className="text-white" />
