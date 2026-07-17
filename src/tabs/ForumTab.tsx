@@ -6,10 +6,10 @@ import EmptyState from '@/components/EmptyState';
 import BrandLogo from '@/components/BrandLogo';
 import { translate } from '@/lib/i18n';
 import { motion } from 'framer-motion';
-import { forumCategories, mockCompetitions } from '@/data/mockData';
+import { forumCategories } from '@/data/mockData';
 import type { ForumCategory, ForumPost, ScreenName, ScreenParams } from '@/types';
 import { themes } from '@/data/themes';
-import { getForumCategories } from '@/supabase/database';
+import { enterCompetition, getActiveCompetitions, getForumCategories } from '@/supabase/database';
 import {
   MessageCircle, Trophy, Eye, Shield, BadgeCheck, Pin,
   Megaphone, Heart, MessageSquare, Share2, Bookmark,
@@ -19,13 +19,17 @@ import {
 const roleIcons: Record<string, typeof Shield> = { admin: Shield, expert: Award, barber: BadgeCheck, user: Users };
 const roleColors: Record<string, string> = { admin: '#EF4444', expert: '#8B5CF6', barber: '#3B82F6', user: '#6B7280' };
 const roleLabels: Record<string, string> = { admin: 'إدارة', expert: 'خبير', barber: 'حلاق', user: 'مستخدم' };
+type ActiveCompetition = Awaited<ReturnType<typeof getActiveCompetitions>>[number];
 
 export default function ForumTab() {
   const { forumPosts, themeConfig, settings, navigate, isLoading } = useApp();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, appUser } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory | 'all'>('all');
   const [showSort, setShowSort] = useState(false);
   const [sortMode, setSortMode] = useState<'newest' | 'trending' | 'liked' | 'commented'>('newest');
+  const [competitions, setCompetitions] = useState<ActiveCompetition[]>([]);
+  const [competitionMessage, setCompetitionMessage] = useState('');
+  const [busyCompetition, setBusyCompetition] = useState('');
   const [categories, setCategories] = useState<Array<{ key: string; label: string; color: string }>>(
     forumCategories.map(category => ({ ...category }))
   );
@@ -43,6 +47,27 @@ export default function ForumTab() {
       })
       .catch(() => { /* static categories remain available */ });
   }, [themeConfig.colors.primary]);
+
+  useEffect(() => {
+    getActiveCompetitions().then(setCompetitions).catch(() => setCompetitions([]));
+  }, []);
+
+  const joinCompetition = async (competitionId: string) => {
+    if (!appUser) {
+      navigate('login', { redirectScreen: 'home', redirectTab: 'forum' });
+      return;
+    }
+    setBusyCompetition(competitionId);
+    setCompetitionMessage('');
+    try {
+      await enterCompetition(competitionId, appUser.id);
+      setCompetitionMessage('تم تسجيل مشاركتك. أنشئ منشوراً لعرض عملك.');
+    } catch (err) {
+      setCompetitionMessage(err instanceof Error ? err.message : 'تعذر الانضمام للمسابقة');
+    } finally {
+      setBusyCompetition('');
+    }
+  };
 
   const filteredPosts = useMemo(() => {
     const posts = selectedCategory === 'all'
@@ -139,29 +164,27 @@ export default function ForumTab() {
       )}
 
       {/* Competitions Banner */}
-      <div className="px-4 mt-2 mb-3">
+      {competitions.length > 0 && <div className="px-4 mt-2 mb-3">
         <div className="p-3 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.primary + '05', borderColor: themeConfig.colors.primary + '15', borderStyle: 'dashed' }}>
           <div className="flex items-center gap-2 mb-2">
             <Trophy size={16} style={{ color: themeConfig.colors.primary }} />
             <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>مسابقات نشطة</span>
           </div>
           <div className="space-y-2">
-            {mockCompetitions.map(comp => (
+            {competitions.map(comp => (
               <div key={comp.id} className="flex items-center justify-between p-2.5 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface }}>
                 <div>
                   <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>{comp.title}</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{comp.participants.length} مشارك &bull; {comp.prize}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{comp.competition_entries?.[0]?.count || 0} مشارك &bull; {comp.prize}</p>
+                  <p className="text-[9px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>تنتهي {new Date(comp.ends_at).toLocaleDateString('ar-DZ')}</p>
                 </div>
-                <div className="flex -space-x-2">
-                  {comp.participants.slice(0, 3).map((p, i) => (
-                    <img key={p.userId} src={p.userAvatar} alt={p.userName} className="w-7 h-7 rounded-full border-2 object-cover" style={{ borderColor: themeConfig.colors.surface, marginLeft: i > 0 ? '-8px' : '0' }} />
-                  ))}
-                </div>
+                <button disabled={busyCompetition === comp.id} onClick={() => void joinCompetition(comp.id)} className="px-3 h-8 rounded-lg text-[10px] font-bold text-white disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.primary }}>شارك</button>
               </div>
             ))}
           </div>
+          {competitionMessage && <p role="status" className="text-[10px] mt-2" style={{ color: themeConfig.colors.primary }}>{competitionMessage}</p>}
         </div>
-      </div>
+      </div>}
 
       {/* Skeleton Loading */}
       {showSkeletons && (

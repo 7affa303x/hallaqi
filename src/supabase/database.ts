@@ -909,6 +909,42 @@ export async function reportForumContent(params: {
   if (error) throw new Error(error.message);
 }
 
+export async function getActiveCompetitions() {
+  guard();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*, competition_entries(count)')
+    .eq('status', 'active')
+    .lte('starts_at', new Date().toISOString())
+    .gte('ends_at', new Date().toISOString())
+    .order('ends_at');
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function enterCompetition(
+  competitionId: string,
+  userId: string,
+  forumPostId?: string
+) {
+  guard();
+  const { data, error } = await supabase
+    .from('competition_entries')
+    .insert({
+      competition_id: competitionId,
+      user_id: userId,
+      forum_post_id: forumPostId || null,
+      status: 'entered',
+    })
+    .select()
+    .single();
+  if (error) {
+    if (error.code === '23505') throw new Error('أنت مشارك بالفعل في هذه المسابقة');
+    throw new Error(error.message);
+  }
+  return data;
+}
+
 /* ========== REAL-TIME ========== */
 
 export function subscribeToTable(table: string, callback: (payload: Record<string, unknown>) => void) {
