@@ -9,7 +9,7 @@ import {
 } from '@/supabase/database';
 import type { Message } from '@/types/supabase-aliases';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, User as UserIcon, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, User as UserIcon, Check, CheckCheck, Phone, Video } from 'lucide-react';
 
 function formatTime(iso: string | null): string {
   if (!iso) return '';
@@ -22,6 +22,7 @@ export default function ChatRoomPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const [callMessage, setCallMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversationId = screenParams?.conversationId;
@@ -95,7 +96,10 @@ export default function ChatRoomPage() {
             : <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}><UserIcon size={20} style={{ color: themeConfig.colors.primary }} /></div>}
           <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{participantName}</p>
         </button>
+        <button onClick={() => setCallMessage('المكالمة الصوتية قيد ربط مزود الاتصال — قريباً')} aria-label="مكالمة صوتية قريباً" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}><Phone size={16} /></button>
+        <button onClick={() => setCallMessage('مكالمة الفيديو قيد ربط مزود الاتصال — قريباً')} aria-label="مكالمة فيديو قريباً" className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}><Video size={16} /></button>
       </div>
+      {callMessage && <button onClick={() => setCallMessage('')} className="mx-4 mt-2 p-2 rounded-xl text-[11px] text-center" style={{ backgroundColor: themeConfig.colors.warning + '12', color: themeConfig.colors.warning }}>{callMessage}</button>}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">

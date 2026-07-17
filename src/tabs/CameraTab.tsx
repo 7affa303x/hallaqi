@@ -162,7 +162,9 @@ export default function CameraTab() {
 
   const toggleFlash = async () => {
     const next = !flashOn;
-    const track = streamRef.current?.getVideoTracks()[0];
+    const activeStream = streamRef.current
+      || (videoRef.current?.srcObject instanceof MediaStream ? videoRef.current.srcObject : null);
+    const track = activeStream?.getVideoTracks()[0];
     if (track) {
       try {
         await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
