@@ -4,6 +4,7 @@ export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Professional = Database['public']['Tables']['professionals']['Row'];
 export type Service = Database['public']['Tables']['services']['Row'];
 export type Booking = Database['public']['Tables']['bookings']['Row'];
+export type BookingService = Database['public']['Tables']['booking_services']['Row'];
 export type Review = Database['public']['Tables']['reviews']['Row'];
 export type Favorite = Database['public']['Tables']['favorites']['Row'];
 export type AvailabilitySchedule = Database['public']['Tables']['availability_schedules']['Row'];

@@ -31,6 +31,7 @@ interface ProBookingRow {
   status: BookingStatus;
   profiles?: { full_name: string | null; avatar_url: string | null } | null;
   services?: { name: string | null } | null;
+  booking_services?: Array<{ services?: { name: string | null } | null }>;
 }
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
@@ -278,7 +279,9 @@ export default function AppointmentsTab() {
                           style={{ backgroundColor: themeConfig.colors.success + '10', color: themeConfig.colors.success }}>
                           <Navigation size={14} /> الاتجاهات
                         </button>
-                        <button onClick={() => cancelBooking(booking.id)}
+                        <button onClick={() => {
+                          if (window.confirm(`هل تريد إلغاء موعدك مع ${booking.barberName}؟`)) void cancelBooking(booking.id);
+                        }}
                           className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                           style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>
                           <XCircle size={14} /> إلغاء
@@ -292,14 +295,14 @@ export default function AppointmentsTab() {
                       </button>
                     )}
                     {booking.status === 'completed' && (
-                      <button onClick={() => navigate('booking-flow', { barberId: booking.barberId })}
+                      <button onClick={() => navigate('booking-flow', { barberId: booking.barberId, serviceIds: booking.services.map(service => service.id).join(','), preferredTime: booking.time })}
                         className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                         style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}>
                         <CalendarDays size={14} /> حجز مجدداً
                       </button>
                     )}
                     {booking.status === 'cancelled' && (
-                      <button onClick={() => navigate('booking-flow', { barberId: booking.barberId })}
+                      <button onClick={() => navigate('booking-flow', { barberId: booking.barberId, serviceIds: booking.services.map(service => service.id).join(','), preferredTime: booking.time })}
                         className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                         style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>
                         <CalendarDays size={14} /> إعادة الحجز
@@ -430,7 +433,7 @@ function BarberAppointments({ proId }: { proId: string }) {
     <div className="pb-20">
       <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
         <div className="flex items-center gap-2 mb-3">
-          <img src="/logo-symbol.png" alt="Hallaqi" className="w-8 h-8 rounded-lg" />
+          <BrandLogo className="w-9 h-9 shadow-sm" priority />
           <div>
             <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>حجوزات العملاء</h1>
             <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>إدارة طلبات الحجز الواردة</p>
@@ -479,7 +482,9 @@ function BarberAppointments({ proId }: { proId: string }) {
                       : <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}><UserIcon size={22} style={{ color: themeConfig.colors.primary }} /></div>}
                     <div className="flex-1">
                       <h3 className="font-bold text-sm text-right" style={{ color: themeConfig.colors.text }}>{b.profiles?.full_name || 'عميل'}</h3>
-                      <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{b.services?.name || 'خدمة'}</span>
+                      <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
+                        {b.booking_services?.map(item => item.services?.name).filter(Boolean).join(' + ') || b.services?.name || 'خدمة'}
+                      </span>
                     </div>
                     <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{b.total_price ?? 0} دج</p>
                   </div>

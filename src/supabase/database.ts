@@ -204,7 +204,7 @@ export async function getClientBookings(clientId: string, statusFilter?: (Databa
   guard();
   let query = supabase
     .from('bookings')
-    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*), reviews(id, rating)')
+    .select('*, professionals(*, profiles(full_name, avatar_url)), services(*), booking_services(*, services(*)), reviews(id, rating)')
     .eq('client_id', clientId)
     .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
@@ -217,7 +217,7 @@ export async function getProfessionalBookings(proId: string, statusFilter?: (Dat
   guard();
   let query = supabase
     .from('bookings')
-    .select('*, profiles(*), services(*)')
+    .select('*, profiles(*), services(*), booking_services(*, services(*))')
     .eq('professional_id', proId)
     .order('booking_start_time', { ascending: false });
   if (statusFilter?.length) query = query.in('status', statusFilter);
@@ -249,6 +249,34 @@ export async function createBooking(booking: Database['public']['Tables']['booki
         // Otherwise, the slot is genuinely taken
         throw new Error('هذا الوقت محجوز بالفعل. يرجى اختيار وقت آخر.');
       }
+    }
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function createBookingWithServices(params: {
+  professionalId: string;
+  serviceIds: string[];
+  startsAt: string;
+  note?: string;
+  paymentMethod: string;
+  isMobileService: boolean;
+  mobileAddress?: string;
+}) {
+  guard();
+  const { data, error } = await supabase.rpc('create_booking_with_services', {
+    professional: params.professionalId,
+    selected_services: params.serviceIds,
+    starts_at: params.startsAt,
+    note: params.note || undefined,
+    payment_method_name: params.paymentMethod,
+    mobile_service: params.isMobileService,
+    mobile_address: params.mobileAddress || undefined,
+  });
+  if (error) {
+    if (error.code === '23P01' || error.code === '23505') {
+      throw new Error('هذا الموعد حُجز للتو. اختر وقتاً آخر.');
     }
     throw new Error(error.message);
   }

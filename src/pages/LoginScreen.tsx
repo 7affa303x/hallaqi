@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
-import type { ScreenParams } from '@/types';
+import type { ScreenParams, TabName } from '@/types';
 import { useStore } from '@/store/useStore';
 import { getErrMsg } from '@/lib/error';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,7 +23,7 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ redirectScreen, redirectParams }: LoginScreenProps) {
-  const { themeConfig, navigate } = useApp();
+  const { themeConfig, navigate, setActiveTab } = useApp();
   const { googleSignIn, login, error: authError } = useAuth();
   const setAuthenticated = useStore(s => s.setAuthenticated);
   const isOnline = useStore(s => s.isOnline);
@@ -46,6 +46,16 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
 
   const error = localError || authError || '';
 
+  const completeRedirect = () => {
+    const redirectTab = redirectParams?.redirectTab;
+    if (typeof redirectTab === 'string') setActiveTab(redirectTab as TabName);
+    if (redirectScreen && redirectScreen !== 'login') {
+      navigate(redirectScreen as 'home', redirectParams as ScreenParams);
+    } else {
+      navigate('home');
+    }
+  };
+
   const clearError = useCallback(() => {
     setLocalError('');
   }, []);
@@ -55,11 +65,7 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
     try {
       await login(data.email, data.password);
       setAuthenticated(true);
-      if (redirectScreen && redirectScreen !== 'login') {
-        navigate(redirectScreen as 'home', redirectParams as ScreenParams);
-      } else {
-        navigate('home');
-      }
+      completeRedirect();
     } catch (err) {
       const msg = getErrMsg(err);
       if (msg.includes('user-not-found') || msg.includes('لم يتم العثور')) {
@@ -80,13 +86,12 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
   const handleGoogle = async () => {
     clearError();
     try {
+      sessionStorage.setItem('hallaqi-auth-redirect', JSON.stringify({
+        screen: redirectScreen,
+        params: redirectParams,
+      }));
       await googleSignIn();
       setAuthenticated(true);
-      if (redirectScreen && redirectScreen !== 'login') {
-        navigate(redirectScreen as 'home', redirectParams as ScreenParams);
-      } else {
-        navigate('home');
-      }
     } catch {
       setLocalError('فشل تسجيل الدخول بـ Google. حاول مرة أخرى.');
     }

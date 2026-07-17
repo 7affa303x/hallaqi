@@ -2,8 +2,9 @@ import { useApp } from '@/contexts/useApp';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Bell, MessageSquare, Calendar,
-  Trophy, Tag, Info, CheckCheck
+  Trophy, Tag, Info, CheckCheck, ChevronLeft
 } from 'lucide-react';
+import type { AppNotification } from '@/types';
 
 const iconMap = {
   booking: Calendar,
@@ -24,10 +25,28 @@ const colorMap = {
 };
 
 export default function NotificationsPage() {
-  const { themeConfig, notifications, markNotificationRead, markAllNotificationsRead, goBack } = useApp();
+  const { themeConfig, notifications, markNotificationRead, markAllNotificationsRead, navigate, setActiveTab, goBack } = useApp();
 
   const unreadNotifications = notifications.filter(n => !n.read);
   const readNotifications = notifications.filter(n => n.read);
+
+  const openNotification = async (notification: AppNotification) => {
+    if (!notification.read) await markNotificationRead(notification.id);
+    const action = notification.actionUrl;
+    if (!action) return;
+    if (action === '/appointments') {
+      setActiveTab('appointments');
+      navigate('home');
+      return;
+    }
+    if (action.startsWith('/post/')) {
+      navigate('post-detail', { postId: action.slice('/post/'.length) });
+      return;
+    }
+    if (action.startsWith('/chat/')) {
+      navigate('chat-room', { conversationId: action.slice('/chat/'.length) });
+    }
+  };
 
   return (
     <motion.div
@@ -74,7 +93,7 @@ export default function NotificationsPage() {
               return (
                 <button
                   key={n.id}
-                  onClick={() => markNotificationRead(n.id)}
+                  onClick={() => void openNotification(n)}
                   className="w-full text-right p-3 rounded-xl border flex items-start gap-3"
                   style={{
                     backgroundColor: themeConfig.colors.surface,
@@ -93,6 +112,7 @@ export default function NotificationsPage() {
                     <p className="text-[10px] mt-1" style={{ color }}>{n.createdAt.split('T')[0]}</p>
                   </div>
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5" style={{ backgroundColor: color }} />
+                  {n.actionUrl && <ChevronLeft size={15} style={{ color: themeConfig.colors.textMuted }} />}
                 </button>
               );
             })}
@@ -108,9 +128,10 @@ export default function NotificationsPage() {
             {readNotifications.map(n => {
               const Icon = iconMap[n.type] || Bell;
               return (
-                <div
+                <button
                   key={n.id}
-                  className="p-3 rounded-xl border opacity-60 flex items-start gap-3"
+                  onClick={() => void openNotification(n)}
+                  className="w-full text-right p-3 rounded-xl border opacity-70 flex items-start gap-3"
                   style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -123,7 +144,8 @@ export default function NotificationsPage() {
                     <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{n.message}</p>
                     <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.textMuted }}>{n.createdAt.split('T')[0]}</p>
                   </div>
-                </div>
+                  {n.actionUrl && <ChevronLeft size={15} style={{ color: themeConfig.colors.textMuted }} />}
+                </button>
               );
             })}
           </div>

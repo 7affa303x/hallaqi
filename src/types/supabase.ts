@@ -99,6 +99,45 @@ export type Database = {
           },
         ]
       }
+      booking_services: {
+        Row: {
+          booking_id: string
+          created_at: string
+          duration_snapshot: number
+          price_snapshot: number
+          service_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          duration_snapshot: number
+          price_snapshot: number
+          service_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          duration_snapshot?: number
+          price_snapshot?: number
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_services_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           booking_end_time: string
@@ -1353,6 +1392,41 @@ export type Database = {
     }
     Functions: {
       complete_barber_onboarding: { Args: never; Returns: undefined }
+      create_booking_with_services: {
+        Args: {
+          mobile_address?: string
+          mobile_service?: boolean
+          note?: string
+          payment_method_name?: string
+          professional: string
+          selected_services: string[]
+          starts_at: string
+        }
+        Returns: {
+          booking_end_time: string
+          booking_start_time: string
+          client_id: string | null
+          created_at: string | null
+          id: string
+          is_mobile_service: boolean
+          notes: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          professional_id: string | null
+          service_address: string | null
+          service_id: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          total_price: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_or_create_conversation: {
         Args: { user1_id: string; user2_id: string }
         Returns: string

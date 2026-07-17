@@ -29,11 +29,16 @@ describe('database mappers', () => {
         duration_minutes: 30,
         category: 'haircut',
       },
+      booking_services: [
+        { services: { id: 'service-1', name: 'حلاقة', price: 600, duration_minutes: 30, category: 'haircut' } },
+        { services: { id: 'service-2', name: 'لحية', price: 300, duration_minutes: 15, category: 'beard' } },
+      ],
       reviews: [{ id: 'review-1', rating: 5 }],
     });
 
     expect(booking.barberName).toBe('صالون حلاقي');
     expect(booking.services[0]?.name).toBe('حلاقة');
+    expect(booking.services[1]?.name).toBe('لحية');
     expect(booking.paymentMethod).toBe('card');
     expect(booking.isMobileService).toBe(true);
     expect(booking.reviewed).toBe(true);

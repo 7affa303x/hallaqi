@@ -394,6 +394,8 @@ export interface ScreenParams {
   chatId?: string;
   postId?: string;
   bookingId?: string;
+  serviceIds?: string;
+  preferredTime?: string;
   redirectScreen?: string;
   redirectTab?: string;
   title?: string;

@@ -33,6 +33,8 @@ export function ReceiptUpload({ onUpload, isUploading, uploadProgress, error, pa
 
   const {
     register,
+    getValues,
+    trigger,
     formState: { errors: formErrors },
   } = useForm<ReceiptUploadFormData>({
     resolver: zodResolver(receiptUploadSchema),
@@ -73,7 +75,9 @@ export function ReceiptUpload({ onUpload, isUploading, uploadProgress, error, pa
 
   const handleSubmit = async () => {
     if (!selectedFile) return;
-    const transactionRef = formErrors.transactionRef ? '' : undefined;
+    const valid = await trigger('transactionRef');
+    if (!valid) return;
+    const transactionRef = getValues('transactionRef')?.trim() || undefined;
     const success = await onUpload(selectedFile, transactionRef);
     if (success) {
       setSubmitted(true);

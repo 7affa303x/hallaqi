@@ -29,6 +29,20 @@ function openInMaps(location: string, isMobile: boolean) {
   }
 }
 
+function distanceInKm(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): number {
+  const radians = (value: number) => value * Math.PI / 180;
+  const earthRadiusKm = 6371;
+  const deltaLat = radians(to.lat - from.lat);
+  const deltaLng = radians(to.lng - from.lng);
+  const a = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(radians(from.lat)) * Math.cos(radians(to.lat))
+    * Math.sin(deltaLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function BookingTab() {
   const { barbers, bookings, currentUser, themeConfig, toggleFollow, navigate, isLoading } = useApp();
   const { isAuthenticated } = useAuth();
@@ -37,6 +51,35 @@ export default function BookingTab() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price' | 'newest'>('rating');
+  const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationMessage, setLocationMessage] = useState('');
+  const userLocation = currentUser as { city?: string; wilaya?: string } | null;
+  const preferredCity = userLocation?.city || userLocation?.wilaya || 'الجزائر';
+
+  const distances = useMemo(() => new Map(
+    barbers.map(barber => [
+      barber.id,
+      userCoordinates && barber.coordinates
+        ? distanceInKm(userCoordinates, barber.coordinates)
+        : null,
+    ])
+  ), [barbers, userCoordinates]);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage('الموقع غير مدعوم في هذا المتصفح');
+      return;
+    }
+    setLocationMessage('جاري تحديد موقعك...');
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        setUserCoordinates({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setLocationMessage('تم ترتيب الحلاقين حسب موقعك');
+      },
+      () => setLocationMessage('تعذر الوصول للموقع؛ يمكنك المتابعة بالولاية المسجلة'),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  };
 
   const filteredBarbers = useMemo(() => {
     let filtered = [...barbers];
@@ -57,7 +100,7 @@ export default function BookingTab() {
     }
     switch (sortBy) {
       case 'rating': filtered.sort((a, b) => b.rating - a.rating); break;
-      case 'distance': filtered.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance)); break;
+      case 'distance': filtered.sort((a, b) => (distances.get(a.id) ?? Number.POSITIVE_INFINITY) - (distances.get(b.id) ?? Number.POSITIVE_INFINITY)); break;
       case 'price':
         filtered.sort((a, b) => {
           const aMin = Math.min(...a.services.map(s => s.price));
@@ -68,16 +111,15 @@ export default function BookingTab() {
       case 'newest': filtered.sort((a, b) => (b.tags.includes('new') ? 1 : 0) - (a.tags.includes('new') ? 1 : 0)); break;
     }
     return filtered;
-  }, [barbers, searchQuery, selectedTags, selectedCategory, sortBy]);
+  }, [barbers, distances, searchQuery, selectedTags, selectedCategory, sortBy]);
 
   const recommendations = useMemo(() => {
-    const userLocation = currentUser as { city?: string; wilaya?: string } | null;
     return rankBarberRecommendations(barbers, {
-      city: userLocation?.city || userLocation?.wilaya,
+      city: preferredCity,
       category: selectedCategory as ServiceCategory | null,
       bookings,
     }).slice(0, 3);
-  }, [barbers, bookings, currentUser, selectedCategory]);
+  }, [barbers, bookings, preferredCity, selectedCategory]);
 
   const toggleTag = (tag: BarberTag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -110,7 +152,7 @@ export default function BookingTab() {
               <span className="hidden sm:inline">المساعد</span>
             </button>
             <button
-              onClick={() => openInMaps('الجزائر العاصمة', false)}
+              onClick={() => openInMaps(preferredCity, false)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
               style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
               title="عرض الحلاقين على الخريطة"
@@ -212,7 +254,10 @@ export default function BookingTab() {
                 ].map(opt => (
                   <button
                     key={opt.key}
-                    onClick={() => setSortBy(opt.key)}
+                    onClick={() => {
+                      setSortBy(opt.key);
+                      if (opt.key === 'distance' && !userCoordinates) requestLocation();
+                    }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
                       backgroundColor: sortBy === opt.key ? themeConfig.colors.accent + '20' : themeConfig.colors.background,
@@ -228,6 +273,7 @@ export default function BookingTab() {
             </div>
           </div>
         )}
+        {locationMessage && <p role="status" className="text-[10px] mt-2 text-center" style={{ color: themeConfig.colors.textMuted }}>{locationMessage}</p>}
       </div>
 
       {isAuthenticated && !searchQuery && selectedTags.length === 0 && recommendations.length > 0 && (
@@ -353,7 +399,7 @@ export default function BookingTab() {
                     className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md transition-all"
                     style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}
                   >
-                    <Navigation size={9} /> {barber.distance}
+                    <Navigation size={9} /> {distances.get(barber.id) != null ? `${distances.get(barber.id)?.toFixed(1)} كم` : barber.distance}
                   </button>
                 </div>
 

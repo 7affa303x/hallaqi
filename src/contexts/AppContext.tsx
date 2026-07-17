@@ -147,6 +147,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScreenParams(undefined);
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!appUser) return;
+    const serialized = sessionStorage.getItem('hallaqi-auth-redirect');
+    if (!serialized) return;
+    sessionStorage.removeItem('hallaqi-auth-redirect');
+    try {
+      const intent = JSON.parse(serialized) as { screen?: ScreenName; params?: ScreenParams };
+      if (intent.params?.redirectTab) setActiveTab(intent.params.redirectTab as TabName);
+      if (intent.screen && intent.screen !== 'login') navigate(intent.screen, intent.params);
+    } catch {
+      // Ignore malformed, user-controlled session storage.
+    }
+  }, [appUser, navigate, setActiveTab]);
+
   /* ---- Theme ---- */
   const [currentTheme, setCurrentTheme] = useState<ThemeName>(globalTheme || 'hallaqi');
   const [animationStyle, setAnimationStyle] = useState<AnimationStyle>(globalAnimation || 'modern');

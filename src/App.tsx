@@ -72,7 +72,7 @@ function ScreenRouter() {
     case 'create-post':
       return <Suspense fallback={<LoadingFallback />}><CreateForumPostPage /></Suspense>;
     case 'login':
-      return <Suspense fallback={<LoadingFallback />}><LoginScreen /></Suspense>;
+      return <Suspense fallback={<LoadingFallback />}><LoginScreen redirectScreen={screenParams?.redirectScreen} redirectParams={screenParams} /></Suspense>;
     case 'register':
       return <Suspense fallback={<LoadingFallback />}><RegisterScreen /></Suspense>;
     case 'forgot-password':

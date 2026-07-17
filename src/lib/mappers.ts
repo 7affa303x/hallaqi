@@ -58,6 +58,9 @@ export function mapBookingRow(value: unknown): Booking {
   const row = asRow(value);
   const professional = asRow(row.professionals);
   const professionalProfile = asRow(professional.profiles);
+  const bookingServices = Array.isArray(row.booking_services)
+    ? row.booking_services.map(entry => mapService(asRow(entry).services)).filter((service): service is Service => service !== null)
+    : [];
   const service = mapService(row.services);
   const reviews = Array.isArray(row.reviews) ? row.reviews.map(asRow) : [];
   const startTime = asString(row.booking_start_time);
@@ -69,7 +72,7 @@ export function mapBookingRow(value: unknown): Booking {
       || asString(professionalProfile.full_name)
       || 'حلاق',
     barberAvatar: asString(professionalProfile.avatar_url, '/logo-icon.png'),
-    services: service ? [service] : [],
+    services: bookingServices.length > 0 ? bookingServices : service ? [service] : [],
     date: startTime ? startTime.split('T')[0] : '',
     time: startTime ? (startTime.split('T')[1] || '').slice(0, 5) : '',
     status: asString(row.status, 'pending') as Booking['status'],
@@ -93,6 +96,10 @@ export function mapNotificationRow(value: unknown): AppNotification {
     'booking', 'message', 'forum', 'promo', 'system', 'competition',
   ];
   const rawType = asString(row.type, 'system') as AppNotification['type'];
+  const actionUrl = asString(metadata.action_url)
+    || (asString(metadata.booking_id) ? '/appointments' : '')
+    || (asString(metadata.conversation_id) ? `/chat/${asString(metadata.conversation_id)}` : '')
+    || (asString(metadata.post_id) ? `/post/${asString(metadata.post_id)}` : '');
   return {
     id: asString(row.id),
     title: asString(row.title, 'إشعار'),
@@ -100,7 +107,7 @@ export function mapNotificationRow(value: unknown): AppNotification {
     type: allowedTypes.includes(rawType) ? rawType : 'system',
     read: row.read === true,
     createdAt: asString(row.created_at, new Date(0).toISOString()),
-    actionUrl: asString(metadata.action_url) || undefined,
+    actionUrl: actionUrl || undefined,
     image: asString(metadata.image) || undefined,
   };
 }

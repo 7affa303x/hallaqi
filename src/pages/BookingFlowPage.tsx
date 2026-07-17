@@ -7,7 +7,7 @@ import {
   Wallet, Banknote, Calendar, X, AlertTriangle, Sparkles
 } from 'lucide-react';
 import {
-  createBooking,
+  createBookingWithServices,
   getProfessionalBookings,
   getProfessionalExceptions,
   isSlotAvailable,
@@ -17,7 +17,6 @@ import { usePayment } from '@/hooks/usePayment';
 import { useCCPPayment } from '@/hooks/useCCPPayment';
 import { ReceiptUpload } from '@/components/payment/ReceiptUpload';
 import type { Service, BookingStatus, PaymentStatus } from '@/types';
-import type { Database } from '@/types/supabase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingStep3Schema } from '@/lib/validation';
@@ -94,10 +93,11 @@ const generateDates = () => {
 };
 
 export default function BookingFlowPage() {
-  const { themeConfig, screenParams, barbers, bookings: userBookings, addBooking, navigate, goBack, refreshData } = useApp();
+  const { themeConfig, screenParams, barbers, bookings: userBookings, addBooking, navigate, setActiveTab, goBack, refreshData } = useApp();
   const { appUser } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [initializedFromParams, setInitializedFromParams] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const { initiatePayment, isProcessing: isPaymentProcessing, error: paymentError } = usePayment();
@@ -140,6 +140,16 @@ export default function BookingFlowPage() {
 
   const barber = barbers.find(b => b.id === screenParams?.barberId);
   const dates = generateDates();
+
+  useEffect(() => {
+    if (!barber || initializedFromParams) return;
+    const requestedServices = (screenParams?.serviceIds || '').split(',').filter(Boolean);
+    if (requestedServices.length > 0) {
+      const validIds = requestedServices.filter(id => barber.services.some(service => service.id === id));
+      setSelectedServices(validIds);
+    }
+    setInitializedFromParams(true);
+  }, [barber, initializedFromParams, screenParams?.serviceIds]);
 
   /** Fetch existing bookings for this professional */
   useEffect(() => {
@@ -233,8 +243,11 @@ export default function BookingFlowPage() {
     return getAvailableTimeSlots(selectedDate);
   }, [selectedDate, getAvailableTimeSlots]);
   const preferredHour = useMemo(
-    () => preferredBookingHour(userBookings.map(booking => booking.time)),
-    [userBookings]
+    () => preferredBookingHour([
+      ...userBookings.map(booking => booking.time),
+      ...(screenParams?.preferredTime ? [screenParams.preferredTime] : []),
+    ]),
+    [screenParams?.preferredTime, userBookings]
   );
   const optimizedSlots = useMemo(
     () => selectedDate
@@ -262,6 +275,7 @@ export default function BookingFlowPage() {
   const selectedServicesData = barber.services.filter((s: Service) => selectedServices.includes(s.id));
   const totalPrice = selectedServicesData.reduce((sum: number, s: Service) => sum + s.price, 0);
   const totalDuration = selectedServicesData.reduce((sum: number, s: Service) => sum + s.duration, 0);
+  const estimatedLoyaltyPoints = Math.max(1, Math.floor(totalPrice / 100));
 
   /** Compute end time from start time + duration */
   const computeEndTime = (dateStr: string, timeStr: string, durationMin: number): string => {
@@ -299,23 +313,15 @@ export default function BookingFlowPage() {
         return;
       }
 
-      // Build Supabase booking row with Live DB column names
-      const bookingRow = {
-        client_id: appUser.id,
-        professional_id: barber.id,
-        service_id: selectedServicesData[0]?.id || null,
-        booking_start_time: bookingStartTime,
-        booking_end_time: bookingEndTime,
-        status: 'pending' as BookingStatus,
-        total_price: totalPrice,
-        notes: data.note || null,
-        payment_status: 'pending' as PaymentStatus,
-        payment_method: data.paymentMethod,
-        is_mobile_service: data.isMobileService,
-        service_address: data.isMobileService ? data.address || null : null,
-      };
-
-      const saved = await createBooking({ ...bookingRow, status: bookingRow.status as unknown as Database["public"]["Enums"]["booking_status"] });
+      const saved = await createBookingWithServices({
+        professionalId: barber.id,
+        serviceIds: selectedServicesData.map(service => service.id),
+        startsAt: bookingStartTime,
+        note: data.note,
+        paymentMethod: data.paymentMethod,
+        isMobileService: data.isMobileService,
+        mobileAddress: data.address,
+      });
 
       if (saved) {
         // If card payment selected, redirect to Stripe Checkout
@@ -493,10 +499,10 @@ export default function BookingFlowPage() {
         </motion.div>
         <h2 className="text-xl font-bold mb-2" style={{ color: themeConfig.colors.text }}>تم إرسال طلب الحجز!</h2>
         <p className="text-sm mb-1" style={{ color: themeConfig.colors.textMuted }}>
-          {barber.name} سيرد على طلبك قريباً
+          تم إرسال الطلب إلى {barber.name}
         </p>
-        <p className="text-xs mb-6" style={{ color: themeConfig.colors.textMuted }}>
-          {selectedDate} - {selectedTime}
+        <p className="text-xs mb-6 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+          {selectedDate} - {selectedTime}<br />ستصلك رسالة فور قبول الحلاق أو تحديث حالة الموعد
         </p>
         <div className="w-full max-w-xs p-4 rounded-xl border mb-6" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex justify-between mb-2">
@@ -521,11 +527,11 @@ export default function BookingFlowPage() {
             تفاصيل المختص
           </button>
           <button
-            onClick={() => { setConfirmed(false); goBack(); }}
+            onClick={() => { setConfirmed(false); setActiveTab('appointments'); navigate('home'); }}
             className="flex-1 h-12 rounded-xl text-sm font-bold text-white"
             style={{ backgroundColor: themeConfig.colors.primary }}
           >
-            تم
+            متابعة حالة الحجز
           </button>
         </div>
       </motion.div>
@@ -686,6 +692,10 @@ export default function BookingFlowPage() {
             <div className="flex justify-between mt-3 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
               <span className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي</span>
               <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</span>
+            </div>
+            <div className="flex items-center justify-between mt-2 p-2 rounded-lg" style={{ backgroundColor: themeConfig.colors.accent + '10' }}>
+              <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>مكافأة إكمال الموعد</span>
+              <span className="text-[11px] font-bold" style={{ color: themeConfig.colors.accent }}>+{estimatedLoyaltyPoints} نقطة ولاء</span>
             </div>
           </div>
 
