@@ -375,6 +375,7 @@ export type ScreenName =
   | 'barber-detail'
   | 'booking-flow'
   | 'chat-room'
+  | 'messages'
   | 'notifications'
   | 'post-detail'
   | 'create-post'

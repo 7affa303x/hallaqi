@@ -1504,6 +1504,18 @@ export type Database = {
         Args: { user1_id: string; user2_id: string }
         Returns: string
       }
+      get_user_conversations: {
+        Args: never
+        Returns: {
+          conversation_id: string
+          last_message: string
+          last_message_at: string
+          participant_avatar: string
+          participant_id: string
+          participant_name: string
+          unread_count: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       loyalty_tier: { Args: { total_points: number }; Returns: string }
       mark_conversation_messages_as_read: {

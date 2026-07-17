@@ -166,6 +166,7 @@ export default function ProfileTab() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-bold text-white">البروفايل</h1>
           <div className="flex items-center gap-2">
+            <button onClick={() => navigate('messages')} aria-label="المحادثات" className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><MessageSquare size={16} className="text-white" /></button>
             <button
               onClick={() => navigate('notifications')}
               aria-label="الإشعارات"

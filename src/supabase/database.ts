@@ -543,12 +543,9 @@ export async function getOrCreateConversation(user1Id: string, user2Id: string):
   return data;
 }
 
-export async function getUserConversations(userId: string) {
+export async function getUserConversations() {
   guard();
-  const { data, error } = await supabase
-    .from('conversation_members')
-    .select('conversation_id, conversations(*, messages(content, created_at, sender_id))')
-    .eq('user_id', userId);
+  const { data, error } = await supabase.rpc('get_user_conversations');
   if (error) throw new Error(error.message);
   return data || [];
 }

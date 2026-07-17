@@ -18,6 +18,7 @@ const ProfileTab = lazy(() => import('@/tabs/ProfileTab'));
 const BarberDetailPage = lazy(() => import('@/pages/BarberDetailPage'));
 const BookingFlowPage = lazy(() => import('@/pages/BookingFlowPage'));
 const ChatRoomPage = lazy(() => import('@/pages/ChatRoomPage'));
+const MessagesPage = lazy(() => import('@/pages/MessagesPage'));
 const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 const PostDetailPage = lazy(() => import('@/pages/PostDetailPage'));
 const CreateForumPostPage = lazy(() => import('@/pages/CreateForumPostPage'));
@@ -47,7 +48,7 @@ function ScreenRouter() {
   const { screen, screenParams, activeTab } = useApp();
   const { isAuthenticated, appUser } = useAuth();
 
-  const authRequiredScreens = ['booking-flow', 'chat-room', 'create-post', 'admin-dashboard'];
+  const authRequiredScreens = ['booking-flow', 'chat-room', 'messages', 'create-post', 'admin-dashboard'];
   const needsAuth = authRequiredScreens.includes(screen) && !isAuthenticated;
 
   if (needsAuth) {
@@ -65,6 +66,8 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><BookingFlowPage /></Suspense>;
     case 'chat-room':
       return <Suspense fallback={<LoadingFallback />}><ChatRoomPage /></Suspense>;
+    case 'messages':
+      return <Suspense fallback={<LoadingFallback />}><MessagesPage /></Suspense>;
     case 'notifications':
       return <Suspense fallback={<LoadingFallback />}><NotificationsPage /></Suspense>;
     case 'post-detail':
