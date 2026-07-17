@@ -56,6 +56,24 @@ const convertProfileToUser = (profile: Profile): User => ({
 
 interface HistoryEntry { screen: ScreenName; params?: ScreenParams }
 
+const queryScreens = new Set<ScreenName>([
+  'booking-flow', 'chat-room', 'messages', 'notifications', 'create-post',
+  'login', 'register', 'payment-success', 'admin-dashboard', 'ai-advisor',
+  'mfa-challenge', 'coming-soon',
+]);
+
+function screenUrl(screen: ScreenName, params?: ScreenParams): string {
+  if (screen === 'home') return '/';
+  if (screen === 'reset-password' || screen === 'forgot-password') return `/${screen}`;
+  if (screen === 'barber-detail' && params?.barberId) return `/barber/${encodeURIComponent(params.barberId)}`;
+  if (screen === 'post-detail' && params?.postId) return `/post/${encodeURIComponent(params.postId)}`;
+  const query = new URLSearchParams({ screen });
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value) query.set(key, value);
+  }
+  return `/?${query.toString()}`;
+}
+
 interface DataLoadingState {
   barbers: boolean;
   bookings: boolean;
@@ -100,6 +118,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       initialScreen = 'notifications';
     } else if (queryScreen === 'ai-advisor') {
       initialScreen = 'ai-advisor';
+    } else if (queryScreen && queryScreens.has(queryScreen as ScreenName)) {
+      initialScreen = queryScreen as ScreenName;
+      initialParams = Object.fromEntries(
+        [...query.entries()].filter(([key]) => key !== 'screen')
+      ) as ScreenParams;
     }
 
     setScreen(initialScreen);
@@ -111,18 +134,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScreen(nextScreen);
     setScreenParams(params);
     setHistory(prev => [...prev, { screen: nextScreen, params }]);
-    let url = '/';
-    if (nextScreen === 'reset-password' || nextScreen === 'forgot-password') url = `/${nextScreen}`;
-    else if (nextScreen === 'barber-detail' && params?.barberId) url = `/barber/${encodeURIComponent(params.barberId)}`;
-    else if (nextScreen === 'post-detail' && params?.postId) url = `/post/${encodeURIComponent(params.postId)}`;
-    else if (nextScreen !== 'home') {
-      const query = new URLSearchParams({ screen: nextScreen });
-      for (const [key, value] of Object.entries(params || {})) {
-        if (value) query.set(key, value);
-      }
-      url = `/?${query.toString()}`;
-    }
-    window.history.pushState({}, '', url);
+    window.history.pushState({}, '', screenUrl(nextScreen, params));
   }, []);
 
   const goBack = useCallback(() => {
@@ -132,11 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const last = next[next.length - 1];
       setScreen(last.screen);
       setScreenParams(last.params);
-      if (last.screen === 'reset-password' || last.screen === 'forgot-password') {
-        window.history.pushState({}, '', `/${last.screen}`);
-      } else if (last.screen === 'home') {
-        window.history.pushState({}, '', '/');
-      }
+      window.history.pushState({}, '', screenUrl(last.screen, last.params));
       return next;
     });
   }, []);
@@ -150,6 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveTabState(tab);
     setScreen('home');
     setScreenParams(undefined);
+    window.history.pushState({}, '', '/');
   }, [activeTab]);
 
   useEffect(() => {
@@ -295,6 +304,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else if (query.get('screen') === 'notifications') {
         setScreen('notifications');
         setScreenParams(undefined);
+        return;
+      } else if (query.get('screen') && queryScreens.has(query.get('screen') as ScreenName)) {
+        setScreen(query.get('screen') as ScreenName);
+        setScreenParams(Object.fromEntries(
+          [...query.entries()].filter(([key]) => key !== 'screen')
+        ) as ScreenParams);
         return;
       } else {
         setScreen('home');
