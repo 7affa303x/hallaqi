@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_daily: {
+        Row: {
+          feature: string
+          request_count: number
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          feature: string
+          request_count?: number
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          feature?: string
+          request_count?: number
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_daily_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       availability_exceptions: {
         Row: {
           created_at: string | null
@@ -1462,6 +1494,7 @@ export type Database = {
     }
     Functions: {
       complete_barber_onboarding: { Args: never; Returns: undefined }
+      consume_ai_quota: { Args: { ai_feature: string }; Returns: boolean }
       create_booking_with_services: {
         Args: {
           loyalty_voucher?: string

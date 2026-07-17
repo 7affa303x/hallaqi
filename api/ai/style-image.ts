@@ -1,6 +1,6 @@
 import { APICallError, generateText } from 'ai';
 import { z } from 'zod';
-import { authenticateSupabaseRequest } from '../_lib/auth.js';
+import { authenticateSupabaseRequest, consumeAiQuota } from '../_lib/auth.js';
 
 const requestSchema = z.object({
   description: z.string().trim().min(10).max(600),
@@ -17,6 +17,9 @@ export async function POST(request: Request) {
       code: 'AI_IMAGE_NOT_CONFIGURED',
       message: 'Style image generation requires an enabled AI Gateway image model.',
     }, { status: 503 });
+  }
+  if (!await consumeAiQuota(user, 'style-image')) {
+    return Response.json({ code: 'AI_RATE_LIMITED' }, { status: 429 });
   }
 
   try {

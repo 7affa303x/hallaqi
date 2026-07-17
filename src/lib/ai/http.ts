@@ -47,6 +47,9 @@ export async function requestGroomingAdvice(input: {
     if (body.code === 'AI_NOT_CONFIGURED') {
       throw new Error('المساعد التوليدي ينتظر تفعيل AI Gateway');
     }
+    if (body.code === 'AI_RATE_LIMITED') {
+      throw new Error('وصلت للحد اليومي للمساعد. جرّب غداً.');
+    }
     throw new Error('تعذر الحصول على النصيحة حالياً');
   }
   return body.advice;
@@ -62,6 +65,9 @@ export async function requestStyleImage(description: string): Promise<string> {
   if (!response.ok || !body.image) {
     if (body.code === 'AI_IMAGE_NOT_CONFIGURED') {
       throw new Error('توليد صور التسريحات ينتظر تفعيل نموذج الصور');
+    }
+    if (body.code === 'AI_RATE_LIMITED') {
+      throw new Error('وصلت للحد اليومي لتوليد الصور. جرّب غداً.');
     }
     throw new Error('تعذر توليد الصورة حالياً');
   }

@@ -1,6 +1,6 @@
 import { APICallError, generateText, Output } from 'ai';
 import { z } from 'zod';
-import { authenticateSupabaseRequest } from '../_lib/auth.js';
+import { authenticateSupabaseRequest, consumeAiQuota } from '../_lib/auth.js';
 
 const requestSchema = z.object({
   question: z.string().trim().min(5).max(500),
@@ -28,6 +28,9 @@ export async function POST(request: Request) {
       code: 'AI_NOT_CONFIGURED',
       message: 'Generative advice is temporarily unavailable.',
     }, { status: 503 });
+  }
+  if (!await consumeAiQuota(user, 'advice')) {
+    return Response.json({ code: 'AI_RATE_LIMITED' }, { status: 429 });
   }
 
   try {
