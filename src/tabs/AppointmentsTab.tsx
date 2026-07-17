@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/useApp';
 import { SkeletonBookingCard } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import BrandLogo from '@/components/BrandLogo';
+import { translate } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import type { Booking, BookingStatus } from '@/types';
 import type { Database } from '@/types/supabase';
@@ -59,7 +60,7 @@ function openDirections(location: string) {
 }
 
 export default function AppointmentsTab() {
-  const { bookings, themeConfig, cancelBooking, navigate, setActiveTab, isLoading, refreshData } = useApp();
+  const { bookings, themeConfig, settings, cancelBooking, navigate, setActiveTab, isLoading, refreshData } = useApp();
   const { isAuthenticated, appUser } = useAuth();
   const [activeFilter, setActiveFilter] = useState('upcoming');
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
@@ -151,8 +152,8 @@ export default function AppointmentsTab() {
         <div className="flex items-center gap-2 mb-3">
           <BrandLogo className="w-9 h-9 shadow-sm" priority />
           <div>
-            <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>مواعيدي</h1>
-            <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>إدارة حجوزاتك والتواصل</p>
+            <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>{translate(settings.language, 'myAppointments')}</h1>
+            <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{translate(settings.language, 'appointmentsDescription')}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -164,7 +165,11 @@ export default function AppointmentsTab() {
                 color: activeFilter === tab.key ? '#fff' : themeConfig.colors.textMuted,
                 border: `1px solid ${activeFilter === tab.key ? themeConfig.colors.primary : themeConfig.colors.border}`,
               }}>
-              {tab.label}
+              {tab.key === 'upcoming'
+                ? translate(settings.language, 'upcoming')
+                : tab.key === 'past'
+                  ? translate(settings.language, 'previous')
+                  : translate(settings.language, 'cancelled')}
               {tab.key === 'upcoming' && (
                 <span className="mr-1 px-1.5 py-0.5 rounded-full text-[9px]" style={{ backgroundColor: activeFilter === tab.key ? '#fff30' : themeConfig.colors.primary + '15', color: activeFilter === tab.key ? '#fff' : themeConfig.colors.primary }}>
                   {bookings.filter(b => ['pending', 'confirmed'].includes(b.status)).length}

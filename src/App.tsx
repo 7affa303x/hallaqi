@@ -9,6 +9,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import BottomNav from '@/components/BottomNav';
 import BrandLogo from '@/components/BrandLogo';
 import InstallPrompt from '@/components/InstallPrompt';
+import { reportClientError } from '@/lib/error-reporting';
 import BookingTab from '@/tabs/BookingTab';
 import './App.css';
 
@@ -147,6 +148,21 @@ function AppContent() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [setIsOnline]);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      reportClientError(event.error instanceof Error ? event.error : new Error(event.message));
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      reportClientError(event.reason instanceof Error ? event.reason : new Error(String(event.reason)));
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
 
 

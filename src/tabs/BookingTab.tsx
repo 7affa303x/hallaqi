@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import type { BarberTag, ServiceCategory } from '@/types';
 import { rankBarberRecommendations } from '@/lib/recommendations';
 import { trackProductEvent } from '@/lib/product-analytics';
+import { translate, type TranslationKey } from '@/lib/i18n';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock, Car,
   Scissors, BadgeCheck, Zap, TrendingUp, ChevronLeft, X,
@@ -45,17 +46,23 @@ function distanceInKm(
 }
 
 export default function BookingTab() {
-  const { barbers, bookings, currentUser, themeConfig, toggleFollow, navigate, isLoading } = useApp();
+  const { barbers, bookings, currentUser, themeConfig, settings, toggleFollow, navigate, isLoading } = useApp();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<BarberTag[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedWilaya, setSelectedWilaya] = useState(() => localStorage.getItem('hallaqi-discovery-wilaya') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price' | 'newest'>('rating');
   const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [locationMessage, setLocationMessage] = useState('');
   const userLocation = currentUser as { city?: string; wilaya?: string } | null;
   const preferredCity = userLocation?.city || userLocation?.wilaya || 'الجزائر';
+  const tx = (key: TranslationKey) => translate(settings.language, key);
+  const availableWilayas = useMemo(
+    () => [...new Set(barbers.map(barber => barber.wilaya).filter(Boolean))].sort(),
+    [barbers]
+  );
 
   const distances = useMemo(() => new Map(
     barbers.map(barber => [
@@ -99,6 +106,9 @@ export default function BookingTab() {
     if (selectedCategory) {
       filtered = filtered.filter(b => b.services.some(s => s.category === selectedCategory));
     }
+    if (selectedWilaya) {
+      filtered = filtered.filter(barber => barber.wilaya === selectedWilaya);
+    }
     switch (sortBy) {
       case 'rating': filtered.sort((a, b) => b.rating - a.rating); break;
       case 'distance': filtered.sort((a, b) => (distances.get(a.id) ?? Number.POSITIVE_INFINITY) - (distances.get(b.id) ?? Number.POSITIVE_INFINITY)); break;
@@ -112,15 +122,15 @@ export default function BookingTab() {
       case 'newest': filtered.sort((a, b) => (b.tags.includes('new') ? 1 : 0) - (a.tags.includes('new') ? 1 : 0)); break;
     }
     return filtered;
-  }, [barbers, distances, searchQuery, selectedTags, selectedCategory, sortBy]);
+  }, [barbers, distances, searchQuery, selectedTags, selectedCategory, selectedWilaya, sortBy]);
 
   const recommendations = useMemo(() => {
     return rankBarberRecommendations(barbers, {
-      city: preferredCity,
+      city: selectedWilaya || preferredCity,
       category: selectedCategory as ServiceCategory | null,
       bookings,
     }).slice(0, 3);
-  }, [barbers, bookings, preferredCity, selectedCategory]);
+  }, [barbers, bookings, preferredCity, selectedCategory, selectedWilaya]);
 
   const toggleTag = (tag: BarberTag) => {
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -150,16 +160,16 @@ export default function BookingTab() {
               title="مساعد حلاقي"
             >
               <Sparkles size={14} />
-              <span className="hidden sm:inline">المساعد</span>
+              <span className="hidden sm:inline">{tx('assistant')}</span>
             </button>
             <button
-              onClick={() => openInMaps(preferredCity, false)}
+              onClick={() => openInMaps(selectedWilaya || preferredCity, false)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
               style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
               title="عرض الحلاقين على الخريطة"
             >
               <Navigation size={14} />
-              <span className="hidden sm:inline">خريطة</span>
+              <span className="hidden sm:inline">{tx('map')}</span>
             </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -171,7 +181,7 @@ export default function BookingTab() {
               }}
             >
               <SlidersHorizontal size={16} />
-              <span>فلتر</span>
+              <span>{tx('filters')}</span>
             </button>
           </div>
         </div>
@@ -181,7 +191,7 @@ export default function BookingTab() {
           <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: themeConfig.colors.textMuted }} />
           <input
             type="text"
-            placeholder="ابحث عن حلاق، خدمة، أو منطقة..."
+            placeholder={tx('searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-11 pr-10 pl-10 text-sm outline-none transition-all"
@@ -225,6 +235,15 @@ export default function BookingTab() {
         {/* Filter Panel */}
         {showFilters && (
           <div className="mt-3 p-3 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            <div className="mb-3">
+              <p className="text-xs font-medium mb-2" style={{ color: themeConfig.colors.textMuted }}>الولاية</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <button onClick={() => { setSelectedWilaya(''); localStorage.removeItem('hallaqi-discovery-wilaya'); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: !selectedWilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: !selectedWilaya ? '#fff' : themeConfig.colors.textMuted }}>كل الولايات</button>
+                {availableWilayas.map(wilaya => (
+                  <button key={wilaya} onClick={() => { setSelectedWilaya(wilaya); localStorage.setItem('hallaqi-discovery-wilaya', wilaya); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: selectedWilaya === wilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: selectedWilaya === wilaya ? '#fff' : themeConfig.colors.textMuted }}>{wilaya}</button>
+                ))}
+              </div>
+            </div>
             <div className="mb-3">
               <p className="text-xs font-medium mb-2" style={{ color: themeConfig.colors.textMuted }}>نوع الخدمة</p>
               <div className="flex gap-2 flex-wrap">
@@ -282,8 +301,8 @@ export default function BookingTab() {
           <div className="flex items-center gap-2 mb-2">
             <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
             <div>
-              <h2 id="recommended-title" className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>مقترح لك</h2>
-              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>ترتيب ذكي وشفاف حسب احتياجاتك</p>
+              <h2 id="recommended-title" className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{tx('recommended')}</h2>
+              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{tx('recommendedDescription')}</p>
             </div>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -394,7 +413,7 @@ export default function BookingTab() {
                       color: barber.isFollowing ? themeConfig.colors.primary : '#fff',
                     }}
                   >
-                    {barber.isFollowing ? 'متابَع' : 'متابعة'}
+                    {barber.isFollowing ? tx('following') : tx('follow')}
                   </button>
                 </div>
 
@@ -455,7 +474,7 @@ export default function BookingTab() {
                     className="flex-1 h-10 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90"
                     style={{ backgroundColor: themeConfig.colors.primary }}
                   >
-                    احجز الآن
+                    {tx('bookNow')}
                   </button>
                   <button
                     onClick={() => openInMaps(`${barber.location}, ${barber.wilaya}`, barber.isMobile)}
@@ -489,7 +508,7 @@ export default function BookingTab() {
           title="لا توجد نتائج مطابقة"
           description="جرب تغيير كلمات البحث أو الفلاتر"
           actionLabel="إعادة تعيين الفلاتر"
-          onAction={() => { setSearchQuery(''); setSelectedTags([]); setSelectedCategory(null); }}
+          onAction={() => { setSearchQuery(''); setSelectedTags([]); setSelectedCategory(null); setSelectedWilaya(''); localStorage.removeItem('hallaqi-discovery-wilaya'); }}
           themeConfig={themeConfig}
         />
       )}

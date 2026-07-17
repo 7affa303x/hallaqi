@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/useApp';
 import { SkeletonForumPost } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import BrandLogo from '@/components/BrandLogo';
+import { translate } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import { forumCategories, mockCompetitions } from '@/data/mockData';
 import type { ForumCategory, ForumPost, ScreenName, ScreenParams } from '@/types';
@@ -20,7 +21,7 @@ const roleColors: Record<string, string> = { admin: '#EF4444', expert: '#8B5CF6'
 const roleLabels: Record<string, string> = { admin: 'إدارة', expert: 'خبير', barber: 'حلاق', user: 'مستخدم' };
 
 export default function ForumTab() {
-  const { forumPosts, themeConfig, navigate, isLoading } = useApp();
+  const { forumPosts, themeConfig, settings, navigate, isLoading } = useApp();
   const { isAuthenticated } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory | 'all'>('all');
   const [showSort, setShowSort] = useState(false);
@@ -70,8 +71,8 @@ export default function ForumTab() {
           <div className="flex items-center gap-2">
             <BrandLogo className="w-9 h-9 shadow-sm" priority />
             <div>
-              <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>المنتدى</h1>
-              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>نقاشات، نصائح، ومسابقات</p>
+              <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>{translate(settings.language, 'community')}</h1>
+              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{translate(settings.language, 'communityDescription')}</p>
             </div>
           </div>
           <div className="flex gap-2">

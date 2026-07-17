@@ -10,17 +10,18 @@ import {
   Sparkles,
   QrCode
 } from 'lucide-react';
+import { translate, type TranslationKey } from '@/lib/i18n';
 
-const tabs: { key: TabName; label: string; icon: typeof Scissors; special?: boolean; authRequired?: boolean }[] = [
-  { key: 'booking', label: 'الحجز', icon: Scissors },
-  { key: 'appointments', label: 'المواعيد', icon: CalendarDays, authRequired: true },
-  { key: 'camera', label: 'QR', icon: QrCode, special: true },
-  { key: 'forum', label: 'المنتدى', icon: MessageSquare },
-  { key: 'profile', label: 'البروفايل', icon: User },
+const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; special?: boolean; authRequired?: boolean }[] = [
+  { key: 'booking', labelKey: 'booking', icon: Scissors },
+  { key: 'appointments', labelKey: 'appointments', icon: CalendarDays, authRequired: true },
+  { key: 'camera', labelKey: 'qr', icon: QrCode, special: true },
+  { key: 'forum', labelKey: 'forum', icon: MessageSquare },
+  { key: 'profile', labelKey: 'profile', icon: User },
 ];
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, bookings } = useApp();
+  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, bookings, settings } = useApp();
   const { isAuthenticated } = useAuth();
 
   const getTabBadge = (tab: typeof tabs[0]) => {
@@ -56,12 +57,13 @@ export default function BottomNav() {
           const isActive = activeTab === tab.key;
           const badge = getTabBadge(tab);
           const Icon = tab.icon;
+          const label = translate(settings.language, tab.labelKey);
 
           return (
             <button
               key={tab.key}
               onClick={() => handleTabClick(tab)}
-              aria-label={tab.label}
+              aria-label={label}
               aria-current={isActive ? 'page' : undefined}
               className="relative flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300"
               style={{
@@ -143,7 +145,7 @@ export default function BottomNav() {
                   color: isActive ? themeConfig.colors.primary : themeConfig.colors.textMuted
                 }}
               >
-                {tab.label}
+                {label}
               </span>
             </button>
           );

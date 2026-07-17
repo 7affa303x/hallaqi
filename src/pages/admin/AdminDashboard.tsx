@@ -286,14 +286,14 @@ export default function AdminDashboard() {
   }
 
   const statCards = [
-    { label: 'إجمالي المستخدمين', value: stats.totalUsers, icon: Users, color: '#3b82f6' },
-    { label: 'المحترفين', value: stats.totalProfessionals, icon: Scissors, color: '#8b5cf6' },
-    { label: 'إجمالي الحجوزات', value: stats.totalBookings, icon: Calendar, color: '#10b981' },
-    { label: 'إجمالي المدفوعات', value: stats.totalPayments, icon: CreditCard, color: '#f59e0b' },
-    { label: 'إيصالات CCP معلقة', value: stats.pendingCCPReceipts, icon: Clock, color: '#ef4444' },
-    { label: 'مدفوعات Stripe', value: stats.stripePayments, icon: DollarSign, color: '#6366f1' },
-    { label: 'مراجعات معلقة', value: stats.pendingReviews, icon: Star, color: '#f97316' },
-    { label: 'إجمالي الإيرادات', value: `${stats.totalRevenue.toLocaleString()} د.ج`, icon: TrendingUp, color: '#059669' },
+    { label: 'إجمالي المستخدمين', value: stats.totalUsers, icon: Users, color: '#3b82f6', section: 'users' as const },
+    { label: 'المحترفين', value: stats.totalProfessionals, icon: Scissors, color: '#8b5cf6', section: 'users' as const },
+    { label: 'إجمالي الحجوزات', value: stats.totalBookings, icon: Calendar, color: '#10b981', section: 'bookings' as const },
+    { label: 'إجمالي المدفوعات', value: stats.totalPayments, icon: CreditCard, color: '#f59e0b', section: 'payments' as const },
+    { label: 'إيصالات CCP معلقة', value: stats.pendingCCPReceipts, icon: Clock, color: '#ef4444', section: 'payments' as const },
+    { label: 'مدفوعات Stripe', value: stats.stripePayments, icon: DollarSign, color: '#6366f1', section: 'payments' as const },
+    { label: 'مراجعات معلقة', value: stats.pendingReviews, icon: Star, color: '#f97316', section: 'reviews' as const },
+    { label: 'إجمالي الإيرادات', value: `${stats.totalRevenue.toLocaleString()} د.ج`, icon: TrendingUp, color: '#059669', section: 'payments' as const },
   ];
 
   const quickActions = [
@@ -328,7 +328,7 @@ export default function AdminDashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           {statCards.map((card, i) => (
-            <div key={i} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+            <button key={i} onClick={() => setActiveSection(card.section)} className="p-3 rounded-xl text-right transition-transform active:scale-95" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
               <div className="flex items-center gap-2 mb-2">
                 <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${card.color}20` }}>
                   <card.icon className="w-4 h-4" style={{ color: card.color }} />
@@ -336,7 +336,7 @@ export default function AdminDashboard() {
               </div>
               <p className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>{card.value}</p>
               <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{card.label}</p>
-            </div>
+            </button>
           ))}
         </div>
 

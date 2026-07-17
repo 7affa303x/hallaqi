@@ -39,6 +39,7 @@ import {
   isWebPushSupported,
 } from '@/lib/push-notifications';
 import { trackProductEvent } from '@/lib/product-analytics';
+import { translate } from '@/lib/i18n';
 
 interface UserStats {
   totalBookings?: number;
@@ -70,7 +71,7 @@ type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'notificatio
   'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security';
 
 export default function ProfileTab() {
-  const { themeConfig, navigate, unreadCount, bookings, barbers } = useApp();
+  const { themeConfig, settings, navigate, unreadCount, bookings, barbers } = useApp();
   const { isAuthenticated, appUser, user, logout, isLoading: authLoading } = useAuth();
   const [subPage, setSubPage] = useState<ProfileSubPage>('main');
   const [actionError, setActionError] = useState('');
@@ -99,10 +100,10 @@ export default function ProfileTab() {
           <p className="text-sm mb-6 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>سجل الدخول للوصول لحجوزاتك، المحادثات، والمزيد من الميزات</p>
           <div className="space-y-2">
             <button onClick={() => navigate('login')} className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2" style={{ backgroundColor: themeConfig.colors.primary }}>
-              <LogIn size={18} /> تسجيل الدخول
+              <LogIn size={18} /> {translate(settings.language, 'signIn')}
             </button>
             <button onClick={() => navigate('register')} className="w-full h-12 rounded-xl text-sm font-bold border flex items-center justify-center gap-2" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}>
-              <UserPlusIcon size={18} /> إنشاء حساب جديد
+              <UserPlusIcon size={18} /> {translate(settings.language, 'createAccount')}
             </button>
           </div>
           <p className="text-[10px] mt-4" style={{ color: themeConfig.colors.textMuted }}>بالتسجيل، أنت توافق على شروط الاستخدام وسياسة الخصوصية</p>
@@ -178,7 +179,7 @@ export default function ProfileTab() {
     <div className="pb-20">
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold text-white">البروفايل</h1>
+          <h1 className="text-lg font-bold text-white">{translate(settings.language, 'profile')}</h1>
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('messages')} aria-label="المحادثات" className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><MessageSquare size={16} className="text-white" /></button>
             <button

@@ -3,6 +3,8 @@
  * Production-grade error handling with user-friendly fallbacks
  */
 import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { reportClientError } from '@/lib/error-reporting';
+import BrandLogo from '@/components/BrandLogo';
 
 interface Props {
   children: ReactNode;
@@ -28,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
     console.error('[ErrorBoundary] Caught error:', error, errorInfo);
-    // In production, send to error tracking service (Sentry, etc.)
+    reportClientError(error, { componentStack: errorInfo.componentStack || undefined });
   }
 
   handleReload = () => {
@@ -46,7 +48,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#F0FDFA' }}>
           <div className="max-w-sm w-full text-center">
-            <img src="/logo-icon.png" alt="Hallaqi" className="w-16 h-16 mx-auto mb-4 opacity-50" />
+            <BrandLogo variant="icon" className="w-16 h-16 mx-auto mb-4 opacity-70" />
             <h2 className="text-lg font-bold mb-2" style={{ color: '#134E4A' }}>حدث خطأ غير متوقع</h2>
             <p className="text-sm mb-4" style={{ color: '#5E7C7A' }}>
               نعتذر عن الإزعاج. يمكنك تحديث الصفحة أو العودة للرئيسية.
