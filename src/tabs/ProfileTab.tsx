@@ -403,10 +403,6 @@ function SecuritySettings({ onBack }: { onBack: () => void }) {
     setMessage('');
     setLoading(true);
     try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      await Promise.all((factors?.totp || [])
-        .filter(factor => factor.status === 'unverified')
-        .map(factor => supabase.auth.mfa.unenroll({ factorId: factor.id })));
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Hallaqi Authenticator',
