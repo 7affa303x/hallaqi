@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       ai_usage_daily: {
@@ -124,6 +149,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "availability_schedules_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      barber_service_extras: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_active: boolean
+          name: string
+          price_dzd: number
+          professional_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_dzd?: number
+          professional_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_dzd?: number
+          professional_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "barber_service_extras_professional_id_fkey"
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "professionals"
@@ -308,6 +380,147 @@ export type Database = {
           },
         ]
       }
+      business_account_requests: {
+        Row: {
+          account_type: string
+          created_at: string
+          id: string
+          payload: Json
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_account_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_account_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          about: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          city: string | null
+          company_name: string
+          cover_url: string | null
+          created_at: string
+          has_company_badge: boolean
+          id: string
+          is_featured: boolean
+          is_premium: boolean
+          logo_url: string | null
+          official_branding: Json
+          premium_item_cap: number
+          rejection_reason: string | null
+          short_description: string | null
+          slug: string | null
+          trust_tag: string
+          updated_at: string
+          website_url: string | null
+          wilaya_code: number | null
+        }
+        Insert: {
+          about?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          company_name: string
+          cover_url?: string | null
+          created_at?: string
+          has_company_badge?: boolean
+          id: string
+          is_featured?: boolean
+          is_premium?: boolean
+          logo_url?: string | null
+          official_branding?: Json
+          premium_item_cap?: number
+          rejection_reason?: string | null
+          short_description?: string | null
+          slug?: string | null
+          trust_tag?: string
+          updated_at?: string
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Update: {
+          about?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          city?: string | null
+          company_name?: string
+          cover_url?: string | null
+          created_at?: string
+          has_company_badge?: boolean
+          id?: string
+          is_featured?: boolean
+          is_premium?: boolean
+          logo_url?: string | null
+          official_branding?: Json
+          premium_item_cap?: number
+          rejection_reason?: string | null
+          short_description?: string | null
+          slug?: string | null
+          trust_tag?: string
+          updated_at?: string
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competition_entries: {
         Row: {
           competition_id: string
@@ -479,6 +692,87 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      doctor_profiles: {
+        Row: {
+          bio: string | null
+          can_recommend: boolean
+          city: string | null
+          consultation_content: string | null
+          cover_url: string | null
+          created_at: string
+          display_name: string
+          free_verification: boolean
+          id: string
+          license_number: string | null
+          logo_url: string | null
+          specialty: string
+          trusted_badge: boolean
+          updated_at: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+          website_url: string | null
+          wilaya_code: number | null
+        }
+        Insert: {
+          bio?: string | null
+          can_recommend?: boolean
+          city?: string | null
+          consultation_content?: string | null
+          cover_url?: string | null
+          created_at?: string
+          display_name: string
+          free_verification?: boolean
+          id: string
+          license_number?: string | null
+          logo_url?: string | null
+          specialty?: string
+          trusted_badge?: boolean
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Update: {
+          bio?: string | null
+          can_recommend?: boolean
+          city?: string | null
+          consultation_content?: string | null
+          cover_url?: string | null
+          created_at?: string
+          display_name?: string
+          free_verification?: boolean
+          id?: string
+          license_number?: string | null
+          logo_url?: string | null
+          specialty?: string
+          trusted_badge?: boolean
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "doctor_profiles_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       favorites: {
         Row: {
@@ -978,6 +1272,298 @@ export type Database = {
           },
         ]
       }
+      marketplace_analytics_events: {
+        Row: {
+          actor_id: string | null
+          category_id: string | null
+          company_id: string | null
+          created_at: string
+          event_type: string
+          id: number
+          meta: Json
+          product_id: string | null
+          store_id: string | null
+          wilaya_code: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: never
+          meta?: Json
+          product_id?: string | null
+          store_id?: string | null
+          wilaya_code?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: never
+          meta?: Json
+          product_id?: string | null
+          store_id?: string | null
+          wilaya_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_analytics_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_analytics_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_analytics_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_analytics_events_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_categories: {
+        Row: {
+          icon: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          parent_id: string | null
+          sort_order: number
+        }
+        Insert: {
+          icon?: string | null
+          id: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          parent_id?: string | null
+          sort_order?: number
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          parent_id?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_placements: {
+        Row: {
+          bid_amount_dzd: number
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          placement_type: string
+          product_id: string | null
+          starts_at: string
+          store_id: string | null
+          target_type: string
+        }
+        Insert: {
+          bid_amount_dzd?: number
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          placement_type: string
+          product_id?: string | null
+          starts_at?: string
+          store_id?: string | null
+          target_type: string
+        }
+        Update: {
+          bid_amount_dzd?: number
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          placement_type?: string
+          product_id?: string | null
+          starts_at?: string
+          store_id?: string | null
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_placements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_placements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_placements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_placements_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_products: {
+        Row: {
+          average_rating: number
+          brand: string | null
+          category_id: string | null
+          company_id: string | null
+          compare_at_price_dzd: number | null
+          created_at: string
+          currency: string
+          delivery_areas: string[]
+          description: string | null
+          external_url: string | null
+          id: string
+          image_urls: string[]
+          is_active: boolean
+          is_best_seller: boolean
+          is_featured: boolean
+          is_new: boolean
+          is_premium_placement: boolean
+          keywords: string[]
+          owner_type: string
+          popularity_score: number
+          price_dzd: number | null
+          review_count: number
+          seo_text: string | null
+          store_id: string | null
+          title: string
+          updated_at: string
+          wilaya_code: number | null
+        }
+        Insert: {
+          average_rating?: number
+          brand?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          compare_at_price_dzd?: number | null
+          created_at?: string
+          currency?: string
+          delivery_areas?: string[]
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          is_best_seller?: boolean
+          is_featured?: boolean
+          is_new?: boolean
+          is_premium_placement?: boolean
+          keywords?: string[]
+          owner_type: string
+          popularity_score?: number
+          price_dzd?: number | null
+          review_count?: number
+          seo_text?: string | null
+          store_id?: string | null
+          title: string
+          updated_at?: string
+          wilaya_code?: number | null
+        }
+        Update: {
+          average_rating?: number
+          brand?: string | null
+          category_id?: string | null
+          company_id?: string | null
+          compare_at_price_dzd?: number | null
+          created_at?: string
+          currency?: string
+          delivery_areas?: string[]
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          is_best_seller?: boolean
+          is_featured?: boolean
+          is_new?: boolean
+          is_premium_placement?: boolean
+          keywords?: string[]
+          owner_type?: string
+          popularity_score?: number
+          price_dzd?: number | null
+          review_count?: number
+          seo_text?: string | null
+          store_id?: string | null
+          title?: string
+          updated_at?: string
+          wilaya_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -1157,6 +1743,67 @@ export type Database = {
             columns: ["professional_id"]
             isOneToOne: false
             referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_of_the_day: {
+        Row: {
+          bid_amount_dzd: number
+          created_at: string
+          created_by: string | null
+          display_discount_percent: number | null
+          headline_ar: string | null
+          id: string
+          is_active: boolean
+          placement_date: string
+          product_id: string
+          store_id: string | null
+        }
+        Insert: {
+          bid_amount_dzd?: number
+          created_at?: string
+          created_by?: string | null
+          display_discount_percent?: number | null
+          headline_ar?: string | null
+          id?: string
+          is_active?: boolean
+          placement_date?: string
+          product_id: string
+          store_id?: string | null
+        }
+        Update: {
+          bid_amount_dzd?: number
+          created_at?: string
+          created_by?: string | null
+          display_discount_percent?: number | null
+          headline_ar?: string | null
+          id?: string
+          is_active?: boolean
+          placement_date?: string
+          product_id?: string
+          store_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_of_the_day_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_of_the_day_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_of_the_day_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
             referencedColumns: ["id"]
           },
         ]
@@ -1507,41 +2154,153 @@ export type Database = {
           },
         ]
       }
+      stores: {
+        Row: {
+          about: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          average_rating: number
+          city: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          cover_url: string | null
+          created_at: string
+          delivery_areas: string[]
+          id: string
+          is_featured: boolean
+          is_premium: boolean
+          logo_url: string | null
+          premium_item_cap: number
+          rejection_reason: string | null
+          review_count: number
+          short_description: string | null
+          slug: string | null
+          social_links: Json
+          store_name: string
+          updated_at: string
+          website_url: string | null
+          wilaya_code: number | null
+        }
+        Insert: {
+          about?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          average_rating?: number
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cover_url?: string | null
+          created_at?: string
+          delivery_areas?: string[]
+          id: string
+          is_featured?: boolean
+          is_premium?: boolean
+          logo_url?: string | null
+          premium_item_cap?: number
+          rejection_reason?: string | null
+          review_count?: number
+          short_description?: string | null
+          slug?: string | null
+          social_links?: Json
+          store_name: string
+          updated_at?: string
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Update: {
+          about?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          average_rating?: number
+          city?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          cover_url?: string | null
+          created_at?: string
+          delivery_areas?: string[]
+          id?: string
+          is_featured?: boolean
+          is_premium?: boolean
+          logo_url?: string | null
+          premium_item_cap?: number
+          rejection_reason?: string | null
+          review_count?: number
+          short_description?: string | null
+          slug?: string | null
+          social_links?: Json
+          store_name?: string
+          updated_at?: string
+          website_url?: string | null
+          wilaya_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stores_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stores_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_plans: {
         Row: {
           billing_period: string
+          business_type: string
           created_at: string
           features: Json
           id: string
           is_active: boolean
+          max_items: number
           name_ar: string
           price_dzd: number
+          tagline_ar: string | null
+          tier: string
           updated_at: string
         }
         Insert: {
           billing_period?: string
+          business_type?: string
           created_at?: string
           features?: Json
           id: string
           is_active?: boolean
+          max_items?: number
           name_ar: string
           price_dzd: number
+          tagline_ar?: string | null
+          tier?: string
           updated_at?: string
         }
         Update: {
           billing_period?: string
+          business_type?: string
           created_at?: string
           features?: Json
           id?: string
           is_active?: boolean
+          max_items?: number
           name_ar?: string
           price_dzd?: number
+          tagline_ar?: string | null
+          tier?: string
           updated_at?: string
         }
         Relationships: []
       }
       subscription_requests: {
         Row: {
+          business_type: string | null
           created_at: string
           expires_at: string | null
           id: string
@@ -1556,6 +2315,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          business_type?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -1570,6 +2330,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          business_type?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
@@ -1719,12 +2480,12 @@ export type Database = {
       }
       create_walk_in_booking: {
         Args: {
-          selected_services: string[]
-          starts_at?: string
           guest_name?: string
+          mark_completed?: boolean
           note?: string
           payment_method_name?: string
-          mark_completed?: boolean
+          selected_services: string[]
+          starts_at?: string
         }
         Returns: {
           booking_end_time: string
@@ -1759,7 +2520,29 @@ export type Database = {
       }
       get_own_profile: {
         Args: never
-        Returns: Database["public"]["Tables"]["profiles"]["Row"]
+        Returns: {
+          address: string | null
+          avatar_url: string | null
+          city: string | null
+          country: string | null
+          full_name: string | null
+          id: string
+          phone_number: string | null
+          updated_at: string | null
+          user_role: Database["public"]["Enums"]["user_role"] | null
+          user_status: Database["public"]["Enums"]["user_status"] | null
+          username: string | null
+          verification_status:
+            | Database["public"]["Enums"]["verification_status"]
+            | null
+          website: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_professional_metrics: {
         Args: { professional: string }
@@ -1788,6 +2571,10 @@ export type Database = {
         Returns: undefined
       }
       redeem_loyalty_reward: { Args: { reward: string }; Returns: string }
+      review_business_account_request: {
+        Args: { p_approve: boolean; p_notes?: string; p_request_id: string }
+        Returns: undefined
+      }
       review_id_verification: {
         Args: { approve: boolean; reason?: string; request_id: string }
         Returns: undefined
@@ -1817,7 +2604,15 @@ export type Database = {
         | "coloring"
         | "styling"
         | "package"
-      user_role: "client" | "barber" | "specialist" | "admin" | "moderator"
+      user_role:
+        | "client"
+        | "barber"
+        | "specialist"
+        | "admin"
+        | "moderator"
+        | "store"
+        | "company"
+        | "doctor"
       user_status: "active" | "inactive" | "suspended" | "pending"
       verification_status: "unverified" | "pending" | "verified" | "premium"
     }
@@ -1945,6 +2740,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       booking_status: [
@@ -1968,7 +2766,16 @@ export const Constants = {
         "styling",
         "package",
       ],
-      user_role: ["client", "barber", "specialist", "admin", "moderator"],
+      user_role: [
+        "client",
+        "barber",
+        "specialist",
+        "admin",
+        "moderator",
+        "store",
+        "company",
+        "doctor",
+      ],
       user_status: ["active", "inactive", "suspended", "pending"],
       verification_status: ["unverified", "pending", "verified", "premium"],
     },

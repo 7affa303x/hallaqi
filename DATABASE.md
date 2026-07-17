@@ -7,7 +7,7 @@
 
 | Type | Values |
 |------|--------|
-| `user_role` | client, barber, specialist, admin, moderator |
+| `user_role` | client, barber, specialist, admin, moderator, store, company, doctor |
 | `user_status` | active, inactive, suspended, pending |
 | `verification_status` | unverified, pending, verified, premium |
 | `booking_status` | pending, confirmed, in_progress, completed, cancelled, no_show |

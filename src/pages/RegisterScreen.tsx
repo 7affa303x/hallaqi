@@ -6,7 +6,8 @@ import { getErrMsg } from '@/lib/error';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserPlus, Mail, Lock, Eye, EyeOff, ArrowRight, User,
-  Chrome, AlertCircle, WifiOff, ShieldCheck, Check, Scissors
+  Chrome, AlertCircle, WifiOff, ShieldCheck, Check, Scissors,
+  Store, Building2, Stethoscope
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -76,6 +77,19 @@ export default function RegisterScreen() {
         data.name.trim(),
         data.accountType
       );
+
+      // Queue admin approval for store / company / doctor (not every product).
+      if (result.user && (data.accountType === 'store' || data.accountType === 'company' || data.accountType === 'doctor')) {
+        const { submitBusinessAccountRequest } = await import('@/lib/marketplace');
+        const payload =
+          data.accountType === 'store'
+            ? { store_name: data.name.trim() }
+            : data.accountType === 'company'
+              ? { company_name: data.name.trim() }
+              : { display_name: data.name.trim(), specialty: 'dermatologist' };
+        void submitBusinessAccountRequest(result.user.id, data.accountType, payload).catch(() => {});
+      }
+
       if (result.session) {
         setAuthenticated(true);
         navigate('home');
@@ -395,6 +409,9 @@ export default function RegisterScreen() {
                 {([
                   { value: 'client', label: 'عميل', icon: User },
                   { value: 'barber', label: 'حلاق', icon: Scissors },
+                  { value: 'store', label: 'متجر', icon: Store },
+                  { value: 'company', label: 'شركة', icon: Building2 },
+                  { value: 'doctor', label: 'طبيب', icon: Stethoscope },
                 ] as const).map(option => {
                   const Icon = option.icon;
                   const selected = field.value === option.value;

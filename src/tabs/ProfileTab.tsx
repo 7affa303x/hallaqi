@@ -292,6 +292,59 @@ export default function ProfileTab() {
         </div>
       )}
 
+      {(userRole === 'store' || userRole === 'company') && (
+        <div className="px-4 mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('business-analytics')}
+            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Star size={16} style={{ color: themeConfig.colors.primary }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>تحليلات الأعمال</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>مشاهدات ونقرات</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('seller-ai-tools')}
+            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>AI للقوائم</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>عناوين وأوصاف</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('marketplace')}
+            className="col-span-2 flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Globe size={16} style={{ color: themeConfig.colors.primary }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>سوق حلاقي</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اكتشف · ابدأ مجاناً وادفع كلما كبرت</span>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {userRole === 'doctor' && (
+        <div className="px-4 mt-4">
+          <div className="p-4 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.primary + '40' }}>
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>حساب طبيب · تحقق مجاني</p>
+            <p className="text-[11px] mt-1" style={{ color: themeConfig.colors.textMuted }}>
+              شارة موثوقة بعد موافقة الإدارة. التخصص الحالي: طب الجلد — قابل لتخصصات طبية لاحقًا دون تغيير نموذج الطبيب.
+            </p>
+            <p className="text-[10px] mt-2 font-bold" style={{ color: themeConfig.colors.accent }}>محتوى الاستشارات والتوصيات · قريبًا</p>
+          </div>
+        </div>
+      )}
+
       <div className="px-4 mt-4">
         <button
           type="button"
@@ -971,8 +1024,13 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    const role = appUser?.user_role;
+    const businessType =
+      role === 'store' ? 'store' :
+      role === 'company' ? 'company' :
+      'barber';
     void Promise.all([
-      getSubscriptionPlans(),
+      getSubscriptionPlans(businessType),
       appUser ? getLatestSubscriptionRequest(appUser.id) : Promise.resolve(null),
     ]).then(([loadedPlans, latestRequest]) => {
       setPlans(loadedPlans);
@@ -1004,6 +1062,9 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>خطط الاشتراك</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
+        <div className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}>
+          ابدأ مجاناً وادفع كلما كبرت — خطط مستقلة لكل نوع عمل. سقف البريميوم 99 عنصرًا (بدون unlimited).
+        </div>
         {requestStatus && (
           <div className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.info + '12', color: themeConfig.colors.info }}>
             حالة طلب الاشتراك: {requestStatus === 'pending' ? 'قيد المراجعة' : requestStatus}

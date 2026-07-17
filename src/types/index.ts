@@ -390,6 +390,12 @@ export type ScreenName =
   | 'payment-success'
   | 'admin-dashboard'
   | 'ai-advisor'
+  | 'marketplace'
+  | 'store-detail'
+  | 'company-detail'
+  | 'store-webview'
+  | 'business-analytics'
+  | 'seller-ai-tools'
   | 'coming-soon';
 
 export interface ScreenParams {
@@ -404,6 +410,10 @@ export interface ScreenParams {
   title?: string;
   description?: string;
   eta?: string;
+  storeId?: string;
+  companyId?: string;
+  url?: string;
+  cameraMode?: string;
   [key: string]: string | undefined;
 }
 

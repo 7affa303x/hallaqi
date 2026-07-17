@@ -804,13 +804,17 @@ export async function reportProfessional(params: {
   if (error) throw new Error(error.message);
 }
 
-export async function getSubscriptionPlans() {
+export async function getSubscriptionPlans(businessType?: 'barber' | 'store' | 'company') {
   guard();
-  const { data, error } = await supabase
+  let query = supabase
     .from('subscription_plans')
     .select('*')
     .eq('is_active', true)
     .order('price_dzd');
+  if (businessType) {
+    query = query.eq('business_type', businessType);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data || [];
 }

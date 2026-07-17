@@ -162,7 +162,7 @@ export function useAuth() {
     email: string,
     password: string,
     displayName: string,
-    accountType: 'client' | 'barber' = 'client'
+    accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client'
   ) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {

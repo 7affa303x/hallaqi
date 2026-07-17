@@ -33,6 +33,12 @@ const MFAChallengePage = lazy(() => import('@/pages/MFAChallengePage'));
 const PaymentSuccessPage = lazy(() => import("@/pages/PaymentSuccessPage"));
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const AIAdvisorPage = lazy(() => import("@/pages/AIAdvisorPage"));
+const MarketplacePage = lazy(() => import("@/pages/MarketplacePage"));
+const StoreDetailPage = lazy(() => import("@/pages/StoreDetailPage"));
+const StoreWebViewPage = lazy(() => import("@/pages/StoreWebViewPage"));
+const BusinessAnalyticsPage = lazy(() => import("@/pages/BusinessAnalyticsPage"));
+const SellerAIToolsPage = lazy(() => import("@/pages/SellerAIToolsPage"));
+const CompanyDetailPage = lazy(() => import("@/pages/CompanyDetailPage"));
 
 function TabContent({ tab }: { tab: string }) {
   let content;
@@ -95,6 +101,18 @@ function ScreenRouter() {
         : <Suspense fallback={<LoadingFallback />}><ComingSoonPage title="غير مصرح" description="هذه الصفحة مخصصة لإدارة Hallaqi." /></Suspense>;
     case 'ai-advisor':
       return <Suspense fallback={<LoadingFallback />}><AIAdvisorPage /></Suspense>;
+    case 'marketplace':
+      return <Suspense fallback={<LoadingFallback />}><MarketplacePage /></Suspense>;
+    case 'store-detail':
+      return <Suspense fallback={<LoadingFallback />}><StoreDetailPage /></Suspense>;
+    case 'company-detail':
+      return <Suspense fallback={<LoadingFallback />}><CompanyDetailPage /></Suspense>;
+    case 'store-webview':
+      return <Suspense fallback={<LoadingFallback />}><StoreWebViewPage /></Suspense>;
+    case 'business-analytics':
+      return <Suspense fallback={<LoadingFallback />}><BusinessAnalyticsPage /></Suspense>;
+    case 'seller-ai-tools':
+      return <Suspense fallback={<LoadingFallback />}><SellerAIToolsPage /></Suspense>;
     default: {
       const params = screenParams;
       if (params?.title) {

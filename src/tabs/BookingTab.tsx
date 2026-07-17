@@ -213,6 +213,23 @@ export default function BookingTab() {
           )}
         </div>
 
+        {/* Marketplace lives inside Discover — not a bottom tab */}
+        <button
+          type="button"
+          onClick={() => navigate('marketplace')}
+          className="w-full mb-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-2xl border text-right"
+          style={{
+            background: `linear-gradient(120deg, ${themeConfig.colors.primary}14, ${themeConfig.colors.accent}12)`,
+            borderColor: themeConfig.colors.primary + '33',
+          }}
+        >
+          <div>
+            <p className="text-xs font-black" style={{ color: themeConfig.colors.text }}>سوق حلاقي</p>
+            <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>متاجر · شركات · منتج اليوم · فلاتر</p>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-1 rounded-lg text-white" style={{ backgroundColor: themeConfig.colors.primary }}>استكشف</span>
+        </button>
+
         {/* Quick Tags */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button onClick={() => {

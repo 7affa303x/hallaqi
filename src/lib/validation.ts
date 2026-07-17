@@ -14,7 +14,7 @@ export const registerSchema = z.object({
   email: z.string().min(1, 'أدخل البريد الإلكتروني').email('البريد الإلكتروني غير صالح'),
   password: z.string().min(1, 'أدخل كلمة المرور').min(6, 'يجب أن تكون 6 أحرف على الأقل'),
   confirm: z.string().min(1, 'أكد كلمة المرور'),
-  accountType: z.enum(['client', 'barber']),
+  accountType: z.enum(['client', 'barber', 'store', 'company', 'doctor']),
   acceptedTerms: z.boolean().refine(v => v === true, 'يجب قبول الشروط'),
 }).refine(data => data.password === data.confirm, {
   message: 'كلمتا المرور غير متطابقتين',
