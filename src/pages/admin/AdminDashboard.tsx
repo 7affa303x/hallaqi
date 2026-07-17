@@ -60,7 +60,7 @@ interface ChartData {
 
 export default function AdminDashboard() {
   const { appUser } = useAuth();
-  const { goBack, themeConfig } = useApp();
+  const { goBack, themeConfig, navigate } = useApp();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0, totalProfessionals: 0, totalBookings: 0,
     totalPayments: 0, pendingCCPReceipts: 0, stripePayments: 0,
@@ -70,6 +70,7 @@ export default function AdminDashboard() {
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [pendingBusinessCount, setPendingBusinessCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<'home' | 'users' | 'bookings' | 'payments' | 'reviews' | 'identity' | 'subscriptions' | 'reports' | 'business' | 'placements'>('home');
 
@@ -109,6 +110,14 @@ export default function AdminDashboard() {
         pendingReviews: reviewsCount || 0,
         totalRevenue,
       });
+
+      try {
+        const { adminListBusinessAccountRequests } = await import('@/lib/marketplace');
+        const pendingBiz = await adminListBusinessAccountRequests();
+        setPendingBusinessCount(pendingBiz.length);
+      } catch {
+        setPendingBusinessCount(0);
+      }
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
@@ -304,9 +313,16 @@ export default function AdminDashboard() {
     { label: 'إدارة الحجوزات', action: () => setActiveSection('bookings'), icon: Calendar },
     { label: 'توثيق الهويات', action: () => setActiveSection('identity'), icon: Shield },
     { label: 'طلبات الاشتراك', action: () => setActiveSection('subscriptions'), icon: Crown },
-    { label: 'موافقة متجر/شركة/طبيب', action: () => setActiveSection('business'), icon: Shield },
+    {
+      label: pendingBusinessCount > 0
+        ? `موافقة متجر/شركة/طبيب (${pendingBusinessCount})`
+        : 'موافقة متجر/شركة/طبيب',
+      action: () => setActiveSection('business'),
+      icon: Shield,
+    },
     { label: 'منتج اليوم والمميزة', action: () => setActiveSection('placements'), icon: Crown },
     { label: 'البلاغات', action: () => setActiveSection('reports'), icon: Flag },
+    { label: 'معاينة السوق', action: () => navigate('marketplace'), icon: TrendingUp },
   ];
 
   return (
@@ -529,6 +545,25 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [lastPlacementStamp, setLastPlacementStamp] = useState(() => {
+    try {
+      return localStorage.getItem('hallaqi-last-placement-update') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const featuredCount = stores.filter(s => s.is_featured).length;
+
+  const stampPlacement = () => {
+    const stamp = new Date().toISOString();
+    try {
+      localStorage.setItem('hallaqi-last-placement-update', stamp);
+    } catch {
+      /* ignore */
+    }
+    setLastPlacementStamp(stamp);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -550,16 +585,22 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
   const setPotd = async () => {
     setError('');
     setMessage('');
+    const bidNum = Number(bid);
+    if (!(bidNum > 0)) {
+      setError('مبلغ العرض يجب أن يكون أكبر من صفر');
+      return;
+    }
     try {
       const mp = await import('@/lib/marketplace');
       const selected = products.find(p => p.id === productId);
       await mp.adminSetProductOfTheDay({
         productId,
         storeId: selected?.store_id,
-        bidAmountDzd: Number(bid) || 0,
+        bidAmountDzd: bidNum,
         displayDiscountPercent: Number(discount) || undefined,
         headlineAr: headline,
       });
+      stampPlacement();
       setMessage('تم تعيين منتج اليوم (أعلى عرض مدفوع — ليس خصمًا عشوائيًا)');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'فشل التعيين');
@@ -582,6 +623,17 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
         {error && <p className="text-sm" style={{ color: themeConfig.colors.error }}>{error}</p>}
         {message && <p className="text-sm" style={{ color: themeConfig.colors.success }}>{message}</p>}
 
+        <div className="rounded-2xl border p-3" style={{ borderColor: themeConfig.colors.border, backgroundColor: `${themeConfig.colors.primary}08` }}>
+          <p className="text-[11px] leading-5" style={{ color: themeConfig.colors.textMuted }}>
+            تلميح ترتيب الأقسام: منتج اليوم أعلى السوق، ثم المميزة، ثم الشبكة — أعد ترتيب الواجهة من الكود/docs عند الحاجة.
+          </p>
+          {lastPlacementStamp && (
+            <p className="text-[10px] mt-1 font-bold" style={{ color: themeConfig.colors.textMuted }}>
+              آخر تحديث مساحات: {new Date(lastPlacementStamp).toLocaleString('ar-DZ')}
+            </p>
+          )}
+        </div>
+
         <div className="rounded-2xl border p-4 space-y-2" style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
           <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>منتج اليوم</p>
           <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>اختر المنتج الذي دفع أعلى مبلغ للظهور — عرض خصم شكلي للفت الانتباه</p>
@@ -602,13 +654,18 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
           <input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="عنوان العرض"
             className="w-full h-10 rounded-xl border px-3 text-sm outline-none"
             style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }} />
-          <button type="button" disabled={!productId} onClick={() => void setPotd()}
+          <button type="button" disabled={!productId || !(Number(bid) > 0)} onClick={() => void setPotd()}
             className="w-full h-11 rounded-xl text-sm font-bold text-white disabled:opacity-50"
             style={{ backgroundColor: themeConfig.colors.primary }}>تعيين منتج اليوم</button>
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>متاجر مميزة</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>متاجر مميزة</p>
+            <span className="text-[11px] font-bold" style={{ color: themeConfig.colors.accent }}>
+              {featuredCount} مميز / {stores.length}
+            </span>
+          </div>
           {stores.map(store => (
             <div key={store.id} className="rounded-2xl border p-3 flex items-center justify-between gap-2"
               style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
@@ -618,7 +675,7 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
               </div>
               <button
                 type="button"
-                onClick={() => void import('@/lib/marketplace').then(m => m.adminToggleStoreFeatured(store.id, !store.is_featured).then(load))}
+                onClick={() => void import('@/lib/marketplace').then(m => m.adminToggleStoreFeatured(store.id, !store.is_featured).then(() => { stampPlacement(); return load(); }))}
                 className="px-3 h-9 rounded-xl text-xs font-bold"
                 style={{
                   backgroundColor: store.is_featured ? themeConfig.colors.accent : `${themeConfig.colors.accent}14`,
@@ -630,6 +687,13 @@ function PlacementsAdminSection({ onBack }: { onBack: () => void }) {
             </div>
           ))}
           {!stores.length && <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>لا متاجر بعد الموافقة</p>}
+        </div>
+
+        <div className="rounded-2xl border p-4 border-dashed" style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
+          <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>محتوى مُبلَّغ عنه</p>
+          <p className="text-[11px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+            قائمة المحتوى المُبلَّغ عنه في السوق · قريبًا. استخدم قسم البلاغات الحالي للمنشورات والملفات.
+          </p>
         </div>
       </div>
     </div>
@@ -665,10 +729,16 @@ function BusinessApprovalsSection({ onBack }: { onBack: () => void }) {
   useEffect(() => { void load(); }, [load]);
 
   const review = async (id: string, approve: boolean) => {
+    let notes: string | undefined;
+    if (!approve) {
+      const reason = window.prompt('سبب الرفض (اختياري لكن مُفضّل):');
+      if (reason === null) return;
+      notes = reason.trim() || undefined;
+    }
     setBusyId(id);
     try {
       const { adminReviewBusinessAccountRequest } = await import('@/lib/marketplace');
-      await adminReviewBusinessAccountRequest(id, approve);
+      await adminReviewBusinessAccountRequest(id, approve, notes);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'فشلت المراجعة');
@@ -699,13 +769,18 @@ function BusinessApprovalsSection({ onBack }: { onBack: () => void }) {
             <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
               {row.profiles?.full_name || 'مستخدم'} · {ROLE_LABELS[row.account_type] || row.account_type}
             </p>
+            {row.account_type === 'doctor' && (
+              <p className="text-[11px] mt-1 font-bold" style={{ color: themeConfig.colors.accent }}>
+                تحقق الطبيب مجاني — شارة موثوقة بعد الموافقة دون رسوم
+              </p>
+            )}
             <p className="text-[11px] mt-1" style={{ color: themeConfig.colors.textMuted }}>
               {JSON.stringify(row.payload || {}).slice(0, 160)}
             </p>
             <div className="flex gap-2 mt-3">
-              <button type="button" disabled={busyId === row.id} onClick={() => review(row.id, true)}
+              <button type="button" disabled={busyId === row.id} onClick={() => void review(row.id, true)}
                 className="flex-1 h-10 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.success }}>موافقة</button>
-              <button type="button" disabled={busyId === row.id} onClick={() => review(row.id, false)}
+              <button type="button" disabled={busyId === row.id} onClick={() => void review(row.id, false)}
                 className="flex-1 h-10 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.error }}>رفض</button>
             </div>
           </div>

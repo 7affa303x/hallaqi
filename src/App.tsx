@@ -106,7 +106,11 @@ function ScreenRouter() {
     case 'ai-advisor':
       return <Suspense fallback={<LoadingFallback />}><AIAdvisorPage /></Suspense>;
     case 'marketplace':
-      return <Suspense fallback={<LoadingFallback />}><MarketplacePage /></Suspense>;
+      return (
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingFallback />}><MarketplacePage /></Suspense>
+        </ErrorBoundary>
+      );
     case 'store-detail':
       return <Suspense fallback={<LoadingFallback />}><StoreDetailPage /></Suspense>;
     case 'company-detail':

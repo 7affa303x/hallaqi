@@ -123,10 +123,22 @@ export default function CompanyDetailPage() {
           <ProductShelf title="منتجات الشركة" products={rest} theme={themeConfig} />
         )}
         {products.length === 0 && (
-          <p className="text-xs text-center py-6" style={{ color: themeConfig.colors.textMuted }}>
-            لا توجد منتجات معروضة بعد
-          </p>
+          <div className="rounded-2xl border p-6 text-center space-y-2" style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>لا منتجات بعد</p>
+            <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>
+              هذه الشركة لم تعرض منتجات في السوق بعد — تابع لاحقًا أو زر موقعها إن وُجد.
+            </p>
+          </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => navigate('marketplace')}
+          className="w-full h-10 rounded-xl text-xs font-bold border"
+          style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.primary }}
+        >
+          ← العودة للسوق
+        </button>
       </div>
     </div>
   );

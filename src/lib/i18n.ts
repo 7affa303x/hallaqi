@@ -32,6 +32,11 @@ const messages = {
     startFree: 'ابدأ مجاناً وادفع كلما كبرت',
     camera: 'كاميرا',
     gallery: 'معرض',
+    saved: 'المحفوظ',
+    clearFilters: 'مسح الفلاتر',
+    trustStrip: 'اكتشاف فقط — لا عمولة في هذه المرحلة',
+    recentlyViewed: 'شوهد مؤخرًا',
+    retry: 'إعادة المحاولة',
   },
   fr: {
     booking: 'Découvrir',
@@ -64,6 +69,11 @@ const messages = {
     startFree: 'Commencez gratuitement, payez en grandissant',
     camera: 'Caméra',
     gallery: 'Galerie',
+    saved: 'Enregistrés',
+    clearFilters: 'Effacer les filtres',
+    trustStrip: 'Découverte uniquement — pas de commission pour le lancement',
+    recentlyViewed: 'Vus récemment',
+    retry: 'Réessayer',
   },
   en: {
     booking: 'Discover',
@@ -96,6 +106,11 @@ const messages = {
     startFree: 'Start free, pay as you grow',
     camera: 'Camera',
     gallery: 'Gallery',
+    saved: 'Saved',
+    clearFilters: 'Clear filters',
+    trustStrip: 'Discovery only — no commission at launch',
+    recentlyViewed: 'Recently viewed',
+    retry: 'Retry',
   },
 } as const;
 

@@ -57,6 +57,13 @@ export default function BookingTab() {
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price' | 'newest'>('rating');
   const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [locationMessage, setLocationMessage] = useState('');
+  const [aiTipSeen, setAiTipSeen] = useState(() => {
+    try {
+      return localStorage.getItem('hallaqi-ai-tip-seen') === '1';
+    } catch {
+      return false;
+    }
+  });
   const userLocation = currentUser as { city?: string; wilaya?: string } | null;
   const preferredCity = userLocation?.city || userLocation?.wilaya || 'الجزائر';
   const tx = (key: TranslationKey) => translate(settings.language, key);
@@ -229,9 +236,22 @@ export default function BookingTab() {
           </div>
           <span className="text-[10px] font-bold px-2 py-1 rounded-lg text-white" style={{ backgroundColor: themeConfig.colors.primary }}>استكشف</span>
         </button>
-        <p className="text-[10px] mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>
-          نصيحة: اضغط مطولًا على زر AI في الأسفل لفتح QR / كاميرا / معرض بسرعة
-        </p>
+        {!aiTipSeen && (
+          <p className="text-[10px] mb-3 px-1 flex items-start justify-between gap-2" style={{ color: themeConfig.colors.textMuted }}>
+            <span>نصيحة: اضغط مطولًا على زر AI في الأسفل لفتح QR / كاميرا / معرض بسرعة</span>
+            <button
+              type="button"
+              className="shrink-0 text-[10px] font-bold underline"
+              style={{ color: themeConfig.colors.primary }}
+              onClick={() => {
+                localStorage.setItem('hallaqi-ai-tip-seen', '1');
+                setAiTipSeen(true);
+              }}
+            >
+              فهمت
+            </button>
+          </p>
+        )}
 
         {/* Quick Tags */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

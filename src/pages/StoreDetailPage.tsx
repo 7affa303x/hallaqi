@@ -17,9 +17,10 @@ import {
   type StoreRow,
 } from '@/lib/marketplace';
 import {
-  BadgeCheck, Crown, ChevronLeft, ExternalLink, Globe, MapPin, Star, Sparkles,
+  BadgeCheck, Crown, ChevronLeft, ExternalLink, Globe, MapPin, Sparkles, Phone,
 } from 'lucide-react';
 import { translate } from '@/lib/i18n';
+import { InlineBanner, StarRating, BadgePill } from '@/components/marketplace/MarketUI';
 
 type StoreReviewRow = {
   id: string;
@@ -28,6 +29,9 @@ type StoreReviewRow = {
   created_at: string;
   profiles?: { full_name: string | null; avatar_url: string | null } | null;
 };
+
+const REVIEW_MAX = 400;
+const ABOUT_PREVIEW = 120;
 
 export default function StoreDetailPage() {
   const { themeConfig, navigate, goBack, screenParams, settings } = useApp();
@@ -46,6 +50,9 @@ export default function StoreDetailPage() {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewMessage, setReviewMessage] = useState('');
+  const [sortReviews, setSortReviews] = useState<'newest' | 'highest'>('newest');
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [shareBanner, setShareBanner] = useState('');
 
   useEffect(() => {
     if (!storeId) return;
@@ -76,6 +83,12 @@ export default function StoreDetailPage() {
     return () => { cancelled = true; };
   }, [storeId]);
 
+  useEffect(() => {
+    if (!shareBanner) return;
+    const t = window.setTimeout(() => setShareBanner(''), 2500);
+    return () => window.clearTimeout(t);
+  }, [shareBanner]);
+
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of categories) map.set(c.id, c.name_ar);
@@ -102,6 +115,32 @@ export default function StoreDetailPage() {
     if (product?.store_id === store.id) return potd;
     return null;
   }, [potd, store]);
+
+  const sortedReviews = useMemo(() => {
+    const rows = [...reviews];
+    if (sortReviews === 'highest') {
+      rows.sort((a, b) => b.rating - a.rating || b.created_at.localeCompare(a.created_at));
+    } else {
+      rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+    return rows;
+  }, [reviews, sortReviews]);
+
+  const reviewAvg = useMemo(() => {
+    if (!reviews.length) return 0;
+    return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+  }, [reviews]);
+
+  const ratingDist = useMemo(() => {
+    const dist = [0, 0, 0, 0, 0];
+    for (const r of reviews) {
+      if (r.rating >= 1 && r.rating <= 5) dist[r.rating - 1]++;
+    }
+    return dist;
+  }, [reviews]);
+
+  const aboutText = store?.about || store?.short_description || 'هذا المتجر جزء من طبقة الاكتشاف في Hallaqi. الشراء يتم على موقع التاجر مباشرة.';
+  const aboutNeedsToggle = aboutText.length > ABOUT_PREVIEW;
 
   const visit = () => {
     if (!store?.website_url) return;
@@ -132,6 +171,26 @@ export default function StoreDetailPage() {
     }
   };
 
+  const shareStore = async () => {
+    if (!store) return;
+    const url = `${window.location.origin}/?screen=store-detail&storeId=${store.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: store.store_name, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      setShareBanner('تم نسخ رابط المتجر');
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareBanner('تم نسخ رابط المتجر');
+      } catch {
+        setShareBanner('تعذر النسخ');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
@@ -145,6 +204,14 @@ export default function StoreDetailPage() {
       <div className="min-h-screen p-6" style={{ backgroundColor: themeConfig.colors.background }}>
         <button type="button" onClick={goBack} className="mb-4"><ChevronLeft /></button>
         <p style={{ color: themeConfig.colors.error }}>{error || 'المتجر غير موجود أو بانتظار الموافقة'}</p>
+        <button
+          type="button"
+          onClick={() => navigate('marketplace')}
+          className="mt-4 h-10 px-4 rounded-xl text-xs font-bold text-white"
+          style={{ backgroundColor: themeConfig.colors.primary }}
+        >
+          العودة للسوق
+        </button>
       </div>
     );
   }
@@ -162,6 +229,30 @@ export default function StoreDetailPage() {
       </div>
 
       <div className="max-w-lg mx-auto px-4 -mt-10 space-y-4">
+        <button
+          type="button"
+          onClick={() => navigate('marketplace')}
+          className="text-[11px] font-bold underline"
+          style={{ color: themeConfig.colors.primary }}
+        >
+          ← العودة للسوق
+        </button>
+
+        {shareBanner && (
+          <InlineBanner
+            text={shareBanner}
+            tone="success"
+            colors={{
+              info: themeConfig.colors.primary,
+              success: themeConfig.colors.success,
+              warning: themeConfig.colors.warning,
+              error: themeConfig.colors.error,
+              text: themeConfig.colors.text,
+            }}
+            onDismiss={() => setShareBanner('')}
+          />
+        )}
+
         <div className="rounded-3xl border p-4" style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
           <div className="flex items-start gap-3">
             <div className="w-16 h-16 rounded-2xl border overflow-hidden shrink-0" style={{
@@ -170,14 +261,24 @@ export default function StoreDetailPage() {
             }} />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                <BadgeCheck size={14} style={{ color: themeConfig.colors.primary }} />
-                {store.is_premium && <span className="inline-flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${themeConfig.colors.accent}22`, color: themeConfig.colors.accent }}><Crown size={10} /> بريميوم</span>}
-                {store.is_featured && <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${themeConfig.colors.primary}18`, color: themeConfig.colors.primary }}>مميز</span>}
+                <span title="متجر موثّق على Hallaqi">
+                  <BadgeCheck size={14} style={{ color: themeConfig.colors.primary }} />
+                </span>
+                {store.is_premium && (
+                  <BadgePill background={`${themeConfig.colors.accent}22`} color={themeConfig.colors.accent}>
+                    <Crown size={10} /> بريميوم
+                  </BadgePill>
+                )}
+                {store.is_featured && (
+                  <BadgePill background={`${themeConfig.colors.primary}18`} color={themeConfig.colors.primary}>
+                    مميز
+                  </BadgePill>
+                )}
               </div>
               <h1 className="text-lg font-black truncate" style={{ color: themeConfig.colors.text }}>{store.store_name}</h1>
               <p className="text-xs mt-1" style={{ color: themeConfig.colors.textMuted }}>{store.short_description || 'متجر معتمد على Hallaqi'}</p>
               <div className="flex items-center gap-2 mt-2 text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
-                <Star size={12} style={{ color: themeConfig.colors.accent }} />
+                <StarRating value={Number(store.average_rating) || 0} color={themeConfig.colors.accent} muted={themeConfig.colors.border} />
                 <span>{store.average_rating || '—'} · {store.review_count} تقييم</span>
                 {(store.city || store.wilaya_code) && (
                   <span className="inline-flex items-center gap-1"><MapPin size={11} />{store.city || `ولاية ${store.wilaya_code}`}</span>
@@ -185,6 +286,16 @@ export default function StoreDetailPage() {
               </div>
             </div>
           </div>
+
+          {!!store.delivery_areas?.length && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {store.delivery_areas.map(area => (
+                <BadgePill key={area} background={`${themeConfig.colors.primary}12`} color={themeConfig.colors.primary}>
+                  {area}
+                </BadgePill>
+              ))}
+            </div>
+          )}
 
           <button
             type="button"
@@ -201,11 +312,7 @@ export default function StoreDetailPage() {
             type="button"
             className="mt-2 w-full h-10 rounded-2xl text-xs font-bold border"
             style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
-            onClick={() => {
-              const url = `${window.location.origin}/?screen=store-detail&storeId=${store.id}`;
-              if (navigator.share) void navigator.share({ title: store.store_name, url });
-              else void navigator.clipboard.writeText(url);
-            }}
+            onClick={() => void shareStore()}
           >
             مشاركة صفحة المتجر
           </button>
@@ -263,22 +370,69 @@ export default function StoreDetailPage() {
         ))}
 
         <Section title="التقييمات" theme={themeConfig}>
+          {reviews.length > 0 && (
+            <div className="rounded-2xl border p-3 mb-2" style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="text-lg font-black" style={{ color: themeConfig.colors.text }}>{reviewAvg.toFixed(1)}</p>
+                  <StarRating value={reviewAvg} color={themeConfig.colors.accent} muted={themeConfig.colors.border} />
+                  <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{reviews.length} تقييم</p>
+                </div>
+                <div className="flex-1 mr-4 space-y-1">
+                  {[5, 4, 3, 2, 1].map(star => {
+                    const count = ratingDist[star - 1];
+                    const pct = reviews.length ? Math.round((count / reviews.length) * 100) : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2 text-[10px]">
+                        <span style={{ color: themeConfig.colors.textMuted }}>{star}</span>
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: themeConfig.colors.border }}>
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: themeConfig.colors.accent }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setSortReviews('newest')}
+              className="px-2.5 h-7 rounded-full text-[10px] font-bold"
+              style={{
+                backgroundColor: sortReviews === 'newest' ? themeConfig.colors.primary : `${themeConfig.colors.primary}12`,
+                color: sortReviews === 'newest' ? '#fff' : themeConfig.colors.primary,
+              }}
+            >
+              الأحدث
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortReviews('highest')}
+              className="px-2.5 h-7 rounded-full text-[10px] font-bold"
+              style={{
+                backgroundColor: sortReviews === 'highest' ? themeConfig.colors.primary : `${themeConfig.colors.primary}12`,
+                color: sortReviews === 'highest' ? '#fff' : themeConfig.colors.primary,
+              }}
+            >
+              الأعلى تقييمًا
+            </button>
+          </div>
+
           <div className="space-y-2">
-            {reviews.length === 0 && (
+            {sortedReviews.length === 0 && (
               <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>لا توجد تقييمات بعد</p>
             )}
-            {reviews.map(review => (
+            {sortedReviews.map(review => (
               <div key={review.id} className="rounded-2xl border p-3"
                 style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.surface }}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>
                     {review.profiles?.full_name || 'مستخدم'}
                   </p>
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} size={10} className={i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} />
-                    ))}
-                  </div>
+                  <StarRating value={review.rating} size={10} color={themeConfig.colors.accent} muted={themeConfig.colors.border} />
                 </div>
                 {review.comment && (
                   <p className="text-[11px] leading-5" style={{ color: themeConfig.colors.textMuted }}>{review.comment}</p>
@@ -310,12 +464,16 @@ export default function StoreDetailPage() {
               </div>
               <textarea
                 value={comment}
-                onChange={e => setComment(e.target.value)}
+                onChange={e => setComment(e.target.value.slice(0, REVIEW_MAX))}
                 rows={3}
+                maxLength={REVIEW_MAX}
                 placeholder="تعليق اختياري"
                 className="w-full rounded-xl border px-3 py-2 text-sm outline-none"
                 style={{ borderColor: themeConfig.colors.border, backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }}
               />
+              <p className="text-[10px] text-left" style={{ color: themeConfig.colors.textMuted }}>
+                {comment.length}/{REVIEW_MAX}
+              </p>
               <button
                 type="button"
                 disabled={submittingReview}
@@ -338,13 +496,34 @@ export default function StoreDetailPage() {
 
         <Section title="عن المتجر" theme={themeConfig}>
           <p className="text-sm leading-7" style={{ color: themeConfig.colors.textMuted }}>
-            {store.about || store.short_description || 'هذا المتجر جزء من طبقة الاكتشاف في Hallaqi. الشراء يتم على موقع التاجر مباشرة.'}
+            {aboutExpanded || !aboutNeedsToggle ? aboutText : `${aboutText.slice(0, ABOUT_PREVIEW)}…`}
+          </p>
+          {aboutNeedsToggle && (
+            <button
+              type="button"
+              onClick={() => setAboutExpanded(v => !v)}
+              className="text-[11px] font-bold mt-1"
+              style={{ color: themeConfig.colors.primary }}
+            >
+              {aboutExpanded ? 'أقل' : 'المزيد'}
+            </button>
+          )}
+        </Section>
+
+        <Section title="ساعات العمل · قريبًا" theme={themeConfig}>
+          <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>
+            جدول ساعات العمل سيظهر هنا قريبًا.
           </p>
         </Section>
 
         <Section title="تواصل" theme={themeConfig}>
           <div className="space-y-1 text-xs" style={{ color: themeConfig.colors.textMuted }}>
-            {store.contact_phone && <p>هاتف: {store.contact_phone}</p>}
+            {store.contact_phone && (
+              <a href={`tel:${store.contact_phone}`} className="inline-flex items-center gap-1.5 underline" style={{ color: themeConfig.colors.primary }}>
+                <Phone size={12} />
+                هاتف: {store.contact_phone}
+              </a>
+            )}
             {store.contact_email && <p>بريد: {store.contact_email}</p>}
             {store.social_links && Object.keys(store.social_links).length > 0 ? (
               Object.entries(store.social_links).map(([k, v]) => (
@@ -365,8 +544,14 @@ export default function StoreDetailPage() {
       </div>
 
       {store.website_url && (
-        <div className="fixed bottom-0 inset-x-0 z-30 border-t px-4 py-3 backdrop-blur-xl"
-          style={{ borderColor: themeConfig.colors.border, backgroundColor: `${themeConfig.colors.surface}f2` }}>
+        <div
+          className="fixed bottom-0 inset-x-0 z-30 border-t px-4 py-3 pb-safe backdrop-blur-xl"
+          style={{
+            borderColor: themeConfig.colors.border,
+            backgroundColor: `${themeConfig.colors.surface}f2`,
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+          }}
+        >
           <div className="max-w-lg mx-auto">
             <button
               type="button"

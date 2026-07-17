@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import type { TabName } from '@/types';
@@ -24,12 +24,39 @@ const sideTabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors;
 
 type RadialAction = 'ai' | 'qr' | 'camera' | 'gallery';
 
+const LAST_RADIAL_KEY = 'hallaqi-last-radial';
+const HAS_POTD_KEY = 'hallaqi-has-potd';
+
 export default function BottomNav() {
   const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, bookings, settings } = useApp();
   const { isAuthenticated } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
+  const [hasPotd, setHasPotd] = useState(() => {
+    try {
+      return localStorage.getItem(HAS_POTD_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const longPressTimer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setHasPotd(localStorage.getItem(HAS_POTD_KEY) === '1');
+      } catch {
+        setHasPotd(false);
+      }
+    };
+    sync();
+    window.addEventListener('storage', sync);
+    const interval = window.setInterval(sync, 4000);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const getTabBadge = (tab: (typeof sideTabs)[0]) => {
     if (tab.key === 'appointments') {
@@ -61,6 +88,9 @@ export default function BottomNav() {
     clearLongPress();
     longPressTimer.current = window.setTimeout(() => {
       longPressTriggered.current = true;
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(12);
+      }
       setRadialOpen(true);
     }, 420);
   };
@@ -74,6 +104,11 @@ export default function BottomNav() {
 
   const runRadial = (action: RadialAction) => {
     setRadialOpen(false);
+    try {
+      localStorage.setItem(LAST_RADIAL_KEY, action);
+    } catch {
+      /* ignore */
+    }
     if (action === 'ai') {
       navigate('ai-advisor');
       return;
@@ -113,43 +148,54 @@ export default function BottomNav() {
     >
       <AnimatePresence>
         {radialOpen && (
-          <motion.div
-            className="absolute inset-x-0 bottom-16 flex justify-center pointer-events-none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <div className="relative w-56 h-40 pointer-events-auto">
-              {radialItems.map(item => {
-                const rad = (item.angle * Math.PI) / 180;
-                const x = Math.cos(rad) * 72;
-                const y = Math.sin(rad) * 56;
-                const Icon = item.icon;
-                const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                return (
-                  <motion.button
-                    key={item.id}
-                    type="button"
-                    initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1, x, y }}
-                    exit={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
-                    transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 22 }}
-                    onClick={() => runRadial(item.id)}
-                    className="absolute left-1/2 top-1/2 -ml-7 -mt-7 w-14 h-14 rounded-full border flex flex-col items-center justify-center gap-0.5 shadow-lg"
-                    style={{
-                      backgroundColor: themeConfig.colors.surface,
-                      borderColor: themeConfig.colors.border,
-                      color: themeConfig.colors.primary,
-                    }}
-                    aria-label={item.label}
-                  >
-                    <Icon size={16} />
-                    <span className="text-[9px] font-bold">{item.label}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
+          <>
+            <motion.button
+              type="button"
+              aria-label="إغلاق القائمة"
+              className="fixed inset-0 z-40 bg-black/25"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setRadialOpen(false)}
+            />
+            <motion.div
+              className="absolute inset-x-0 bottom-16 z-50 flex justify-center pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="relative w-56 h-40 pointer-events-auto">
+                {radialItems.map(item => {
+                  const rad = (item.angle * Math.PI) / 180;
+                  const x = Math.cos(rad) * 72;
+                  const y = Math.sin(rad) * 56;
+                  const Icon = item.icon;
+                  const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                  return (
+                    <motion.button
+                      key={item.id}
+                      type="button"
+                      initial={reduceMotion ? false : { scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1, x, y }}
+                      exit={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
+                      transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 22 }}
+                      onClick={() => runRadial(item.id)}
+                      className="absolute left-1/2 top-1/2 -ml-7 -mt-7 w-14 h-14 rounded-full border flex flex-col items-center justify-center gap-0.5 shadow-lg"
+                      style={{
+                        backgroundColor: themeConfig.colors.surface,
+                        borderColor: themeConfig.colors.border,
+                        color: themeConfig.colors.primary,
+                      }}
+                      aria-label={item.label}
+                    >
+                      <Icon size={16} />
+                      <span className="text-[9px] font-bold">{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -159,6 +205,7 @@ export default function BottomNav() {
           const badge = getTabBadge(tab);
           const Icon = tab.icon;
           const label = translate(settings.language, tab.labelKey);
+          const showPotdSparkle = tab.key === 'booking' && hasPotd;
           return (
             <NavButton
               key={tab.key}
@@ -169,15 +216,17 @@ export default function BottomNav() {
               theme={themeConfig}
               onClick={() => handleTabClick(tab)}
               authLocked={!!tab.authRequired && !isAuthenticated}
+              sparkle={showPotdSparkle}
             />
           );
         })}
 
         {/* Central AI heart button */}
-        <div className="relative -mt-7">
+        <div className="relative -mt-7 z-50">
           <button
             type="button"
             aria-label={translate(settings.language, 'assistant')}
+            aria-pressed={radialOpen}
             onPointerDown={onCenterPointerDown}
             onPointerUp={onCenterPointerUp}
             onPointerLeave={clearLongPress}
@@ -228,6 +277,7 @@ function NavButton({
   theme,
   onClick,
   authLocked,
+  sparkle,
 }: {
   label: string;
   isActive: boolean;
@@ -236,6 +286,7 @@ function NavButton({
   theme: { colors: Record<string, string> };
   onClick: () => void;
   authLocked?: boolean;
+  sparkle?: boolean;
 }) {
   return (
     <button
@@ -263,6 +314,14 @@ function NavButton({
           style={{ color: isActive ? theme.colors.primary : theme.colors.textMuted }}
           strokeWidth={isActive ? 2.5 : 1.5}
         />
+        {sparkle && (
+          <span
+            className="absolute -top-1.5 -left-1.5"
+            title="منتج اليوم متاح"
+          >
+            <Sparkles size={10} style={{ color: theme.colors.accent }} />
+          </span>
+        )}
         {badge && (
           <span
             className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1"

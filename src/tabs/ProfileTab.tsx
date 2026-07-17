@@ -251,7 +251,7 @@ export default function ProfileTab() {
       )}
 
       {appUser?.user_role === 'admin' && (
-        <div className="px-4 mt-4">
+        <div className="px-4 mt-4 space-y-2">
           <button
             onClick={() => navigate('admin-dashboard')}
             className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl transition-all active:scale-95"
@@ -259,6 +259,56 @@ export default function ProfileTab() {
           >
             <Shield size={20} />
             <span className="text-sm font-bold">لوحة التحكم</span>
+          </button>
+          <p className="text-[10px] text-center" style={{ color: themeConfig.colors.textMuted }}>
+            تحسينات الموقع المستمرة
+          </p>
+        </div>
+      )}
+
+      {(!userRole || userRole === 'client') && (
+        <div className="px-4 mt-4 space-y-2">
+          <button
+            type="button"
+            onClick={() => navigate('marketplace')}
+            className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Globe size={16} style={{ color: themeConfig.colors.accent }} />
+            <span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>سوق حلاقي</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اكتشف متاجر ومنتجات · بدون عمولة</span>
+            </span>
+          </button>
+          <p className="text-[10px] text-center" style={{ color: themeConfig.colors.textMuted }}>
+            تحسينات الموقع المستمرة
+          </p>
+        </div>
+      )}
+
+      {(userRole === 'store' || userRole === 'company') && appUser?.user_status === 'pending' && (
+        <div className="px-4 mt-4">
+          <div className="p-3 rounded-2xl border" style={{ borderColor: themeConfig.colors.warning, backgroundColor: `${themeConfig.colors.warning}14` }}>
+            <p className="text-xs font-bold" style={{ color: themeConfig.colors.warning }}>انتظار موافقة الإدارة</p>
+            <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.textMuted }}>
+              حسابك قيد المراجعة — ستظهر صفحة متجرك في السوق بعد الموافقة.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {userRole === 'store' && (
+        <div className="px-4 mt-3">
+          <button
+            type="button"
+            onClick={() => navigate('business-profile-edit')}
+            className="w-full p-3 rounded-2xl border text-right"
+            style={{ borderColor: themeConfig.colors.border, backgroundColor: `${themeConfig.colors.primary}08` }}
+          >
+            <p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>نصيحة: أضف رابط موقعك</p>
+            <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>
+              زر Visit Store يعمل أفضل مع موقع ويب — عدّل من صفحة المتجر
+            </p>
           </button>
         </div>
       )}
@@ -354,6 +404,9 @@ export default function ProfileTab() {
               <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اكتشف · بدون عمولة في هذه المرحلة</span>
             </span>
           </button>
+          <p className="col-span-2 text-[10px] text-center" style={{ color: themeConfig.colors.textMuted }}>
+            تحسينات الموقع المستمرة
+          </p>
         </div>
       )}
 
@@ -830,7 +883,8 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
             <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
             <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
             <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية تربط العملاء بالحلاقين وتسهّل اكتشاف الخدمات والحجز والتواصل والدفع الآمن.</p>
-            <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.0.0</p>
+            <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.2.1</p>
+            <p className="text-[10px] mt-2" style={{ color: themeConfig.colors.textMuted }}>تحسينات الموقع المستمرة · Wave 2</p>
           </div>
         )}
       </div>

@@ -334,7 +334,17 @@ export default function CameraTab() {
               جزء من زر AI المركزي — للاستخدام مع أدوات المساعدة والتحليل لاحقًا
             </p>
             {galleryPreview && (
-              <img src={galleryPreview} alt="معاينة" className="mt-4 max-h-56 rounded-2xl object-cover" />
+              <>
+                <img src={galleryPreview} alt="معاينة" className="mt-4 max-h-56 rounded-2xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setGalleryPreview(null)}
+                  className="mt-2 text-xs font-bold underline"
+                  style={{ color: themeConfig.colors.error }}
+                >
+                  مسح المعاينة
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -383,6 +393,13 @@ export default function CameraTab() {
 
       {/* Bottom Controls */}
       <div className="flex-shrink-0 pb-8 pt-4 px-4" style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)' }}>
+        <p
+          className="text-center text-[10px] mb-2"
+          aria-live="polite"
+          style={{ color: 'rgba(255,255,255,0.45)', height: 14 }}
+        >
+          {mode === 'scanner' ? 'مسح QR' : mode === 'camera' ? 'كاميرا' : mode === 'gallery' ? 'معرض' : 'إنشاء QR'}
+        </p>
         {/* Mode Switcher */}
         <div className="flex items-center justify-center gap-2 mb-6">
           {[

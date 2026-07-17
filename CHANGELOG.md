@@ -1,5 +1,18 @@
 # Hallaqi Changelog
 
+## v12.2.1 — Marketplace Wave 2 UX
+
+### Discovery & seller tools
+- Shared MarketUI helpers (stars, banners, progress, saved/recent products)
+- Seller catalog: progress bar, draft notes, duplicate/bulk deactivate, URL/title validation
+- Store/company detail polish: review sort & counters, delivery chips, share toast, safe-area CTA
+- Analytics refresh/export, saves rate, visit-store goal teaser
+- Admin: pending business count, reject reason prompt, POTD bid > 0, placement stamp
+- Bottom nav radial backdrop, haptic long-press, Discover POTD sparkle
+- i18n keys for saved/filters/trust strip; version bump
+
+---
+
 ## v12.2.0 — Monetization & Multi-Role Marketplace
 
 ### Platform Expansion
