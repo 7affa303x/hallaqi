@@ -381,7 +381,13 @@ export default function BookingTab() {
                     </div>
                   </div>
                   <button
-                    onClick={() => toggleFollow(barber.id)}
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        navigate('login', { redirectScreen: 'home', redirectTab: 'booking' });
+                        return;
+                      }
+                      void toggleFollow(barber.id);
+                    }}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
                     style={{
                       backgroundColor: barber.isFollowing ? themeConfig.colors.primary + '15' : themeConfig.colors.primary,

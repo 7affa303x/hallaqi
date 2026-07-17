@@ -98,6 +98,49 @@ export default function BarberDetailPage() {
     fetchAvailability();
   }, [listedBarber, screenParams?.barberId]);
 
+  useEffect(() => {
+    if (!barber) return;
+    const previousTitle = document.title;
+    document.title = `${barber.name} — حجز حلاق عبر Hallaqi`;
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const previousDescription = description?.content;
+    if (description) description.content = `احجز خدمات ${barber.name} في ${barber.wilaya}. التقييم ${barber.rating} من 5.`;
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = 'hallaqi-local-business';
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'HairSalon',
+      name: barber.name,
+      url: `${window.location.origin}/barber/${barber.id}`,
+      image: barber.coverImage,
+      telephone: barber.phone,
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: barber.location,
+        addressLocality: barber.wilaya,
+        addressCountry: 'DZ',
+      },
+      aggregateRating: barber.reviewCount > 0 ? {
+        '@type': 'AggregateRating',
+        ratingValue: barber.rating,
+        reviewCount: barber.reviewCount,
+      } : undefined,
+      geo: barber.coordinates ? {
+        '@type': 'GeoCoordinates',
+        latitude: barber.coordinates.lat,
+        longitude: barber.coordinates.lng,
+      } : undefined,
+      priceRange: barber.priceRange,
+    });
+    document.head.appendChild(script);
+    return () => {
+      document.title = previousTitle;
+      if (description && previousDescription) description.content = previousDescription;
+      script.remove();
+    };
+  }, [barber]);
+
   if (!barber) {
     return (
       <div className="h-screen flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
@@ -192,7 +235,13 @@ export default function BarberDetailPage() {
             <button onClick={() => void shareBarber()} aria-label="مشاركة ملف الحلاق" className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
               <Share2 size={18} className="text-white" />
             </button>
-            <button onClick={() => void toggleFollow(barber.id)} aria-label={barber.isFollowing ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
+            <button onClick={() => {
+              if (!isAuthenticated) {
+                navigate('login', { redirectScreen: 'barber-detail', barberId: barber.id });
+                return;
+              }
+              void toggleFollow(barber.id);
+            }} aria-label={barber.isFollowing ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'} className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center">
               <Heart size={18} className={barber.isFollowing ? 'fill-red-500 text-red-500' : 'text-white'} />
             </button>
           </div>

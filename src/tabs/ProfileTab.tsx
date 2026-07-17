@@ -998,9 +998,27 @@ function BadgesPage({ onBack }: { onBack: () => void }) {
 }
 
 function StatsPage({ onBack }: { onBack: () => void }) {
-  const { themeConfig, currentUser } = useApp();
+  const { themeConfig, bookings, barbers } = useApp();
   const { appUser } = useAuth();
-  const stats = (appUser as unknown as { stats?: UserStats })?.stats || (currentUser as unknown as { stats?: UserStats })?.stats || { totalBookings: 0, totalSpent: 0, streakDays: 0, points: 0, rank: 'جديد' };
+  const [loyalty, setLoyalty] = useState({ points: 0, lifetimePoints: 0, tier: 'bronze' });
+  useEffect(() => {
+    if (!appUser) return;
+    void getLoyaltyDashboard(appUser.id).then(data => setLoyalty({
+      points: data.account?.points || 0,
+      lifetimePoints: data.account?.lifetime_points || 0,
+      tier: data.account?.tier || 'bronze',
+    })).catch(() => {});
+  }, [appUser]);
+  const completed = bookings.filter(booking => booking.status === 'completed');
+  const totalSpent = completed.reduce((sum, booking) => sum + booking.totalPrice, 0);
+  const counts = new Map<string, number>();
+  completed.forEach(booking => counts.set(booking.barberId, (counts.get(booking.barberId) || 0) + 1));
+  const favoriteId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const favorite = barbers.find(barber => barber.id === favoriteId);
+  const tierLabels: Record<string, string> = { bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي', platinum: 'بلاتيني' };
+  const nextThreshold: Record<string, number> = { bronze: 200, silver: 500, gold: 1000, platinum: 1000 };
+  const threshold = nextThreshold[loyalty.tier] || 1000;
+  const progress = loyalty.tier === 'platinum' ? 100 : Math.min(100, Math.round(loyalty.lifetimePoints / threshold * 100));
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
@@ -1009,7 +1027,7 @@ function StatsPage({ onBack }: { onBack: () => void }) {
       </div>
       <div className="px-4 mt-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          {[{ label: 'إجمالي الحجوزات', value: (stats.totalBookings || 0).toString(), icon: Calendar, color: '#3B82F6' }, { label: 'إجمالي الإنفاق', value: `${stats.totalSpent || 0} دج`, icon: CreditCard, color: '#22C55E' }, { label: 'الأيام المتتالية', value: (stats.streakDays || 0).toString(), icon: Zap, color: '#F59E0B' }, { label: 'النقاط', value: (stats.points || 0).toString(), icon: Star, color: '#8B5CF6' }].map((stat, i) => (
+          {[{ label: 'إجمالي الحجوزات', value: bookings.length.toString(), icon: Calendar, color: '#3B82F6' }, { label: 'إجمالي الإنفاق', value: `${totalSpent} دج`, icon: CreditCard, color: '#22C55E' }, { label: 'حجوزات مكتملة', value: completed.length.toString(), icon: Zap, color: '#F59E0B' }, { label: 'النقاط', value: loyalty.points.toString(), icon: Star, color: '#8B5CF6' }].map((stat, i) => (
             <div key={i} className="p-3 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: stat.color + '15' }}><stat.icon size={16} style={{ color: stat.color }} /></div>
               <p className="text-lg font-bold" style={{ color: themeConfig.colors.text }}>{stat.value}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{stat.label}</p>
@@ -1018,13 +1036,13 @@ function StatsPage({ onBack }: { onBack: () => void }) {
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#C0C0C015' }}><Award size={28} style={{ color: '#C0C0C0' }} /></div>
-            <div className="flex-1"><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>مرتبتك الحالية</p><p className="text-xl font-bold" style={{ color: themeConfig.colors.text }}>{stats.rank}</p></div>
-            <div className="text-right"><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>النقاط للتصنيف التالي</p><div className="w-24 h-2 rounded-full bg-gray-200 mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: '62%', backgroundColor: themeConfig.colors.primary }} /></div><p className="text-[9px] mt-0.5" style={{ color: themeConfig.colors.primary }}>1250 / 2000</p></div>
+            <div className="flex-1"><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>مرتبتك الحالية</p><p className="text-xl font-bold" style={{ color: themeConfig.colors.text }}>{tierLabels[loyalty.tier] || 'برونزي'}</p></div>
+            <div className="text-right"><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{loyalty.tier === 'platinum' ? 'أعلى مستوى' : 'التقدم للتصنيف التالي'}</p><div className="w-24 h-2 rounded-full bg-gray-200 mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: themeConfig.colors.primary }} /></div><p className="text-[9px] mt-0.5" style={{ color: themeConfig.colors.primary }}>{loyalty.lifetimePoints} / {threshold}</p></div>
           </div>
         </div>
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.textMuted }}>المختص المفضل</p>
-          <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}><Scissors size={18} style={{ color: themeConfig.colors.primary }} /></div><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>لم يتحدد بعد</p></div>
+          <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '15' }}>{favorite?.avatar ? <img src={favorite.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" /> : <Scissors size={18} style={{ color: themeConfig.colors.primary }} />}</div><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{favorite?.name || 'لم يتحدد بعد'}</p></div>
         </div>
       </div>
     </div>

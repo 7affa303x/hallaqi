@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
-import { addForumComment, getPostComments, reportForumContent } from '@/supabase/database';
+import { addForumComment, getPostComments, reportForumContent, toggleForumLike } from '@/supabase/database';
 import { mapForumComments } from '@/lib/mappers';
 import type { ForumComment } from '@/types';
 import { motion } from 'framer-motion';
@@ -23,6 +23,14 @@ export default function PostDetailPage() {
   const [comments, setComments] = useState<ForumComment[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [isBookmarked, setIsBookmarked] = useState(() => {
+    try {
+      return (JSON.parse(localStorage.getItem('hallaqi-forum-bookmarks') || '[]') as string[])
+        .includes(screenParams?.postId || '');
+    } catch {
+      return false;
+    }
+  });
 
   const post = forumPosts.find(p => p.id === screenParams?.postId);
 
@@ -94,10 +102,45 @@ export default function PostDetailPage() {
 
   const sharePost = async () => {
     const url = `${window.location.origin}/post/${post?.id || ''}`;
-    if (navigator.share) {
-      await navigator.share({ title: post?.title, url });
-    } else {
-      await navigator.clipboard.writeText(url);
+    try {
+      if (navigator.share) await navigator.share({ title: post?.title, url });
+      else await navigator.clipboard.writeText(url);
+    } catch {
+      // Dismissing the native share sheet is not an application error.
+    }
+  };
+
+  const toggleBookmark = () => {
+    if (!post) return;
+    try {
+      const saved = new Set(JSON.parse(localStorage.getItem('hallaqi-forum-bookmarks') || '[]') as string[]);
+      if (saved.has(post.id)) saved.delete(post.id);
+      else saved.add(post.id);
+      localStorage.setItem('hallaqi-forum-bookmarks', JSON.stringify([...saved]));
+      setIsBookmarked(saved.has(post.id));
+    } catch {
+      setIsBookmarked(value => !value);
+    }
+  };
+
+  const updateCommentLike = (
+    items: ForumComment[],
+    commentId: string,
+    liked: boolean
+  ): ForumComment[] => items.map(comment => comment.id === commentId
+    ? { ...comment, isLiked: liked, likes: Math.max(0, comment.likes + (liked ? 1 : -1)) }
+    : { ...comment, replies: updateCommentLike(comment.replies, commentId, liked) });
+
+  const handleCommentLike = async (commentId: string) => {
+    if (!appUser) {
+      navigate('login', { redirectScreen: 'post-detail', postId: post.id });
+      return;
+    }
+    try {
+      const liked = await toggleForumLike(appUser.id, undefined, commentId);
+      setComments(items => updateCommentLike(items, commentId, liked));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر تحديث الإعجاب');
     }
   };
 
@@ -176,7 +219,7 @@ export default function PostDetailPage() {
             <Eye size={18} style={{ color: themeConfig.colors.textMuted }} />
             <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{post.views}</span>
           </div>
-          <button><Bookmark size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
+          <button onClick={toggleBookmark} aria-label={isBookmarked ? 'إزالة الحفظ' : 'حفظ المنشور'}><Bookmark size={18} className={isBookmarked ? 'fill-current' : ''} style={{ color: isBookmarked ? themeConfig.colors.primary : themeConfig.colors.textMuted }} /></button>
           <button onClick={() => void sharePost()} aria-label="مشاركة المنشور"><Share2 size={18} style={{ color: themeConfig.colors.textMuted }} /></button>
         </div>
       </div>
@@ -201,9 +244,9 @@ export default function PostDetailPage() {
               </div>
               <p className="text-xs leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{comment.content}</p>
               <div className="flex items-center gap-4 mt-2">
-                <button className="flex items-center gap-1">
-                  <ThumbsUp size={12} style={{ color: themeConfig.colors.textMuted }} />
-                  <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{comment.likes}</span>
+                <button onClick={() => void handleCommentLike(comment.id)} className="flex items-center gap-1">
+                  <ThumbsUp size={12} className={comment.isLiked ? 'fill-current' : ''} style={{ color: comment.isLiked ? themeConfig.colors.primary : themeConfig.colors.textMuted }} />
+                  <span className="text-[10px]" style={{ color: comment.isLiked ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>{comment.likes}</span>
                 </button>
                 <button onClick={() => setReplyTo(comment.id)} className="text-[10px] font-medium" style={{ color: themeConfig.colors.primary }}>رد</button>
               </div>

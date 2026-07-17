@@ -42,6 +42,7 @@
   ],
   "rewrites": [
     { "source": "/icon.png", "destination": "/logo-icon.png" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
