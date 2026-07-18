@@ -10,6 +10,7 @@ import { forumPostSchema } from '@/lib/validation';
 import type { ForumPostFormData } from '@/lib/validation';
 import type { ForumCategory as DatabaseForumCategory } from '@/types/supabase-aliases';
 import { trackProductEvent } from '@/lib/product-analytics';
+import { assertFileWithinLimit, compressImageFile, UPLOAD_LIMITS } from '@/lib/imageUpload';
 
 export default function CreateForumPostPage() {
   const { themeConfig, goBack, refreshData } = useApp();
@@ -38,19 +39,21 @@ export default function CreateForumPostPage() {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
   }, [imagePreview]);
 
-  const chooseImage = (file?: File) => {
+  const chooseImage = async (file?: File) => {
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('اختر صورة JPG أو PNG أو WebP');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('حجم الصورة يجب ألا يتجاوز 5 ميغابايت');
+    const limitError = assertFileWithinLimit(file, UPLOAD_LIMITS.forumImageMaxBytes);
+    if (limitError) {
+      setError(limitError);
       return;
     }
     if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImage(file);
-    setImagePreview(URL.createObjectURL(file));
+    const compressed = await compressImageFile(file, { maxBytes: UPLOAD_LIMITS.forumImageMaxBytes });
+    setImage(compressed);
+    setImagePreview(URL.createObjectURL(compressed));
     setError('');
   };
 
@@ -162,7 +165,7 @@ export default function CreateForumPostPage() {
           >
             <ImagePlus size={22} />
             <span className="text-xs mt-1">إضافة صورة اختيارية</span>
-            <input id="forum-image" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => chooseImage(event.target.files?.[0])} />
+            <input id="forum-image" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => void chooseImage(event.target.files?.[0])} />
           </label>
         )}
 

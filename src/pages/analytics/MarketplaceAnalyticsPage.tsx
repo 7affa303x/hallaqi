@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BarChart3, Eye, MousePointerClick, Bookmark, UserRoundSearch, Search, Crown, TrendingUp, MapPin, Lock } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
-import { summarizeMarketplaceAnalytics } from '@/lib/marketplace/analytics';
+import { summarizeMarketplaceAnalytics, analyticsUsesDeviceOnly } from '@/lib/marketplace/analytics';
 import { analyticsUnlockMessage, canAccessAnalyticsLevel, getPlanById } from '@/lib/marketplace/planAccess';
 import { getMarketplaceSellerById } from '@/supabase/marketplace';
+import PausedFeatureBanner from '@/components/PausedFeatureBanner';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import type { MarketplaceAnalyticsSummary, MarketplacePlanTier } from '@/types/marketplace';
 
 export default function MarketplaceAnalyticsPage() {
@@ -61,6 +63,20 @@ export default function MarketplaceAnalyticsPage() {
           </p>
         </div>
       </div>
+
+      <PausedFeatureBanner
+        className="mb-4"
+        title="تحليلات مباشرة كاملة"
+        description={
+          FEATURE_FLAGS.serverBookmarksEnabled
+            ? 'مزامنة السيرفر قيد التفعيل.'
+            : analyticsUsesDeviceOnly()
+              ? 'الأرقام الحالية من هذا الجهاز فقط — لا بيانات وهمية. المزامنة السحابية المتقدمة متوقفة عند الإطلاق.'
+              : 'وضع تجريبي يستخدم بيانات توضيحية.'
+        }
+        kind="paused"
+        colors={themeConfig.colors}
+      />
 
       {!showStandard && (
         <div className="rounded-2xl border p-3 mb-4 flex items-start gap-2" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>

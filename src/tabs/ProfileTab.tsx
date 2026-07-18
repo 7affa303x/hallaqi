@@ -17,9 +17,10 @@ import {
   ArrowLeft, LogIn, UserPlus as UserPlusIcon, Gift,
   Store, Building2, Stethoscope, CalendarDays, ShoppingBag,
 } from 'lucide-react';
-import { FEATURE_FLAGS } from '@/lib/featureFlags';
+import { FEATURE_FLAGS, isWebPushConfigured, PAUSED_LABEL } from '@/lib/featureFlags';
 import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
+import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import {
   createIdVerificationRequest,
   getLatestIdVerificationRequest,
@@ -44,7 +45,6 @@ import {
   getPushSubscription,
   isWebPushSupported,
 } from '@/lib/push-notifications';
-import { trackProductEvent } from '@/lib/product-analytics';
 import { translate } from '@/lib/i18n';
 
 interface UserStats {
@@ -806,20 +806,34 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
           <>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الحجوزات</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع حالة الطلب من تبويب المواعيد. يمكنك الإلغاء قبل بدء الموعد.</p>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع النقدي متاح؛ البطاقة وCCP متوقفان عند الإطلاق.</p>
             </div>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدفع والدعم</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>للمساعدة في دفعة أو حجز، أرسل تفاصيل المشكلة إلى support@hallaqi.app دون مشاركة كلمة المرور.</p>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدعم والتواصل</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>راسلنا على <a href="mailto:support@hallaqi.app" className="font-bold underline" style={{ color: themeConfig.colors.primary }}>support@hallaqi.app</a> أو واتساب لاحقاً. لا ترسل كلمة المرور أبداً.</p>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>السوق</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اكتشف منتجات ومتاجر ثم اشترِ عبر Visit Store (https). لا يوجد دفع منتجات داخل التطبيق عند الإطلاق.</p>
             </div>
           </>
         ) : (
-          <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
-            <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية تربط العملاء بالحلاقين وتسهّل اكتشاف الخدمات والحجز والتواصل والدفع الآمن.</p>
-            <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.0.0</p>
-          </div>
+          <>
+            <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
+              <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية للحجز والسوق والمنتدى ومساعد AI — تربط العملاء بالحلاقين والمتاجر والشركات والأطباء.</p>
+              <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.1.0 · إطلاق ناعم</p>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>اتصل بنا</h3>
+              <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
+                البريد: support@hallaqi.app<br />
+                الموقع: https://hallaqi.vercel.app<br />
+                الجزائر
+              </p>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -896,10 +910,15 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState('');
   const [pushSubscribed, setPushSubscribed] = useState(false);
+  const pushReady = isWebPushSupported() && isWebPushConfigured();
 
   useEffect(() => {
     if (!isWebPushSupported()) {
       setPushMessage('الإشعارات الفورية غير مدعومة على هذا الجهاز');
+      return;
+    }
+    if (!isWebPushConfigured()) {
+      setPushMessage(`Web Push ${PAUSED_LABEL} — لم يُضبط مفتاح VAPID بعد`);
       return;
     }
     void getPushSubscription().then(subscription => setPushSubscribed(!!subscription));
@@ -912,19 +931,20 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
       return;
     }
     if (!appUser) return;
+    if (!pushReady) {
+      setPushMessage(`تفعيل الإشعارات الفورية ${PAUSED_LABEL} حتى ضبط VAPID`);
+      return;
+    }
     setPushBusy(true);
     try {
       if (enabled) {
         await disableWebPush();
         setPushSubscribed(false);
         updateSettings({ notifications: { ...settings.notifications, pushEnabled: false } });
-        setPushMessage('تم إيقاف الإشعارات على هذا الجهاز');
       } else {
         await enableWebPush(appUser.id);
         setPushSubscribed(true);
         updateSettings({ notifications: { ...settings.notifications, pushEnabled: true } });
-        trackProductEvent('Push Enabled', { platform: navigator.platform || 'web' });
-        setPushMessage('تم تفعيل الإشعارات الفورية بنجاح');
       }
     } catch (err) {
       setPushMessage(err instanceof Error ? err.message : 'تعذر تحديث الإشعارات');
@@ -944,17 +964,28 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الإشعارات</h2>
       </div>
-      <div className="px-4 mt-4"><div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+      <div className="px-4 mt-4 space-y-3">
+        {!pushReady && (
+          <PausedFeatureBanner
+            title="الإشعارات الفورية (Web Push)"
+            description="متوقفة حتى ضبط VAPID على الخادم. إشعارات داخل التطبيق تبقى تعمل."
+            kind="paused"
+            colors={themeConfig.colors}
+          />
+        )}
+        <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
         {items.map((item, index) => { const Icon = item.icon; const isEnabled = item.key === 'pushEnabled' ? pushSubscribed : settings.notifications[item.key as keyof typeof settings.notifications]; return (
           <div key={item.key} className={`flex items-center gap-3 px-4 py-3.5 ${index < items.length - 1 ? 'border-b' : ''}`} style={{ borderColor: themeConfig.colors.border + '60' }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary + '08' }}><Icon size={16} style={{ color: themeConfig.colors.primary }} /></div>
-            <div className="flex-1"><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{item.label}</p></div>
-            <button role="switch" aria-checked={isEnabled} disabled={pushBusy && item.key === 'pushEnabled'} onClick={() => void toggleNotification(item.key as keyof typeof settings.notifications, isEnabled)} className="w-12 h-7 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50" style={{ backgroundColor: isEnabled ? themeConfig.colors.primary : themeConfig.colors.border }}>
+            <div className="flex-1"><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{item.label}</p>
+              {item.key === 'pushEnabled' && !pushReady && <p className="text-[9px] font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</p>}
+            </div>
+            <button role="switch" aria-checked={isEnabled} disabled={(pushBusy && item.key === 'pushEnabled') || (item.key === 'pushEnabled' && !pushReady)} onClick={() => void toggleNotification(item.key as keyof typeof settings.notifications, isEnabled)} className="w-12 h-7 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50" style={{ backgroundColor: isEnabled ? themeConfig.colors.primary : themeConfig.colors.border }}>
               <div className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-all" style={{ right: isEnabled ? '2px' : 'auto', left: isEnabled ? 'auto' : '2px' }} />
             </button>
           </div>
         ); })}</div>
-        {pushMessage && <p role="status" className="mt-3 text-[11px] p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.text }}>{pushMessage}</p>}
+        {pushMessage && <p role="status" className="text-[11px] p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.text }}>{pushMessage}</p>}
       </div>
     </div>
   );
@@ -1203,14 +1234,19 @@ function IDVerification({ onBack }: { onBack: () => void }) {
       setError('ارفع صورة أو ملف PDF صالحاً');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('حجم الملف يجب ألا يتجاوز 5 ميغابايت');
+    const { assertFileWithinLimit, compressImageFile, UPLOAD_LIMITS } = await import('@/lib/imageUpload');
+    const limitError = assertFileWithinLimit(file, UPLOAD_LIMITS.idCardMaxBytes);
+    if (limitError) {
+      setError(limitError);
       return;
     }
     setIsUploading(true);
     setError('');
     try {
-      const path = await uploadIdCard(appUser.id, file);
+      const prepared = file.type.startsWith('image/')
+        ? await compressImageFile(file, { maxBytes: UPLOAD_LIMITS.idCardMaxBytes })
+        : file;
+      const path = await uploadIdCard(appUser.id, prepared);
       if (!path) throw new Error('فشل رفع ملف الهوية');
       await createIdVerificationRequest(appUser.id, path);
       setStatus('pending');

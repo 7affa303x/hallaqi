@@ -7,6 +7,7 @@ import {
 import { useApp } from '@/contexts/useApp';
 import BrandLogo from '@/components/BrandLogo';
 import EmptyState from '@/components/EmptyState';
+import { SkeletonMarketplaceCard } from '@/components/Skeleton';
 import {
   getMarketplaceCategories,
   getMarketplaceProducts,
@@ -535,7 +536,12 @@ export default function MarketplaceTab() {
           </span>
         </div>
         {loading ? (
-          <p className="text-sm py-8 text-center" style={{ color: themeConfig.colors.textMuted }}>جاري التحميل...</p>
+          <div className="grid grid-cols-2 gap-3">
+            <SkeletonMarketplaceCard />
+            <SkeletonMarketplaceCard />
+            <SkeletonMarketplaceCard />
+            <SkeletonMarketplaceCard />
+          </div>
         ) : products.length === 0 ? (
           <EmptyState
             icon={Search}

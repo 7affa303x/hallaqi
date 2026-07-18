@@ -114,9 +114,23 @@ export const SkeletonMap = memo(() => (
   </>
 ));
 
+export const SkeletonMarketplaceCard = memo(() => (
+  <>
+    <style>{shimmerCSS}</style>
+    <div className="rounded-2xl overflow-hidden border" style={{ backgroundColor: '#fff', borderColor: '#e5e7eb' }}>
+      <div className="h-28" style={shimmerStyle} />
+      <div className="p-2 space-y-2">
+        <div className="h-3 w-4/5" style={shimmerStyle} />
+        <div className="h-3 w-1/2" style={shimmerStyle} />
+      </div>
+    </div>
+  </>
+));
+
 SkeletonBarberCard.displayName = 'SkeletonBarberCard';
 SkeletonChatMessage.displayName = 'SkeletonChatMessage';
 SkeletonBookingCard.displayName = 'SkeletonBookingCard';
 SkeletonProfile.displayName = 'SkeletonProfile';
 SkeletonForumPost.displayName = 'SkeletonForumPost';
 SkeletonMap.displayName = 'SkeletonMap';
+SkeletonMarketplaceCard.displayName = 'SkeletonMarketplaceCard';

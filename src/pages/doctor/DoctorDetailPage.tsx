@@ -63,6 +63,9 @@ export default function DoctorDetailPage() {
                   </span>
                 )}
               </div>
+              <p className="text-[10px] mt-1.5 leading-4" style={{ color: themeConfig.colors.textMuted }}>
+                طبيب موثوق = مراجعة المنصة · المحتوى استشاري عام وليس تشخيصاً
+              </p>
               <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>{seller.shortDescription}</p>
               <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: themeConfig.colors.textMuted }}>
                 <Star size={11} className="fill-amber-400 text-amber-400" /> {seller.rating.toFixed(1)}

@@ -84,6 +84,9 @@ export default function CompanyDetailPage() {
             <Shield size={12} /> ثقة أعلى · خطة {seller.subscriptionPlan}
           </span>
         </div>
+        <p className="text-[10px] leading-4" style={{ color: themeConfig.colors.textMuted }}>
+          موثّقة = مراجعة المنصة · بريميوم = اشتراك أعلى · الشراء خارج التطبيق عبر موقع الشركة
+        </p>
 
         <p className="text-sm leading-7" style={{ color: themeConfig.colors.text }}>{seller.about}</p>
         <p className="text-[11px] flex items-center gap-1" style={{ color: themeConfig.colors.textMuted }}>

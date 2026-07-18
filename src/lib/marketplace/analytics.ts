@@ -1,6 +1,7 @@
 import type { MarketplaceAnalyticsEventType, MarketplaceAnalyticsSummary } from '@/types/marketplace';
 import { mockMarketplaceAnalytics } from '@/data/marketplaceSeed';
 import { trackMarketplaceEventRemote } from '@/supabase/marketplace';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 const LOCAL_KEY = 'hallaqi-marketplace-analytics';
 
@@ -30,20 +31,46 @@ function writeEvents(events: LocalEvent[]) {
   }
 }
 
+let lastTrackAt = 0;
+
 /** Fire-and-forget marketplace analytics (local + remote when available). */
 export function trackMarketplaceEvent(
   eventType: MarketplaceAnalyticsEventType,
   payload: { sellerId?: string; productId?: string; wilaya?: string; categoryId?: string } = {}
 ) {
+  const now = Date.now();
+  if (now - lastTrackAt < 120) return;
+  lastTrackAt = now;
+
   const events = readEvents();
   events.push({ eventType, ...payload, at: new Date().toISOString() });
   writeEvents(events);
   void trackMarketplaceEventRemote(eventType, payload);
 }
 
+function emptySummary(): MarketplaceAnalyticsSummary {
+  return {
+    views: 0,
+    clicks: 0,
+    saves: 0,
+    profileVisits: 0,
+    searchImpressions: 0,
+    featuredImpressions: 0,
+    featuredClicks: 0,
+    visitStoreClicks: 0,
+    productOfDayViews: 0,
+    productOfDayClicks: 0,
+    conversionRatePct: 0,
+    topCategories: [],
+    topLocations: [],
+    growthPct: 0,
+  };
+}
+
 export function summarizeMarketplaceAnalytics(sellerId?: string): MarketplaceAnalyticsSummary {
   const events = readEvents().filter(e => !sellerId || e.sellerId === sellerId);
-  if (events.length < 5) {
+
+  if (events.length < 5 && FEATURE_FLAGS.marketplaceMockAnalytics) {
     const base = sellerId
       ? {
           ...mockMarketplaceAnalytics,
@@ -59,6 +86,8 @@ export function summarizeMarketplaceAnalytics(sellerId?: string): MarketplaceAna
         : 0,
     };
   }
+
+  if (events.length === 0) return emptySummary();
 
   const count = (type: MarketplaceAnalyticsEventType) => events.filter(e => e.eventType === type).length;
   const categoryMap = new Map<string, number>();
@@ -91,6 +120,10 @@ export function summarizeMarketplaceAnalytics(sellerId?: string): MarketplaceAna
       .map(([wilaya, c]) => ({ wilaya, count: c }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5),
-    growthPct: 12.5,
+    growthPct: 0,
   };
+}
+
+export function analyticsUsesDeviceOnly(): boolean {
+  return !FEATURE_FLAGS.marketplaceMockAnalytics;
 }

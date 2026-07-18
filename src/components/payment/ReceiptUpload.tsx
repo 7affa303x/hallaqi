@@ -61,16 +61,22 @@ export function ReceiptUpload({ onUpload, isUploading, uploadProgress, error, pa
       return;
     }
 
-    setSelectedFile(file);
+    void (async () => {
+      let prepared = file;
+      if (file.type.startsWith('image/')) {
+        const { compressImageFile, UPLOAD_LIMITS } = await import('@/lib/imageUpload');
+        prepared = await compressImageFile(file, { maxBytes: UPLOAD_LIMITS.receiptMaxBytes });
+      }
+      setSelectedFile(prepared);
 
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setPreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    } else {
-      setPreview(null);
-    }
+      if (prepared.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => setPreview(ev.target?.result as string);
+        reader.readAsDataURL(prepared);
+      } else {
+        setPreview(null);
+      }
+    })();
   };
 
   const handleSubmit = async () => {

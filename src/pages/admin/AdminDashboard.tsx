@@ -26,6 +26,8 @@ import {
   listPlacementRequests,
 } from '@/supabase/marketplace';
 import type { SellerPlacementRequest } from '@/lib/marketplace/sellerInventory';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
+import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import {
   listMarketplaceReports,
   readMarketplaceSectionConfig,
@@ -361,6 +363,14 @@ export default function AdminDashboard() {
         <div className="p-3 rounded-xl text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.warning}12`, color: themeConfig.colors.warning }}>
           تنبيه الإطلاق: دفع البطاقة/CCP وترقية الاشتراكات المدفوعة <strong>متوقفة</strong> في الواجهة حتى التفعيل اليدوي.
         </div>
+        {(!FEATURE_FLAGS.adminAuditLogEnabled || !FEATURE_FLAGS.moderatorConsoleEnabled) && (
+          <PausedFeatureBanner
+            title="سجل التدقيق ولوحة المشرف"
+            description="متوقفان حتى تجهيز الجداول وRLS. الإدارة الحالية (مستخدمون، حجوزات، سوق، تقارير) تبقى متاحة."
+            kind="paused"
+            colors={themeConfig.colors}
+          />
+        )}
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           {statCards.map((card, i) => (

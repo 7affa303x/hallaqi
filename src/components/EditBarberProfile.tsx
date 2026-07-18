@@ -95,12 +95,14 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
     }
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setServerError('الصورة يجب أن تكون أقل من 5 ميجا'); return; }
-    setAvatarFile(file);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
+    const { compressImageFile } = await import('@/lib/imageUpload');
+    const compressed = await compressImageFile(file);
+    setAvatarFile(compressed);
+    setAvatarPreviewUrl(URL.createObjectURL(compressed));
     setServerError(null);
   };
 
@@ -312,7 +314,7 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
             ) : (
               <div className="w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}><Upload size={32} /></div>
             )}
-            <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="hidden" />
+            <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleAvatarChange(e)} className="hidden" />
             <label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>{avatarFile ? 'تغيير الصورة' : 'رفع صورة'}</label>
           </div>
         </div>

@@ -9,6 +9,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import BottomNav from '@/components/BottomNav';
 import BrandLogo from '@/components/BrandLogo';
 import InstallPrompt from '@/components/InstallPrompt';
+import SoftOnboarding from '@/components/SoftOnboarding';
 import { reportClientError } from '@/lib/error-reporting';
 import BookingTab from '@/tabs/BookingTab';
 import './App.css';
@@ -131,12 +132,32 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><MarketplaceAnalyticsPage /></Suspense>;
     case 'ai-listing-tools':
       return <Suspense fallback={<LoadingFallback />}><AiListingToolsPage /></Suspense>;
+    case 'home':
+      return <TabContent tab={activeTab} />;
     default: {
       const params = screenParams;
       if (params?.title) {
-        return <Suspense fallback={<LoadingFallback />}><ComingSoonPage title={params.title} description={params.description} eta={params.eta} /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <ComingSoonPage
+              title={params.title}
+              description={params.description}
+              eta={params.eta}
+              status={params.status === 'paused' ? 'paused' : 'soon'}
+            />
+          </Suspense>
+        );
       }
-      return <TabContent tab={activeTab} />;
+      // Unknown deep-link / screen → soft 404
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <ComingSoonPage
+            title="الصفحة غير موجودة"
+            description="الرابط غير صالح أو الميزة غير متاحة في هذا الإصدار. عد للرئيسية وتابع التصفح."
+            status="paused"
+          />
+        </Suspense>
+      );
     }
   }
 }
@@ -234,6 +255,13 @@ function AppContent() {
 
   return (
     <div className={`min-h-screen anim-${animationStyle}`} style={{ ...cssVars, backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text, fontFamily: themeConfig.fontFamily, transition: 'background-color 0.5s ease, color 0.5s ease' }}>
+      <a
+        href="#main-content"
+        className="absolute -right-[9999px] focus:right-2 focus:top-2 focus:z-[120] focus:px-3 focus:py-2 focus:rounded-xl focus:text-xs focus:font-bold"
+        style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}
+      >
+        تخطَّ إلى المحتوى
+      </a>
       <NetworkStatusBar />
       {dataError && (
         <div
@@ -247,7 +275,7 @@ function AppContent() {
           </button>
         </div>
       )}
-      <main className={`max-w-lg mx-auto min-h-screen ${showNav ? 'pb-16' : ''}`}>
+      <main id="main-content" className={`max-w-lg mx-auto min-h-screen ${showNav ? 'pb-16' : ''}`}>
         {/* Developer Mode toggle — dev builds only; stripped from production. */}
         {import.meta.env.DEV && (
           <>
@@ -269,6 +297,7 @@ function AppContent() {
       </main>
       {showNav && <BottomNav />}
       <InstallPrompt />
+      {showNav && <SoftOnboarding />}
     </div>
   );
 }

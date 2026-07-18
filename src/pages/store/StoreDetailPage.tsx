@@ -97,6 +97,9 @@ export default function StoreDetailPage() {
                   </span>
                 )}
               </div>
+              <p className="text-[10px] mt-2 leading-4" style={{ color: themeConfig.colors.textMuted }}>
+                موثّق = راجعته المنصة · بريميوم = اشتراك أعلى · الشراء دائماً خارج التطبيق
+              </p>
               <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: themeConfig.colors.textMuted }}>
                 <Star size={12} className="fill-amber-400 text-amber-400" /> {seller.rating.toFixed(1)} · {seller.reviewCount} تقييم
                 <span className="mx-1">·</span>
