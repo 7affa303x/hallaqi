@@ -112,20 +112,20 @@ GEMINI_API_KEY=<اختياري — لتوليد الصور فقط>
 - واتساب الدعم / قارئ شاشة متقدم / React Query **متوقفة**
 - توليد صور AI (Gemini) **متوقف**
 
-### دفعة P3 (بدأت)
+### دفعة P3 / النهائية (مكتملة قدر الإمكان)
 
-- تقسيم حزمة Recharts (lazy AdminCharts + manualChunks)
-- `/api/health` لفحص الجاهزية
-- اختبارات وحدة لـ debounce وحدود الرفع
-- موافقة الكوكيز/التحليلات قبل تحميل Vercel Analytics
+- تقسيم Recharts + `/api/health` + موافقة التحليلات
+- خطأ/إعادة محاولة السوق + سياسة إلغاء واضحة (ساعتان)
+- offline.html + تحسين PWA/خط عربي + robots/sitemap/SEO
+- اختبارات: deviceStorage، featureFlags، cancelPolicy
+- a11y: aria-label للأزرار الخلفية، رسائل rate-limit أوضح
+- توحيد بانرات المتوقف عند البائع + lazy صور المنتدى
 
-### ما زال ناقصاً (اختياري / لاحقاً)
+### ما يبقى متوقفاً (يحتاج مفاتيح / بنية)
 
-- `VITE_STRIPE_PUBLISHABLE_KEY` + `STRIPE_SECRET_KEY` — دفع Stripe
-- `VITE_CCP_ACCOUNT_NUMBER` + `VITE_CCP_CARD_NUMBER` — دفع CCP
-- `VITE_VAPID_PUBLIC_KEY` — إشعارات الويب
-- `VITE_SUPPORT_WHATSAPP` — واتساب الدعم
-- ترجمة كاملة ar/fr/en، React Query، E2E CI، OG ديناميكي، APM كامل
-- كلمة مرور قاعدة البيانات أو `SUPABASE_ACCESS_TOKEN` لتشغيل `supabase db push`
+- Stripe / CCP / بريدي موب / اشتراكات ومواضع مدفوعة
+- Web Push (`VITE_VAPID_PUBLIC_KEY`) · واتساب (`VITE_SUPPORT_WHATSAPP`)
+- صور Gemini · ترجمة كاملة · React Query · E2E CI · OG ديناميكي · APM
+- `supabase db push` بدون access token
 
 > **أمان:** لا تضع المفاتيح في المحادثة أو Git. غيّر المفاتيح إذا تسرّبت.

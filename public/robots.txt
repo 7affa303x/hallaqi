@@ -1,4 +1,14 @@
 User-agent: *
 Allow: /
+Disallow: /?screen=login
+Disallow: /?screen=register
+Disallow: /?screen=admin-dashboard
+Disallow: /?screen=forgot-password
+Disallow: /?screen=reset-password
+Disallow: /?screen=mfa-challenge
+Disallow: /?screen=seller-dashboard
+Disallow: /?screen=seller-products
+Disallow: /?screen=seller-placements
+Disallow: /?screen=seller-profile-edit
 
-Sitemap: https://www.hallaqi.app/sitemap.xml
+Sitemap: https://hallaqi.vercel.app/sitemap.xml

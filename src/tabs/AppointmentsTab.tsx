@@ -12,6 +12,7 @@ import {
   getOrCreateConversation,
 } from '@/supabase/database';
 import BarberStudioHub from '@/components/barber/BarberStudioHub';
+import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   CalendarDays, Clock, MapPin, Car, CreditCard,
   CheckCircle2, XCircle, AlertCircle, MessageSquare,
@@ -278,7 +279,7 @@ export default function AppointmentsTab() {
                           <Navigation size={14} /> الاتجاهات
                         </button>
                         <button onClick={() => {
-                          if (window.confirm(`هل تريد إلغاء موعدك مع ${booking.barberName}؟`)) void cancelBooking(booking.id);
+                          if (window.confirm(CANCEL_POLICY.confirmAr(booking.barberName))) void cancelBooking(booking.id);
                         }}
                           className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
                           style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>

@@ -20,7 +20,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'smooth',
     borderRadius: '0.5rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   modern: {
     name: 'modern',
@@ -41,7 +41,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'modern',
     borderRadius: '1rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   digital: {
     name: 'digital',
@@ -83,7 +83,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'bouncy',
     borderRadius: '0.75rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   blue: {
     name: 'blue',
@@ -104,7 +104,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'smooth',
     borderRadius: '0.75rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   gradient: {
     name: 'gradient',
@@ -126,7 +126,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'modern',
     borderRadius: '1rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   dark: {
     name: 'dark',
@@ -147,7 +147,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'minimal',
     borderRadius: '0.5rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   gold: {
     name: 'gold',
@@ -168,7 +168,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'smooth',
     borderRadius: '0.75rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
   neon: {
     name: 'neon',
@@ -211,7 +211,7 @@ export const themes: Record<ThemeName, ThemeConfig> = {
     },
     animation: 'modern',
     borderRadius: '1rem',
-    fontFamily: 'system-ui',
+    fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
 };
 

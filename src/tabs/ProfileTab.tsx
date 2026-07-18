@@ -22,6 +22,7 @@ import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
+import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   createIdVerificationRequest,
   getLatestIdVerificationRequest,
@@ -843,7 +844,7 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
           <>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الحجوزات</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع النقدي متاح؛ البطاقة وCCP متوقفان عند الإطلاق.</p>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع النقدي متاح؛ البطاقة وCCP متوقفان عند الإطلاق. {CANCEL_POLICY.summaryAr}</p>
             </div>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدعم والتواصل</h3>
@@ -888,7 +889,7 @@ function ThemeSelector({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>السمة</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
@@ -910,7 +911,7 @@ function AnimationSelector({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>نمط الحركة</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
@@ -932,7 +933,7 @@ function LanguageSelector({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>اللغة</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
@@ -1012,7 +1013,7 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الإشعارات</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
@@ -1081,7 +1082,7 @@ function PrivacySettings({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الخصوصية</h2>
       </div>
       <div className="px-4 mt-4 space-y-4">
@@ -1174,7 +1175,7 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>خطط الاشتراك</h2>
         {!FEATURE_FLAGS.paidSubscriptionsEnabled && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">متوقف</span>
@@ -1235,7 +1236,7 @@ function PaymentMethods({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>طرق الدفع</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
@@ -1313,7 +1314,7 @@ function IDVerification({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>توثيق الهوية</h2>
       </div>
       <div className="px-4 mt-4">
@@ -1379,7 +1380,7 @@ function LinkedAccounts({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الحسابات المرتبطة</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
@@ -1403,7 +1404,7 @@ function BadgesPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الشارات</h2>
       </div>
       <div className="px-4 mt-4"><div className="grid grid-cols-2 gap-2">
@@ -1448,7 +1449,7 @@ function StatsPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الإحصائيات</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">

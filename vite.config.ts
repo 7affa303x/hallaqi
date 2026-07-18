@@ -15,9 +15,11 @@ export default defineConfig({
         type: "module",
       },
       manifest: false,
-      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js"],
+      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt"],
       workbox: {
         navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
+        offlineGoogleAnalytics: false,
         importScripts: ["/push-handler.js"],
         globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
         runtimeCaching: [
@@ -27,6 +29,19 @@ export default defineConfig({
             options: {
               cacheName: "hallaqi-images",
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "google-fonts-stylesheets" },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
         ],
