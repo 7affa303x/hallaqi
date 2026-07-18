@@ -11,4 +11,4 @@ Disallow: /?screen=seller-products
 Disallow: /?screen=seller-placements
 Disallow: /?screen=seller-profile-edit
 
-Sitemap: https://hallaqi.vercel.app/sitemap.xml
+Sitemap: https://hallaqi.app/sitemap.xml

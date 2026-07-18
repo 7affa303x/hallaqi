@@ -8,6 +8,7 @@ import BrandLogo from '@/components/BrandLogo';
 import { motion } from 'framer-motion';
 import type { BarberTag, ServiceCategory } from '@/types';
 import { rankBarberRecommendations } from '@/lib/recommendations';
+import { isDisplayableBarber } from '@/lib/utils';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { translate, type TranslationKey } from '@/lib/i18n';
 import {
@@ -61,7 +62,7 @@ export default function BookingTab() {
   const preferredCity = userLocation?.city || userLocation?.wilaya || 'الجزائر';
   const tx = (key: TranslationKey) => translate(settings.language, key);
   const availableWilayas = useMemo(
-    () => [...new Set(barbers.map(barber => barber.wilaya).filter(Boolean))].sort(),
+    () => [...new Set(barbers.filter(isDisplayableBarber).map(barber => barber.wilaya).filter(Boolean))].sort(),
     [barbers]
   );
 
@@ -91,7 +92,7 @@ export default function BookingTab() {
   };
 
   const filteredBarbers = useMemo(() => {
-    let filtered = [...barbers];
+    let filtered = barbers.filter(isDisplayableBarber);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(b =>
@@ -129,7 +130,7 @@ export default function BookingTab() {
   }, [barbers, distances, onlyFavorites, searchQuery, selectedTags, selectedCategory, selectedWilaya, sortBy]);
 
   const recommendations = useMemo(() => {
-    return rankBarberRecommendations(barbers, {
+    return rankBarberRecommendations(barbers.filter(isDisplayableBarber), {
       city: selectedWilaya || preferredCity,
       category: selectedCategory as ServiceCategory | null,
       bookings,
@@ -562,6 +563,18 @@ export default function BookingTab() {
           themeConfig={themeConfig}
         />
       )}
+
+      <div className="px-4 mt-6 mb-4 text-center space-y-2">
+        <p className="text-[11px] leading-5" style={{ color: themeConfig.colors.textMuted }}>
+          ادفع نقداً عند الزيارة · الإلغاء مجاني قبل ساعتين · الدعم: support@hallaqi.app
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-bold">
+          <button type="button" onClick={() => navigate('home', { openLegal: 'help', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>المساعدة</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'about', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>من نحن</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'privacy', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>الخصوصية</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'terms', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>الشروط</button>
+        </div>
+      </div>
     </div>
   );
 }

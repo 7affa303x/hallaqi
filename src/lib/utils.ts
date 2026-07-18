@@ -74,16 +74,18 @@ export function transformToBarber(professional: RawProfessional): Barber {
   const rawServices = professional.services || [];
   const portfolio = professional.portfolio_items || [];
 
-  // Map raw DB services to app Service type
-  const services: Service[] = rawServices.map((s: RawService) => ({
-    id: s.id || '',
-    name: s.name || '',
-    price: s.price || 0,
-    duration: s.duration_minutes || s.duration || 30,
-    description: s.description || undefined,
-    category: (typeof s.category === 'string' ? s.category : 'haircut') as ServiceCategory,
-    image: s.image || undefined,
-  }));
+  // Map raw DB services to app Service type — drop junk/test rows that destroy trust
+  const services: Service[] = rawServices
+    .map((s: RawService) => ({
+      id: s.id || '',
+      name: (s.name || '').trim(),
+      price: Number(s.price) || 0,
+      duration: Number(s.duration_minutes || s.duration || 30),
+      description: s.description || undefined,
+      category: (typeof s.category === 'string' ? s.category : 'haircut') as ServiceCategory,
+      image: s.image || undefined,
+    }))
+    .filter(service => isPlausibleService(service));
 
   // The database/editor uses 0=Saturday through 6=Friday.
   const dayKeys = ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -117,27 +119,30 @@ export function transformToBarber(professional: RawProfessional): Barber {
 
   // Calculate price range
   const prices = services.map((s: Service) => s.price).filter((p: number) => p !== undefined && p > 0);
-  let priceRange = 'N/A';
+  let priceRange = '—';
   if (prices.length > 0) {
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     if (minPrice === maxPrice) {
-      priceRange = `${minPrice} DZD`;
+      priceRange = `${minPrice} دج`;
     } else {
-      priceRange = `${minPrice} - ${maxPrice} DZD`;
+      priceRange = `${minPrice} – ${maxPrice} دج`;
     }
   }
 
+  const city = profile?.city?.trim() || '';
+  const address = professional.business_address?.trim() || '';
+
   return {
     id: professional.id,
-    name: professional.business_name || profile?.full_name || 'Unknown Barber',
+    name: professional.business_name?.trim() || profile?.full_name?.trim() || 'حلاق',
     avatar: profile?.avatar_url || '/logo-icon.png',
     coverImage: professional.cover_image_url || '/logo-wordmark.png',
     rating: professional.average_rating || 0,
     reviewCount: professional.review_count || 0,
-    location: professional.business_address || profile?.city || 'Unknown Location',
-    wilaya: profile?.city || 'Unknown Wilaya',
-    distance: 'N/A',
+    location: address || city || 'عنوان غير محدد',
+    wilaya: city || 'ولاية غير محددة',
+    distance: '—',
     coordinates: professional.latitude && professional.longitude ? { lat: professional.latitude, lng: professional.longitude } : undefined,
     isActive: professional.is_active || false,
     isVerified: professional.verification_status === 'verified' || professional.verification_status === 'premium' || profile?.verification_status === 'verified' || profile?.verification_status === 'premium',
@@ -148,7 +153,7 @@ export function transformToBarber(professional: RawProfessional): Barber {
     isMobile: professional.is_mobile || false,
     usesScissors: professional.uses_scissors || false,
     yearsOfExperience: professional.years_of_experience || 0,
-    bio: professional.bio || 'No bio provided.',
+    bio: professional.bio?.trim() || 'لا توجد نبذة بعد — تواصل مع الحلاق للتفاصيل.',
     portfolio: portfolio.map((item: RawPortfolioItem) => (typeof item === 'string' ? item : item.url || '')).filter(Boolean),
     phone: professional.business_phone || undefined,
     hasIdCard: professional.has_id_card || false,
@@ -161,4 +166,21 @@ export function transformToBarber(professional: RawProfessional): Barber {
     isFollowing: false,
     reviews: (professional.reviews || []).map(mapReviewRow),
   };
+}
+
+/** Drop obvious test/junk services that erode trust in the Algeria soft launch. */
+export function isPlausibleService(service: Pick<Service, 'name' | 'price' | 'duration'>): boolean {
+  if (!service.name || service.name.length < 2) return false;
+  if (service.price <= 0 || service.price > 25000) return false;
+  if (service.duration < 5 || service.duration > 240) return false;
+  return true;
+}
+
+/** Prefer listing barbers that look real enough for a soft launch. */
+export function isDisplayableBarber(barber: Barber): boolean {
+  if (!barber.isActive) return false;
+  if (!barber.services.length) return false;
+  if (!barber.name || barber.name === 'حلاق') return false;
+  if (barber.wilaya === 'ولاية غير محددة' && barber.location === 'عنوان غير محدد') return false;
+  return true;
 }

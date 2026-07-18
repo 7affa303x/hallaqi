@@ -614,6 +614,12 @@ export default function BookingFlowPage() {
         <p className="text-xs mb-6 leading-5" style={{ color: themeConfig.colors.textMuted }}>
           {selectedDate} - {selectedTime}<br />ستصلك رسالة فور قبول الحلاق أو تحديث حالة الموعد
         </p>
+        <div className="w-full max-w-xs p-3 rounded-xl mb-4 text-right" style={{ backgroundColor: themeConfig.colors.success + '12' }}>
+          <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>الدفع نقداً عند الزيارة</p>
+          <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+            حضّر المبلغ ({payableTotal} دج) وادفعه للحلاق في الصالون. لا يُخصم شيء من بطاقتك حالياً.
+          </p>
+        </div>
         <div className="w-full max-w-xs p-4 rounded-xl border mb-6" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex justify-between mb-2">
             <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الخدمات</span>

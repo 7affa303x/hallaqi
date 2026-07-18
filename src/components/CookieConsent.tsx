@@ -6,9 +6,11 @@ import {
   type AnalyticsConsent,
 } from '@/lib/analyticsConsent';
 
+const ONBOARDING_KEY = 'hallaqi-onboarding-v1-done';
+
 /**
  * Soft privacy banner — enables Vercel Analytics only after accept.
- * Not a full CMP; full consent framework is paused for soft launch.
+ * Delayed until soft onboarding is done so first visit isn't stacked with overlays.
  */
 export default function CookieConsent({
   onChange,
@@ -21,7 +23,30 @@ export default function CookieConsent({
   const acceptRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (readAnalyticsConsent() === null) setVisible(true);
+    if (readAnalyticsConsent() !== null) return;
+
+    let cancelled = false;
+    const tryShow = () => {
+      if (cancelled) return;
+      try {
+        if (localStorage.getItem(ONBOARDING_KEY) !== '1') return;
+      } catch {
+        // ignore storage errors — still show after delay
+      }
+      setVisible(true);
+    };
+
+    // Wait for onboarding skip/finish, then a short breath before the banner
+    const poll = window.setInterval(tryShow, 800);
+    const fallback = window.setTimeout(() => {
+      if (!cancelled && readAnalyticsConsent() === null) setVisible(true);
+    }, 12000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      window.clearTimeout(fallback);
+    };
   }, []);
 
   useEffect(() => {
@@ -45,10 +70,10 @@ export default function CookieConsent({
       style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
     >
       <p id={titleId} className="text-xs font-black" style={{ color: themeConfig.colors.text }}>
-        تحليلات الأداء
+        تحليلات الأداء (اختياري)
       </p>
       <p className="text-[11px] mt-1.5 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-        نستخدم أدوات قياس أداء مجهّلة الهوية قدر الإمكان (Vercel). يمكنك الرفض والمتابعة بدونها.
+        نقيس أداء التطبيق بشكل مجهّل قدر الإمكان. يمكنك الرفض والمتابعة عادي — الحجز يعمل بدونها.
       </p>
       <div className="flex gap-2 mt-3">
         <button

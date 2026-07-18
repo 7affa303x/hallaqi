@@ -84,6 +84,8 @@ export default function ProfileTab() {
   const [subPage, setSubPage] = useState<ProfileSubPage>(() => {
     if (screenParams?.openLegal === 'terms') return 'terms';
     if (screenParams?.openLegal === 'privacy') return 'privacy-policy';
+    if (screenParams?.openLegal === 'help') return 'help';
+    if (screenParams?.openLegal === 'about') return 'about';
     return 'main';
   });
   const [actionError, setActionError] = useState('');
@@ -93,6 +95,8 @@ export default function ProfileTab() {
   useEffect(() => {
     if (screenParams?.openLegal === 'terms') setSubPage('terms');
     if (screenParams?.openLegal === 'privacy') setSubPage('privacy-policy');
+    if (screenParams?.openLegal === 'help') setSubPage('help');
+    if (screenParams?.openLegal === 'about') setSubPage('about');
   }, [screenParams?.openLegal]);
 
   useEffect(() => {
@@ -105,6 +109,13 @@ export default function ProfileTab() {
   const handleLogout = async () => {
     try { await logout(); setSubPage('main'); } catch (err) { console.error('Logout error:', err); }
   };
+
+  // Legal / about / help are public — available before login
+  if (subPage === 'help') return <InformationPage onBack={() => setSubPage('main')} kind="help" />;
+  if (subPage === 'about') return <InformationPage onBack={() => setSubPage('main')} kind="about" />;
+  if (subPage === 'privacy-policy') return <LegalPage onBack={() => setSubPage('main')} kind="privacy" />;
+  if (subPage === 'terms') return <LegalPage onBack={() => setSubPage('main')} kind="terms" />;
+  if (subPage === 'licenses') return <LegalPage onBack={() => setSubPage('main')} kind="licenses" />;
 
   if (!isAuthenticated) {
     return (
@@ -157,15 +168,10 @@ export default function ProfileTab() {
   if (subPage === 'linked-accounts') return <LinkedAccounts onBack={() => setSubPage('main')} />;
   if (subPage === 'badges') return <BadgesPage onBack={() => setSubPage('main')} />;
   if (subPage === 'stats') return <StatsPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'help') return <InformationPage onBack={() => setSubPage('main')} kind="help" />;
-  if (subPage === 'about') return <InformationPage onBack={() => setSubPage('main')} kind="about" />;
   if (subPage === 'loyalty') return <LoyaltyPage onBack={() => setSubPage('main')} />;
   if (subPage === 'accessibility') return <AccessibilitySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'security') return <SecuritySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'saves') return <SavedItemsPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'privacy-policy') return <LegalPage onBack={() => setSubPage('main')} kind="privacy" />;
-  if (subPage === 'terms') return <LegalPage onBack={() => setSubPage('main')} kind="terms" />;
-  if (subPage === 'licenses') return <LegalPage onBack={() => setSubPage('main')} kind="licenses" />;
   if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
   if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
 
@@ -867,14 +873,21 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
               <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
               <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
               <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية للحجز والسوق والمنتدى ومساعد AI — تربط العملاء بالحلاقين والمتاجر والشركات والأطباء.</p>
-              <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.1.0 · إطلاق ناعم</p>
+              <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.1.0 · إطلاق ناعم في الجزائر</p>
             </div>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>اتصل بنا</h3>
               <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
                 البريد: support@hallaqi.app<br />
-                الموقع: https://hallaqi.vercel.app<br />
+                الموقع: https://hallaqi.app<br />
                 الجزائر
+              </p>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>إشعار قانوني (Mentions)</h3>
+              <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
+                خدمة رقمية لإدارة الحجوزات والاكتشاف. الدفع النقدي عند الزيارة هو الافتراضي في الإطلاق الناعم.
+                سياسة الخصوصية وشروط الاستخدام متاحة من الملف الشخصي. للاستفسارات القانونية: support@hallaqi.app.
               </p>
             </div>
           </>

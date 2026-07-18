@@ -59,14 +59,21 @@ export default function BarberDetailPage() {
 
   const listedBarber = barbers.find(b => b.id === screenParams?.barberId);
   const [barber, setBarber] = useState<Barber | undefined>(listedBarber);
+  const [loadingDetails, setLoadingDetails] = useState(!listedBarber && Boolean(screenParams?.barberId));
 
   useEffect(() => {
     const barberId = screenParams?.barberId;
-    if (!barberId) return;
+    if (!barberId) {
+      setLoadingDetails(false);
+      return;
+    }
     if (listedBarber) setBarber(listedBarber);
-    void getProfessionalById(barberId).then(details => {
-      if (details) setBarber(details);
-    });
+    setLoadingDetails(true);
+    void getProfessionalById(barberId)
+      .then(details => {
+        if (details) setBarber(details);
+      })
+      .finally(() => setLoadingDetails(false));
     const fetchPortfolio = async () => {
       setLoadingPortfolio(true);
       try {
@@ -152,11 +159,20 @@ export default function BarberDetailPage() {
     };
   }, [barber]);
 
+  if (loadingDetails && !barber) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: themeConfig.colors.background }}>
+        <BrandLogo variant="icon" className="w-16 h-16 animate-pulse opacity-70" />
+        <p className="text-sm font-medium" style={{ color: themeConfig.colors.textMuted }}>جاري تحميل ملف الحلاق...</p>
+      </div>
+    );
+  }
+
   if (!barber) {
     return (
       <div className="h-screen flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
           <BrandLogo variant="icon" className="w-16 h-16 mb-4 opacity-60" />
-        <p className="text-sm font-medium" style={{ color: themeConfig.colors.textMuted }}>المختص غير موجود</p>
+        <p className="text-sm font-medium" style={{ color: themeConfig.colors.textMuted }}>المختص غير موجود أو غير متاح حالياً</p>
         <button onClick={goBack} className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>رجوع</button>
       </div>
     );
@@ -319,6 +335,16 @@ export default function BarberDetailPage() {
       {/* === BIO === */}
       <div className="px-4 mt-4">
         <p className="text-sm leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{barber.bio}</p>
+        {barber.phone && (
+          <a
+            href={`tel:${barber.phone}`}
+            className="mt-3 inline-flex items-center gap-2 text-xs font-bold"
+            style={{ color: themeConfig.colors.primary }}
+          >
+            <Phone size={14} />
+            اتصل: {barber.phone}
+          </a>
+        )}
       </div>
 
       {/* === QUICK ACTIONS === */}

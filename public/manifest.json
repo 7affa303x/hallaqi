@@ -1,7 +1,7 @@
 {
   "name": "Hallaqi - حلاقي",
   "short_name": "Hallaqi",
-  "description": "منصة حجز الحلاقين والعناية الشخصية الأولى في الجزائر",
+  "description": "منصة حجز الحلاقين والعناية الشخصية في الجزائر — حجز نقدي عند الزيارة",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F0FDFA",
@@ -30,5 +30,20 @@
   "lang": "ar",
   "dir": "rtl",
   "categories": ["lifestyle", "utilities"],
-  "screenshots": []
+  "screenshots": [
+    {
+      "src": "/logo-wordmark.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "حلاقي — منصة الحجز والعناية"
+    },
+    {
+      "src": "/logo-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "أيقونة تطبيق حلاقي"
+    }
+  ]
 }

@@ -1,4 +1,6 @@
-const baseUrl = 'https://hallaqi.vercel.app';
+import { getSiteUrl } from './_lib/site-url.js';
+
+const baseUrl = getSiteUrl();
 
 function xmlEscape(value: string) {
   return value.replace(/[<>&'"]/g, character => ({

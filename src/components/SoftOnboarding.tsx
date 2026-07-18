@@ -63,7 +63,7 @@ export default function SoftOnboarding() {
     {
       icon: CalendarDays,
       title: 'احجز موعدك بسهولة',
-      body: 'اكتشف حلاقين قربك، اختر الخدمة، وادفع نقداً عند الزيارة.',
+      body: 'اختار حلاق قريب ليك، الخدمة، والوقت — وخلّص الدفع نقداً عند الزيارة.',
       cta: 'استكشف الحجز',
       action: () => setActiveTab('booking'),
     },
@@ -76,8 +76,8 @@ export default function SoftOnboarding() {
     },
     {
       icon: Sparkles,
-      title: 'مساعد AI مجاني',
-      body: 'نصائح عناية بالعربية عبر Groq. صور AI وتجربة الوجه متوقفة حالياً.',
+      title: 'مساعد حلاقي',
+      body: 'نصائح عناية بالعربية مرتبطة بالمنصة والحلاقين. مجاني بعد تسجيل الدخول.',
       cta: 'جرّب المساعد',
       action: () => setActiveTab('ai-hub'),
     },
