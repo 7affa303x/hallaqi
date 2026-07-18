@@ -17,6 +17,7 @@ const AppointmentsTab = lazy(() => import('@/tabs/AppointmentsTab'));
 const CameraTab = lazy(() => import('@/tabs/CameraTab'));
 const ForumTab = lazy(() => import('@/tabs/ForumTab'));
 const ProfileTab = lazy(() => import('@/tabs/ProfileTab'));
+const MarketplaceTab = lazy(() => import('@/tabs/MarketplaceTab'));
 const BarberDetailPage = lazy(() => import('@/pages/BarberDetailPage'));
 const BookingFlowPage = lazy(() => import('@/pages/BookingFlowPage'));
 const ChatRoomPage = lazy(() => import('@/pages/ChatRoomPage'));
@@ -33,6 +34,14 @@ const MFAChallengePage = lazy(() => import('@/pages/MFAChallengePage'));
 const PaymentSuccessPage = lazy(() => import("@/pages/PaymentSuccessPage"));
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const AIAdvisorPage = lazy(() => import("@/pages/AIAdvisorPage"));
+const AiHubToolPage = lazy(() => import('@/pages/marketplace/AiHubToolPage'));
+const StoreDetailPage = lazy(() => import('@/pages/store/StoreDetailPage'));
+const CompanyDetailPage = lazy(() => import('@/pages/company/CompanyDetailPage'));
+const DoctorDetailPage = lazy(() => import('@/pages/doctor/DoctorDetailPage'));
+const ProductDetailPage = lazy(() => import('@/pages/marketplace/ProductDetailPage'));
+const SellerDashboardPage = lazy(() => import('@/pages/store/SellerDashboardPage'));
+const MarketplaceAnalyticsPage = lazy(() => import('@/pages/analytics/MarketplaceAnalyticsPage'));
+const AiListingToolsPage = lazy(() => import('@/pages/marketplace/AiListingToolsPage'));
 
 function TabContent({ tab }: { tab: string }) {
   let content;
@@ -40,7 +49,9 @@ function TabContent({ tab }: { tab: string }) {
     case 'booking': content = <BookingTab />; break;
     case 'appointments': content = <AppointmentsTab />; break;
     case 'camera': content = <CameraTab />; break;
+    case 'ai-hub': content = <AIAdvisorPage />; break;
     case 'forum': content = <ForumTab />; break;
+    case 'marketplace': content = <MarketplaceTab />; break;
     case 'profile': content = <ProfileTab />; break;
     default: content = <BookingTab />;
   }
@@ -95,6 +106,22 @@ function ScreenRouter() {
         : <Suspense fallback={<LoadingFallback />}><ComingSoonPage title="غير مصرح" description="هذه الصفحة مخصصة لإدارة Hallaqi." /></Suspense>;
     case 'ai-advisor':
       return <Suspense fallback={<LoadingFallback />}><AIAdvisorPage /></Suspense>;
+    case 'ai-hub-tool':
+      return <Suspense fallback={<LoadingFallback />}><AiHubToolPage /></Suspense>;
+    case 'store-detail':
+      return <Suspense fallback={<LoadingFallback />}><StoreDetailPage /></Suspense>;
+    case 'company-detail':
+      return <Suspense fallback={<LoadingFallback />}><CompanyDetailPage /></Suspense>;
+    case 'doctor-detail':
+      return <Suspense fallback={<LoadingFallback />}><DoctorDetailPage /></Suspense>;
+    case 'product-detail':
+      return <Suspense fallback={<LoadingFallback />}><ProductDetailPage /></Suspense>;
+    case 'seller-dashboard':
+      return <Suspense fallback={<LoadingFallback />}><SellerDashboardPage /></Suspense>;
+    case 'marketplace-analytics':
+      return <Suspense fallback={<LoadingFallback />}><MarketplaceAnalyticsPage /></Suspense>;
+    case 'ai-listing-tools':
+      return <Suspense fallback={<LoadingFallback />}><AiListingToolsPage /></Suspense>;
     default: {
       const params = screenParams;
       if (params?.title) {

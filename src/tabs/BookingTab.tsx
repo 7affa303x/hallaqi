@@ -13,7 +13,7 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock, Car, Heart,
   Scissors, BadgeCheck, Zap, TrendingUp, ChevronLeft, X,
-  Filter, Navigation, Globe, Sparkles
+  Filter, Navigation, Globe, Sparkles, ShoppingBag
 } from 'lucide-react';
 
 const tagIcons: Record<string, typeof Zap> = {
@@ -46,7 +46,7 @@ function distanceInKm(
 }
 
 export default function BookingTab() {
-  const { barbers, bookings, currentUser, themeConfig, settings, toggleFollow, navigate, isLoading } = useApp();
+  const { barbers, bookings, currentUser, themeConfig, settings, toggleFollow, navigate, isLoading, setActiveTab } = useApp();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<BarberTag[]>([]);
@@ -157,6 +157,15 @@ export default function BookingTab() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab('marketplace')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
+              style={{ backgroundColor: themeConfig.colors.primary + '12', borderColor: themeConfig.colors.primary + '40', color: themeConfig.colors.primary }}
+              title="السوق"
+            >
+              <ShoppingBag size={14} />
+              <span className="hidden sm:inline">{tx('marketplace')}</span>
+            </button>
             <button
               onClick={() => navigate('ai-advisor')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"

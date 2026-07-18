@@ -367,7 +367,8 @@ export interface AIFeature {
 export type AICategory = 'haircut' | 'style' | 'color' | 'advice' | 'virtual-try' | 'analysis';
 
 // ====== NAVIGATION ======
-export type TabName = 'booking' | 'appointments' | 'camera' | 'forum' | 'profile';
+/** RTL order (right→left): booking · forum · ai-hub · marketplace · profile */
+export type TabName = 'booking' | 'forum' | 'ai-hub' | 'marketplace' | 'profile' | 'appointments' | 'camera';
 
 // ====== SCREEN NAVIGATION ======
 export type ScreenName =
@@ -390,6 +391,14 @@ export type ScreenName =
   | 'payment-success'
   | 'admin-dashboard'
   | 'ai-advisor'
+  | 'ai-hub-tool'
+  | 'store-detail'
+  | 'company-detail'
+  | 'doctor-detail'
+  | 'product-detail'
+  | 'seller-dashboard'
+  | 'marketplace-analytics'
+  | 'ai-listing-tools'
   | 'coming-soon';
 
 export interface ScreenParams {
@@ -404,6 +413,10 @@ export interface ScreenParams {
   title?: string;
   description?: string;
   eta?: string;
+  sellerId?: string;
+  productId?: string;
+  tool?: string;
+  role?: string;
   [key: string]: string | undefined;
 }
 

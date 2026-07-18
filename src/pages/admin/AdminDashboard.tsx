@@ -15,7 +15,9 @@ import { ccpProvider } from '@/lib/payment/ccp-provider';
 import { getSignedUrl } from '@/supabase/storage';
 import type { Database } from '@/types/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Users, Scissors, Calendar, CreditCard, Clock, Star, DollarSign, TrendingUp, ChevronRight, Shield, Check, X, ArrowRight, Crown, Flag } from 'lucide-react';
+import { Users, Scissors, Calendar, CreditCard, Clock, Star, DollarSign, TrendingUp, ChevronRight, Shield, Check, X, ArrowRight, Crown, Flag, ShoppingBag } from 'lucide-react';
+import { marketplaceSellers, marketplaceProducts, marketplacePlacements } from '@/data/marketplaceSeed';
+import type { MarketplaceSeller, MarketplaceProduct } from '@/types/marketplace';
 
 interface DashboardStats {
   totalUsers: number;
@@ -71,7 +73,7 @@ export default function AdminDashboard() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<'home' | 'users' | 'bookings' | 'payments' | 'reviews' | 'identity' | 'subscriptions' | 'reports'>('home');
+  const [activeSection, setActiveSection] = useState<'home' | 'users' | 'bookings' | 'payments' | 'reviews' | 'identity' | 'subscriptions' | 'reports' | 'marketplace'>('home');
 
   const isAdmin = !!appUser && appUser.user_role === 'admin';
 
@@ -250,7 +252,8 @@ export default function AdminDashboard() {
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      client: 'عميل', barber: 'حلاق', specialist: 'متخصص', admin: 'مدير',
+      client: 'عميل', barber: 'حلاق', store: 'متجر', company: 'شركة', doctor: 'طبيب',
+      specialist: 'متخصص', admin: 'مدير', moderator: 'مشرف',
     };
     return labels[role] || role;
   };
@@ -303,6 +306,7 @@ export default function AdminDashboard() {
     { label: 'إدارة الحجوزات', action: () => setActiveSection('bookings'), icon: Calendar },
     { label: 'توثيق الهويات', action: () => setActiveSection('identity'), icon: Shield },
     { label: 'طلبات الاشتراك', action: () => setActiveSection('subscriptions'), icon: Crown },
+    { label: 'السوق (متاجر/شركات/أطباء)', action: () => setActiveSection('marketplace'), icon: ShoppingBag },
     { label: 'البلاغات', action: () => setActiveSection('reports'), icon: Flag },
   ];
 
@@ -447,8 +451,17 @@ export default function AdminDashboard() {
 }
 
 /* ================= ADMIN MANAGEMENT SECTIONS (I2 / I3 / H3) ================= */
-const ROLE_OPTIONS = ['client', 'barber', 'specialist', 'moderator', 'admin'];
-const ROLE_LABELS: Record<string, string> = { client: 'عميل', barber: 'حلاق', specialist: 'متخصص', moderator: 'مشرف محتوى', admin: 'مدير' };
+const ROLE_OPTIONS = ['client', 'barber', 'store', 'company', 'doctor', 'specialist', 'moderator', 'admin'];
+const ROLE_LABELS: Record<string, string> = {
+  client: 'عميل',
+  barber: 'حلاق',
+  store: 'متجر',
+  company: 'شركة',
+  doctor: 'طبيب',
+  specialist: 'متخصص',
+  moderator: 'مشرف محتوى',
+  admin: 'مدير',
+};
 const BOOKING_STATUS_LABELS: Record<string, string> = {
   pending: 'قيد الانتظار',
   confirmed: 'مؤكد',
@@ -502,7 +515,7 @@ interface AdminReportRow {
   targetName: string;
 }
 
-function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookings' | 'payments' | 'reviews' | 'identity' | 'subscriptions' | 'reports'; adminId: string; onBack: () => void }) {
+function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookings' | 'payments' | 'reviews' | 'identity' | 'subscriptions' | 'reports' | 'marketplace'; adminId: string; onBack: () => void }) {
   const { themeConfig } = useApp();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [reviews, setReviews] = useState<AdminReviewRow[]>([]);
@@ -570,6 +583,7 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
         ));
         setReceiptUrls(Object.fromEntries(signedEntries.filter((entry): entry is readonly [string, string] => entry !== null)));
       }
+      // marketplace uses local seed panel — no remote fetch required
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل التحميل');
     } finally {
@@ -579,7 +593,16 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
 
   useEffect(() => { load(); }, [load]);
 
-  const titles: Record<string, string> = { users: 'إدارة المستخدمين', bookings: 'إدارة الحجوزات', payments: 'مراجعة المدفوعات', reviews: 'إدارة المراجعات', identity: 'توثيق الهويات', subscriptions: 'طلبات الاشتراك', reports: 'البلاغات' };
+  const titles: Record<string, string> = {
+    users: 'إدارة المستخدمين',
+    bookings: 'إدارة الحجوزات',
+    payments: 'مراجعة المدفوعات',
+    reviews: 'إدارة المراجعات',
+    identity: 'توثيق الهويات',
+    subscriptions: 'طلبات الاشتراك',
+    reports: 'البلاغات',
+    marketplace: 'إدارة السوق',
+  };
 
   const changeRole = async (u: AdminUserRow, role: string) => {
     setBusyId(u.id);
@@ -796,7 +819,98 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
               </div>
             </div>
           )))}
+
+        {!loading && section === 'marketplace' && (
+          <MarketplaceAdminPanel />
+        )}
       </div>
+    </div>
+  );
+}
+
+function MarketplaceAdminPanel() {
+  const { themeConfig, navigate } = useApp();
+  const [sellers, setSellers] = useState<MarketplaceSeller[]>(marketplaceSellers);
+  const [products] = useState<MarketplaceProduct[]>(marketplaceProducts);
+  const [potdId, setPotdId] = useState(marketplaceProducts.find(p => p.isProductOfTheDay)?.id || '');
+  const [toast, setToast] = useState('');
+
+  const approve = (id: string, ok: boolean) => {
+    setSellers(prev => prev.map(s => s.id === id
+      ? {
+          ...s,
+          approvalStatus: ok ? 'approved' : 'rejected',
+          isVerified: ok,
+          isTrustedDoctor: ok && s.sellerType === 'doctor' ? true : s.isTrustedDoctor,
+        }
+      : s));
+    setToast(ok ? 'تمت الموافقة على الحساب' : 'تم رفض الحساب');
+  };
+
+  const setProductOfDay = (productId: string) => {
+    setPotdId(productId);
+    setToast('تم تعيين منتج اليوم (موضع إعلاني مدفوع — بدون عمولة)');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+        <p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>قواعد الأدمن للسوق</p>
+        <ul className="text-[11px] mt-1 space-y-1" style={{ color: themeConfig.colors.textMuted }}>
+          <li>• الموافقة على المتاجر / الشركات / الأطباء (وليس كل منتج)</li>
+          <li>• التحكم في منتج اليوم والمواضع المميزة</li>
+          <li>• لا عمولات · لا دفع منتجات داخل التطبيق</li>
+        </ul>
+        <button
+          type="button"
+          className="mt-2 text-xs font-bold"
+          style={{ color: themeConfig.colors.primary }}
+          onClick={() => navigate('marketplace-analytics')}
+        >
+          فتح تحليلات السوق ←
+        </button>
+      </div>
+
+      <h4 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>حسابات البائعين</h4>
+      {sellers.map(seller => (
+        <div key={seller.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{seller.displayName}</p>
+              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
+                {ROLE_LABELS[seller.sellerType] || seller.sellerType} · {seller.approvalStatus} · {seller.subscriptionPlan}
+              </p>
+            </div>
+            <ShoppingBag size={16} style={{ color: themeConfig.colors.primary }} />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <button type="button" onClick={() => approve(seller.id, true)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>موافقة</button>
+            <button type="button" onClick={() => approve(seller.id, false)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.error + '15', color: themeConfig.colors.error }}>رفض</button>
+          </div>
+        </div>
+      ))}
+
+      <h4 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>منتج اليوم (أعلى عرض إعلاني)</h4>
+      {products.map(product => (
+        <button
+          key={product.id}
+          type="button"
+          onClick={() => setProductOfDay(product.id)}
+          className="w-full p-3 rounded-xl text-right"
+          style={{
+            backgroundColor: potdId === product.id ? `${themeConfig.colors.accent}18` : themeConfig.colors.surface,
+            border: `1px solid ${potdId === product.id ? themeConfig.colors.accent : themeConfig.colors.border}`,
+          }}
+        >
+          <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{product.title}</p>
+          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
+            {product.sellerName} · عرض توضيحي {marketplacePlacements[0]?.bidAmountDzd?.toLocaleString('ar-DZ')} دج
+            {potdId === product.id ? ' · الحالي' : ''}
+          </p>
+        </button>
+      ))}
+
+      {toast && <p className="text-xs text-center font-bold" style={{ color: themeConfig.colors.success }}>{toast}</p>}
     </div>
   );
 }

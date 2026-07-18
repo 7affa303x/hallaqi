@@ -28,7 +28,7 @@ export async function signUp(
   email: string,
   password: string,
   fullName: string,
-  accountType: 'client' | 'barber' = 'client'
+  accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client'
 ) {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 
