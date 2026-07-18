@@ -8,6 +8,7 @@ import {
   marketplaceSellers,
   marketplaceReviews,
   marketplacePlans,
+  companyMarketplacePlans,
   marketplacePlacements,
 } from '@/data/marketplaceSeed';
 import type {
@@ -167,7 +168,7 @@ export async function getMarketplaceCategories(): Promise<MarketplaceCategory[]>
   return marketplaceCategories;
 }
 
-export async function getMarketplacePlans(): Promise<MarketplaceSubscriptionPlan[]> {
+export async function getMarketplacePlans(sellerType?: 'store' | 'company' | 'doctor'): Promise<MarketplaceSubscriptionPlan[]> {
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await supabase
@@ -189,7 +190,51 @@ export async function getMarketplacePlans(): Promise<MarketplaceSubscriptionPlan
       }
     } catch { /* fallback */ }
   }
+  if (sellerType === 'company') return companyMarketplacePlans;
   return marketplacePlans;
+}
+
+/** All sellers for admin review (includes pending local + seed). */
+export async function getMarketplaceSellersForAdmin(): Promise<MarketplaceSeller[]> {
+  const remote = await tryRemoteSellers(true);
+  const local = typeof window !== 'undefined' ? readLocalSellers() : [];
+  const seed = marketplaceSellers;
+  const byId = new Map<string, MarketplaceSeller>();
+  for (const s of [...seed, ...(remote || []), ...local]) byId.set(s.id, s);
+  return [...byId.values()].sort((a, b) => {
+    const order = { pending: 0, approved: 1, rejected: 2, suspended: 3 };
+    return (order[a.approvalStatus] ?? 9) - (order[b.approvalStatus] ?? 9);
+  });
+}
+
+export async function requestDoctorFreeVerification(sellerId: string): Promise<{ ok: boolean; error?: string }> {
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await supabase
+        .from('marketplace_sellers' as never)
+        .update({
+          // Free verification request — admin still approves account
+          short_description: 'طلب توثيق طبيب مجاني',
+        } as never)
+        .eq('id', sellerId)
+        .eq('seller_type', 'doctor');
+      if (error) return { ok: false, error: error.message };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'فشل' };
+    }
+  }
+  const current = (await getMarketplaceSellerById(sellerId)) || buildLocalSellerStub(sellerId, { sellerType: 'doctor' });
+  const next: MarketplaceSeller = {
+    ...current,
+    sellerType: 'doctor',
+    // Marks verification requested; admin approval sets isVerified / isTrustedDoctor
+    shortDescription: current.shortDescription || 'طلب توثيق طبيب مجاني قيد المراجعة',
+  };
+  saveLocalSeller(next);
+  try {
+    localStorage.setItem(`hallaqi-doctor-verify-${sellerId}`, 'requested');
+  } catch { /* ignore */ }
+  return { ok: true };
 }
 
 export async function getMarketplacePlacements(): Promise<MarketplacePlacement[]> {

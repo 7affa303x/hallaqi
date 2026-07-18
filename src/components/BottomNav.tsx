@@ -9,6 +9,7 @@ import {
   User,
   Sparkles,
   ShoppingBag,
+  Heart,
 } from 'lucide-react';
 import { translate, type TranslationKey } from '@/lib/i18n';
 import AiRadialMenu from '@/components/nav/AiRadialMenu';
@@ -81,7 +82,10 @@ export default function BottomNav() {
                     whileTap={{ scale: 0.92 }}
                     animate={{ scale: longPress.pressed ? 1.08 : 1 }}
                   >
-                    <Sparkles size={24} className="text-white" />
+                    <span className="relative inline-flex items-center justify-center">
+                      <Heart size={22} className="text-white fill-white/30" />
+                      <Sparkles size={12} className="text-white absolute -top-1 -left-1" />
+                    </span>
                   </motion.div>
                   <span
                     className="text-[10px] mt-1 font-bold"

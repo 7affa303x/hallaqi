@@ -176,6 +176,11 @@ export default function StoreDetailPage() {
               {seller.websiteUrl && <p className="flex items-center gap-2"><Globe size={14} /> {seller.websiteUrl}</p>}
               {seller.contactPhone && <p className="flex items-center gap-2"><Phone size={14} /> {seller.contactPhone}</p>}
               {seller.contactEmail && <p className="flex items-center gap-2"><Mail size={14} /> {seller.contactEmail}</p>}
+              {Object.entries(seller.socialLinks || {}).filter(([, v]) => v).map(([net, url]) => (
+                <a key={net} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 underline">
+                  <Globe size={14} /> {net}: {url}
+                </a>
+              ))}
               <p>مناطق التوصيل: {seller.deliveryAreas.join('، ') || '—'}</p>
               <p>الخطة: {seller.subscriptionPlan} · حد القوائم: {seller.listingCap}/99</p>
             </div>

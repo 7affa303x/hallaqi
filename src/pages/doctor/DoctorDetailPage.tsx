@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Stethoscope, ExternalLink, Star, MapPin } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Stethoscope, ExternalLink, Star, MapPin, AlertTriangle, BookOpen } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 import {
   getMarketplaceSellerById,
   getSellerProducts,
   openExternalStore,
 } from '@/supabase/marketplace';
+import { doctorConsultancyTips } from '@/data/marketplaceSeed';
 import { formatDzd } from '@/lib/marketplace/filters';
 import { trackMarketplaceEvent } from '@/lib/marketplace/analytics';
 import type { MarketplaceProduct, MarketplaceSeller } from '@/types/marketplace';
@@ -48,7 +49,7 @@ export default function DoctorDetailPage() {
             <div className="w-16 h-16 rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${seller.logoUrl})` }} />
             <div>
               <h1 className="text-lg font-black" style={{ color: themeConfig.colors.text }}>{seller.displayName}</h1>
-              <div className="flex gap-1.5 mt-1">
+              <div className="flex gap-1.5 mt-1 flex-wrap">
                 {seller.isTrustedDoctor && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: `${themeConfig.colors.primary}15`, color: themeConfig.colors.primary }}>
@@ -70,6 +71,15 @@ export default function DoctorDetailPage() {
             </div>
           </div>
           <p className="text-sm mt-3 leading-7" style={{ color: themeConfig.colors.text }}>{seller.about}</p>
+
+          <div className="mt-3 rounded-xl border p-3 flex gap-2"
+            style={{ backgroundColor: `${themeConfig.colors.warning}10`, borderColor: `${themeConfig.colors.warning}40` }}>
+            <AlertTriangle size={16} className="shrink-0 mt-0.5" style={{ color: themeConfig.colors.warning }} />
+            <p className="text-[11px] leading-5" style={{ color: themeConfig.colors.text }}>
+              تنويه: المحتوى استشاري عام فقط. التطبيق وذكاء Hallaqi الاصطناعي لا يقدّمان تشخيصاً طبياً ولا يستبدلان زيارة الطبيب.
+            </p>
+          </div>
+
           {seller.websiteUrl && (
             <button
               type="button"
@@ -82,7 +92,19 @@ export default function DoctorDetailPage() {
           )}
         </div>
 
-        <h2 className="text-sm font-black mt-5 mb-2" style={{ color: themeConfig.colors.text }}>توصيات وخدمات</h2>
+        <h2 className="text-sm font-black mt-5 mb-2 flex items-center gap-1" style={{ color: themeConfig.colors.text }}>
+          <BookOpen size={14} /> محتوى استشاري
+        </h2>
+        <div className="space-y-2 mb-4">
+          {doctorConsultancyTips.map(tip => (
+            <div key={tip.id} className="rounded-2xl border p-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <p className="text-xs font-black" style={{ color: themeConfig.colors.text }}>{tip.title}</p>
+              <p className="text-[11px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>{tip.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <h2 className="text-sm font-black mt-2 mb-2" style={{ color: themeConfig.colors.text }}>توصيات وخدمات</h2>
         <div className="grid grid-cols-2 gap-3">
           {products.map(p => (
             <button

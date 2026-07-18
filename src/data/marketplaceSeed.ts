@@ -54,17 +54,54 @@ export const marketplacePlans: MarketplaceSubscriptionPlan[] = [
   {
     id: 'basic', nameAr: 'أساسي', nameEn: 'Basic', priceDzd: 1500, listingCap: 30,
     featuredSlots: 1, bannerSlots: 0, analyticsLevel: 'standard',
-    features: ['رؤية أفضل', 'منتج مميز واحد', 'تحليلات أساسية'],
+    features: ['رؤية أفضل', 'منتج مميز واحد', 'تحليلات أساسية', 'أدوات AI للقوائم'],
   },
   {
     id: 'professional', nameAr: 'احترافي', nameEn: 'Professional', priceDzd: 3500, listingCap: 60,
     featuredSlots: 3, bannerSlots: 1, analyticsLevel: 'advanced',
-    features: ['ظهور مميز', '3 منتجات مميزة', 'بانر', 'تحليلات متقدمة'],
+    features: ['ظهور مميز', '3 منتجات مميزة', 'بانر', 'تحليلات متقدمة', 'أدوات AI'],
   },
   {
     id: 'business', nameAr: 'أعمال', nameEn: 'Business', priceDzd: 7000, listingCap: 99,
     featuredSlots: 8, bannerSlots: 3, analyticsLevel: 'full',
-    features: ['حد أقصى 99 منتج', 'أولوية الظهور', 'منتج اليوم', 'شارات بريميوم'],
+    features: ['حد أقصى 99 منتج', 'أولوية الظهور', 'منتج اليوم', 'شارات بريميوم', 'تحليلات كاملة'],
+  },
+];
+
+/** Company plans — higher pricing for official brand presence. */
+export const companyMarketplacePlans: MarketplaceSubscriptionPlan[] = [
+  {
+    id: 'free', nameAr: 'مجاني شركة', nameEn: 'Company Free', priceDzd: 0, listingCap: 12,
+    featuredSlots: 0, bannerSlots: 0, analyticsLevel: 'basic',
+    features: ['ابدأ مجاناً', 'شارة شركة عند الموافقة', 'Pay as you grow'],
+  },
+  {
+    id: 'basic', nameAr: 'أساسي شركة', nameEn: 'Company Basic', priceDzd: 2500, listingCap: 30,
+    featuredSlots: 2, bannerSlots: 1, analyticsLevel: 'standard',
+    features: ['حضور علامة أقوى', '2 مواضع مميزة', 'أدوات AI'],
+  },
+  {
+    id: 'professional', nameAr: 'احترافي شركة', nameEn: 'Company Professional', priceDzd: 5500, listingCap: 60,
+    featuredSlots: 5, bannerSlots: 2, analyticsLevel: 'advanced',
+    features: ['ثقة أعلى في الترتيب', 'بانرات علامة', 'تحليلات متقدمة'],
+  },
+  {
+    id: 'business', nameAr: 'أعمال شركة', nameEn: 'Company Business', priceDzd: 12000, listingCap: 99,
+    featuredSlots: 12, bannerSlots: 5, analyticsLevel: 'full',
+    features: ['أقصى حضور للعلامة', 'منتج اليوم', 'تحليلات كاملة', 'أولوية الشركات'],
+  },
+];
+
+export const doctorConsultancyTips = [
+  {
+    id: 'tip-1',
+    title: 'العناية اليومية بالبشرة بعد الحلاقة',
+    body: 'استخدم مرطباً خفيفاً خالياً من الكحول بعد الحلاقة لتقليل التهيج. هذا محتوى استشاري عام وليس تشخيصاً طبياً.',
+  },
+  {
+    id: 'tip-2',
+    title: 'متى تزور مختصاً؟',
+    body: 'عند ظهور طفح مستمر أو تساقط غير معتاد، راجع طبيب أمراض جلدية. التطبيق لا يقدّم تشخيصاً طبياً.',
   },
 ];
 
@@ -190,6 +227,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'company-barberpro',
     sellerName: 'BarberPro الجزائر',
     sellerType: 'company',
+    subscriptionPlan: 'business',
     categoryId: 'clippers',
     kind: 'device',
     title: 'ماكينة Fade Pro X',
@@ -221,6 +259,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'store-atlas',
     sellerName: 'متجر أطلس للعناية',
     sellerType: 'store',
+    subscriptionPlan: 'professional',
     categoryId: 'beard_oils',
     kind: 'physical',
     title: 'زيت لحية أطلس أرغان',
@@ -251,6 +290,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'store-atlas',
     sellerName: 'متجر أطلس للعناية',
     sellerType: 'store',
+    subscriptionPlan: 'professional',
     categoryId: 'hair_oils',
     kind: 'physical',
     title: 'سيروم شعر كثيف',
@@ -279,6 +319,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'doctor-skinlab',
     sellerName: 'د. سارة بن يوسف',
     sellerType: 'doctor',
+    subscriptionPlan: 'free',
     categoryId: 'skin_care',
     kind: 'physical',
     title: 'توصية: مرطب يومي spf',
@@ -308,6 +349,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'store-sahara',
     sellerName: 'صحراء بيوتي',
     sellerType: 'store',
+    subscriptionPlan: 'basic',
     categoryId: 'skin_care',
     kind: 'physical',
     title: 'صابون طين صحراوي',
@@ -336,6 +378,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'company-barberpro',
     sellerName: 'BarberPro الجزائر',
     sellerType: 'company',
+    subscriptionPlan: 'business',
     categoryId: 'courses',
     kind: 'course',
     title: 'دورة Fade للمبتدئين',
@@ -364,6 +407,7 @@ export const marketplaceProducts: MarketplaceProduct[] = [
     sellerId: 'store-atlas',
     sellerName: 'متجر أطلس للعناية',
     sellerType: 'store',
+    subscriptionPlan: 'professional',
     categoryId: 'shaving',
     kind: 'service_extra',
     title: 'خدمة VIP عناية لحية (إضافي)',
@@ -457,6 +501,7 @@ export const mockMarketplaceAnalytics: MarketplaceAnalyticsSummary = {
   visitStoreClicks: 760,
   productOfDayViews: 5200,
   productOfDayClicks: 1340,
+  conversionRatePct: 5.9,
   topCategories: [
     { id: 'devices', label: 'أجهزة', count: 420 },
     { id: 'beard', label: 'لحية', count: 310 },

@@ -38,4 +38,14 @@ describe('marketplace filters', () => {
     const list = filterMarketplaceProducts(marketplaceProducts, { sortBy: 'newest' });
     expect(list[0].createdAt >= list[1].createdAt).toBe(true);
   });
+
+  it('weights popularity by subscription plan tier', () => {
+    const list = filterMarketplaceProducts(marketplaceProducts, { sortBy: 'popularity' });
+    const businessIdx = list.findIndex(p => p.subscriptionPlan === 'business');
+    const freeIdx = list.findIndex(p => p.subscriptionPlan === 'free');
+    if (businessIdx >= 0 && freeIdx >= 0) {
+      expect(businessIdx).toBeLessThan(freeIdx);
+    }
+    expect(list[0].isProductOfTheDay || list[0].subscriptionPlan === 'business' || list[0].isPremiumVisibility).toBe(true);
+  });
 });

@@ -1,6 +1,8 @@
 /** Marketplace & multi-role commerce types (no commissions / no in-app checkout). */
 
 export type MarketplaceSellerType = 'store' | 'company' | 'doctor';
+/** Product listing origin — includes barber extras that are not store SKUs. */
+export type MarketplaceListingSellerType = MarketplaceSellerType | 'barber';
 export type MarketplaceApprovalStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 export type MarketplacePlanTier = 'free' | 'basic' | 'professional' | 'business';
 export type MarketplaceProductKind = 'physical' | 'service_extra' | 'course' | 'device' | 'accessory';
@@ -80,7 +82,9 @@ export interface MarketplaceProduct {
   id: string;
   sellerId: string;
   sellerName?: string;
-  sellerType?: MarketplaceSellerType;
+  sellerType?: MarketplaceListingSellerType;
+  /** Subscription plan of the listing owner — used for tier-weighted ranking. */
+  subscriptionPlan?: MarketplacePlanTier | 'pro' | 'premium';
   categoryId: string;
   kind: MarketplaceProductKind;
   title: string;
@@ -172,9 +176,22 @@ export interface MarketplaceAnalyticsSummary {
   visitStoreClicks: number;
   productOfDayViews: number;
   productOfDayClicks: number;
+  /** visit_store / views — discovery → external CTA conversion */
+  conversionRatePct: number;
   topCategories: Array<{ id: string; label: string; count: number }>;
   topLocations: Array<{ wilaya: string; count: number }>;
   growthPct: number;
+}
+
+/** Admin-controlled marketplace feed sections. */
+export interface MarketplaceSectionConfig {
+  showProductOfTheDay: boolean;
+  showFeaturedStrip: boolean;
+  showBanners: boolean;
+  showBarberExtras: boolean;
+  showCompanies: boolean;
+  showDoctors: boolean;
+  categoryOrder: string[];
 }
 
 /** Premium listing hard cap — never unlimited. */

@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ArrowLeft, Wand2, Loader2, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Wand2, Loader2, Copy, Check, Lock } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
+import { canAccessAiListingTools } from '@/lib/marketplace/planAccess';
+import type { MarketplacePlanTier } from '@/types/marketplace';
 
 type ToolKind =
   | 'title'
@@ -22,7 +24,9 @@ const TOOLS: { id: ToolKind; label: string; placeholder: string }[] = [
 ];
 
 export default function AiListingToolsPage() {
-  const { themeConfig, goBack } = useApp();
+  const { themeConfig, goBack, screenParams } = useApp();
+  const planId = (screenParams?.plan as MarketplacePlanTier) || 'basic';
+  const unlocked = canAccessAiListingTools(planId);
   const [tool, setTool] = useState<ToolKind>('title');
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
@@ -31,7 +35,7 @@ export default function AiListingToolsPage() {
   const [usedFallback, setUsedFallback] = useState(false);
 
   const generate = async () => {
-    if (!input.trim()) return;
+    if (!unlocked || !input.trim()) return;
     setLoading(true);
     setCopied(false);
     setUsedFallback(false);
@@ -75,13 +79,23 @@ export default function AiListingToolsPage() {
         يساعد البائع على كتابة العناوين والأوصاف — لا يستبدل نموذج العمل ولا ينشئ عمولات.
       </p>
 
+      {!unlocked && (
+        <div className="rounded-2xl border p-3 mb-3 flex gap-2" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <Lock size={14} style={{ color: themeConfig.colors.accent }} />
+          <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>
+            أدوات AI متاحة من الخطة الأساسية فما فوق — المستويات تفتح رؤى وأدوات وليس فقط كمية القوائم.
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
         {TOOLS.map(t => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTool(t.id)}
-            className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold"
+            disabled={!unlocked}
+            className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold disabled:opacity-50"
             style={{
               backgroundColor: tool === t.id ? themeConfig.colors.primary : themeConfig.colors.surface,
               color: tool === t.id ? '#fff' : themeConfig.colors.textMuted,
@@ -98,15 +112,16 @@ export default function AiListingToolsPage() {
         onChange={e => setInput(e.target.value)}
         rows={4}
         placeholder={TOOLS.find(t => t.id === tool)?.placeholder}
-        className="w-full rounded-2xl p-3 text-sm outline-none border"
+        disabled={!unlocked}
+        className="w-full rounded-2xl p-3 text-sm outline-none border disabled:opacity-50"
         style={{ backgroundColor: themeConfig.colors.surface, color: themeConfig.colors.text, borderColor: themeConfig.colors.border }}
       />
 
       <button
         type="button"
-        disabled={loading || !input.trim()}
+        disabled={!unlocked || loading || !input.trim()}
         onClick={() => void generate()}
-        className="w-full mt-3 py-3 rounded-2xl text-sm font-black text-white flex items-center justify-center gap-2"
+        className="w-full mt-3 py-3 rounded-2xl text-sm font-black text-white flex items-center justify-center gap-2 disabled:opacity-50"
         style={{ backgroundColor: themeConfig.colors.primary, opacity: loading ? 0.7 : 1 }}
       >
         {loading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}

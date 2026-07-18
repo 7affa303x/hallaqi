@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink, Star, BadgeCheck, Crown } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Star, BadgeCheck, Crown, Bookmark } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 import { getMarketplaceProductById, getMarketplaceSellerById, openExternalStore } from '@/supabase/marketplace';
 import { formatDzd, discountPercent } from '@/lib/marketplace/filters';
 import { trackMarketplaceEvent } from '@/lib/marketplace/analytics';
+import { createMarketplaceReport } from '@/lib/marketplace/sectionConfig';
 import type { MarketplaceProduct, MarketplaceSeller } from '@/types/marketplace';
 
 export default function ProductDetailPage() {
@@ -11,6 +12,8 @@ export default function ProductDetailPage() {
   const productId = screenParams?.productId || '';
   const [product, setProduct] = useState<MarketplaceProduct | null>(null);
   const [seller, setSeller] = useState<MarketplaceSeller | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [reportToast, setReportToast] = useState('');
 
   useEffect(() => {
     if (!productId) return;
@@ -23,6 +26,11 @@ export default function ProductDetailPage() {
       if (p.isProductOfTheDay) trackMarketplaceEvent('product_of_day_view', { productId: p.id, sellerId: p.sellerId });
       const s = await getMarketplaceSellerById(p.sellerId);
       if (s) setSeller(s);
+      try {
+        const raw = localStorage.getItem('hallaqi-marketplace-saves');
+        const ids = raw ? JSON.parse(raw) as string[] : [];
+        setSaved(ids.includes(p.id));
+      } catch { /* ignore */ }
     })();
   }, [productId]);
 
@@ -36,8 +44,40 @@ export default function ProductDetailPage() {
 
   const pct = discountPercent(product.priceDzd, product.compareAtPriceDzd);
   const visit = () => {
+    trackMarketplaceEvent('click', { productId: product.id, sellerId: product.sellerId });
     trackMarketplaceEvent('visit_store', { productId: product.id, sellerId: product.sellerId });
+    if (product.isFeatured) trackMarketplaceEvent('featured_click', { productId: product.id, sellerId: product.sellerId });
+    if (product.isProductOfTheDay) trackMarketplaceEvent('product_of_day_click', { productId: product.id, sellerId: product.sellerId });
     openExternalStore(product.externalUrl || seller?.websiteUrl);
+  };
+
+  const toggleSave = () => {
+    try {
+      const raw = localStorage.getItem('hallaqi-marketplace-saves');
+      const ids = new Set(raw ? JSON.parse(raw) as string[] : []);
+      if (ids.has(product.id)) ids.delete(product.id);
+      else {
+        ids.add(product.id);
+        trackMarketplaceEvent('save', {
+          productId: product.id,
+          sellerId: product.sellerId,
+          categoryId: product.categoryId,
+          wilaya: product.wilaya,
+        });
+      }
+      localStorage.setItem('hallaqi-marketplace-saves', JSON.stringify([...ids]));
+      setSaved(ids.has(product.id));
+    } catch { /* ignore */ }
+  };
+
+  const report = () => {
+    createMarketplaceReport({
+      targetType: 'product',
+      targetId: product.id,
+      targetLabel: product.title,
+      reason: 'محتوى غير مناسب / إعلان مضلل',
+    });
+    setReportToast('تم إرسال البلاغ للأدمن');
   };
 
   return (
@@ -46,7 +86,15 @@ export default function ProductDetailPage() {
         <button type="button" onClick={goBack} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center" aria-label="رجوع">
           <ArrowLeft size={18} />
         </button>
-        <div className="absolute top-4 left-4 flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={toggleSave}
+          className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center"
+          aria-label={saved ? 'إزالة الحفظ' : 'حفظ المنتج'}
+        >
+          <Bookmark size={18} className={saved ? 'fill-current' : ''} />
+        </button>
+        <div className="absolute bottom-4 left-4 flex flex-col gap-1">
           {product.isProductOfTheDay && <span className="text-[10px] font-black px-2 py-1 rounded-full bg-amber-400 text-black">منتج اليوم</span>}
           {product.isPremiumVisibility && <span className="text-[10px] font-black px-2 py-1 rounded-full text-white" style={{ backgroundColor: themeConfig.colors.primary }}>بريميوم</span>}
           {product.isFeatured && <span className="text-[10px] font-black px-2 py-1 rounded-full text-white" style={{ backgroundColor: themeConfig.colors.accent }}>مميز</span>}
@@ -102,6 +150,11 @@ export default function ProductDetailPage() {
             </div>
           </button>
         )}
+
+        <button type="button" onClick={report} className="text-[11px] font-bold underline" style={{ color: themeConfig.colors.textMuted }}>
+          الإبلاغ عن هذا المنتج
+        </button>
+        {reportToast && <p className="text-xs font-bold" style={{ color: themeConfig.colors.success }}>{reportToast}</p>}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 p-4 border-t backdrop-blur-xl z-40"

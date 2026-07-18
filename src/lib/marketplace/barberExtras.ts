@@ -24,11 +24,16 @@ function serviceToProduct(barber: Barber, service: Service): MarketplaceProduct 
       : service.category === 'coloring' ? 'hair'
         : 'professional_tools';
 
+  const plan = barber.subscriptionPlan;
+  const isPremium =
+    plan === 'premium' || plan === 'business' || plan === 'pro' || plan === 'professional';
+
   return {
     id: `barber-extra-${barber.id}-${service.id}`,
     sellerId: barber.id,
     sellerName: barber.name,
-    sellerType: 'store',
+    sellerType: 'barber',
+    subscriptionPlan: plan,
     categoryId,
     kind: 'service_extra',
     title: `${service.name} · ${barber.name}`,
@@ -41,7 +46,7 @@ function serviceToProduct(barber: Barber, service: Service): MarketplaceProduct 
     wilaya: barber.wilaya,
     deliveryAreas: [barber.wilaya],
     isFeatured: barber.isSubscribed,
-    isPremiumVisibility: barber.subscriptionPlan === 'premium' || barber.subscriptionPlan === 'pro',
+    isPremiumVisibility: isPremium,
     isProductOfTheDay: false,
     isBestseller: false,
     isNew: barber.tags.includes('new'),

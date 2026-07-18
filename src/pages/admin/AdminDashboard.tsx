@@ -16,15 +16,23 @@ import { getSignedUrl } from '@/supabase/storage';
 import type { Database } from '@/types/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Users, Scissors, Calendar, CreditCard, Clock, Star, DollarSign, TrendingUp, ChevronRight, Shield, Check, X, ArrowRight, Crown, Flag, ShoppingBag } from 'lucide-react';
-import { marketplaceSellers, marketplaceProducts, marketplacePlacements } from '@/data/marketplaceSeed';
-import type { MarketplaceSeller, MarketplaceProduct } from '@/types/marketplace';
+import { marketplaceProducts, marketplacePlacements } from '@/data/marketplaceSeed';
+import type { MarketplaceSeller, MarketplaceProduct, MarketplaceSectionConfig } from '@/types/marketplace';
 import {
   adminReviewPlacement,
   adminReviewSeller,
   adminSetProductOfDay,
+  getMarketplaceSellersForAdmin,
   listPlacementRequests,
 } from '@/supabase/marketplace';
 import type { SellerPlacementRequest } from '@/lib/marketplace/sellerInventory';
+import {
+  listMarketplaceReports,
+  readMarketplaceSectionConfig,
+  resolveMarketplaceReport,
+  writeMarketplaceSectionConfig,
+  type MarketplaceReport,
+} from '@/lib/marketplace/sectionConfig';
 
 interface DashboardStats {
   totalUsers: number;
@@ -837,26 +845,24 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
 
 function MarketplaceAdminPanel() {
   const { themeConfig, navigate } = useApp();
-  const [sellers, setSellers] = useState<MarketplaceSeller[]>(marketplaceSellers);
+  const [sellers, setSellers] = useState<MarketplaceSeller[]>([]);
   const [products] = useState<MarketplaceProduct[]>(marketplaceProducts);
   const [potdId, setPotdId] = useState(marketplaceProducts.find(p => p.isProductOfTheDay)?.id || '');
   const [placementReqs, setPlacementReqs] = useState<SellerPlacementRequest[]>([]);
+  const [reports, setReports] = useState<MarketplaceReport[]>([]);
+  const [sections, setSections] = useState<MarketplaceSectionConfig>(DEFAULT_SECTIONS_SAFE);
   const [toast, setToast] = useState('');
 
   useEffect(() => {
+    void getMarketplaceSellersForAdmin().then(setSellers);
     void listPlacementRequests().then(setPlacementReqs);
+    setReports(listMarketplaceReports());
+    setSections(readMarketplaceSectionConfig());
   }, []);
 
   const approve = async (id: string, ok: boolean) => {
     const result = await adminReviewSeller(id, ok);
-    setSellers(prev => prev.map(s => s.id === id
-      ? {
-          ...s,
-          approvalStatus: ok ? 'approved' : 'rejected',
-          isVerified: ok,
-          isTrustedDoctor: ok && s.sellerType === 'doctor' ? true : s.isTrustedDoctor,
-        }
-      : s));
+    setSellers(await getMarketplaceSellersForAdmin());
     setToast(result.ok
       ? (ok ? 'تمت الموافقة على الحساب' : 'تم رفض الحساب')
       : (result.error || 'فشل'));
@@ -878,13 +884,28 @@ function MarketplaceAdminPanel() {
       : (result.error || 'فشل'));
   };
 
+  const toggleSection = (key: keyof MarketplaceSectionConfig) => {
+    if (key === 'categoryOrder') return;
+    const next = { ...sections, [key]: !sections[key] };
+    setSections(next);
+    writeMarketplaceSectionConfig(next);
+    setToast('تم تحديث أقسام السوق');
+  };
+
+  const resolveReport = (id: string, ok: boolean) => {
+    resolveMarketplaceReport(id, ok);
+    setReports(listMarketplaceReports());
+    setToast(ok ? 'تمت مراجعة بلاغ السوق' : 'تم رفض البلاغ');
+  };
+
   return (
     <div className="space-y-4">
       <div className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
         <p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>قواعد الأدمن للسوق</p>
         <ul className="text-[11px] mt-1 space-y-1" style={{ color: themeConfig.colors.textMuted }}>
           <li>• الموافقة على المتاجر / الشركات / الأطباء (وليس كل منتج)</li>
-          <li>• التحكم في منتج اليوم والمواضع المميزة</li>
+          <li>• التحكم في منتج اليوم والمواضع المميزة وأقسام السوق</li>
+          <li>• مراجعة بلاغات المنتجات/البائعين</li>
           <li>• لا عمولات · لا دفع منتجات داخل التطبيق</li>
         </ul>
         <button
@@ -897,7 +918,36 @@ function MarketplaceAdminPanel() {
         </button>
       </div>
 
+      <h4 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>التحكم بأقسام السوق</h4>
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          ['showProductOfTheDay', 'منتج اليوم'],
+          ['showFeaturedStrip', 'شريط المميز'],
+          ['showBanners', 'البانرات'],
+          ['showBarberExtras', 'خدمات الحلاقين'],
+          ['showCompanies', 'الشركات'],
+          ['showDoctors', 'الأطباء'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => toggleSection(key)}
+            className="p-2 rounded-xl text-[11px] font-bold text-right"
+            style={{
+              backgroundColor: sections[key] ? `${themeConfig.colors.success}15` : themeConfig.colors.surface,
+              border: `1px solid ${themeConfig.colors.border}`,
+              color: themeConfig.colors.text,
+            }}
+          >
+            {label}: {sections[key] ? 'ظاهر' : 'مخفي'}
+          </button>
+        ))}
+      </div>
+
       <h4 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>حسابات البائعين</h4>
+      {sellers.length === 0 && (
+        <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>لا حسابات بائعين</p>
+      )}
       {sellers.map(seller => (
         <div key={seller.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
           <div className="flex items-center justify-between gap-2">
@@ -909,9 +959,26 @@ function MarketplaceAdminPanel() {
             </div>
             <ShoppingBag size={16} style={{ color: themeConfig.colors.primary }} />
           </div>
+          {seller.approvalStatus === 'pending' && (
+            <div className="flex gap-2 mt-2">
+              <button type="button" onClick={() => void approve(seller.id, true)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>موافقة</button>
+              <button type="button" onClick={() => void approve(seller.id, false)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.error + '15', color: themeConfig.colors.error }}>رفض</button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <h4 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بلاغات السوق</h4>
+      {reports.filter(r => r.status === 'pending').length === 0 && (
+        <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>لا بلاغات معلّقة</p>
+      )}
+      {reports.filter(r => r.status === 'pending').map(r => (
+        <div key={r.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
+          <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{r.targetLabel}</p>
+          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{r.targetType} · {r.reason}</p>
           <div className="flex gap-2 mt-2">
-            <button type="button" onClick={() => void approve(seller.id, true)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>موافقة</button>
-            <button type="button" onClick={() => void approve(seller.id, false)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.error + '15', color: themeConfig.colors.error }}>رفض</button>
+            <button type="button" onClick={() => resolveReport(r.id, true)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.warning + '15', color: themeConfig.colors.warning }}>تمت المراجعة</button>
+            <button type="button" onClick={() => resolveReport(r.id, false)} className="flex-1 h-8 rounded-lg text-xs font-bold" style={{ backgroundColor: themeConfig.colors.textMuted + '15', color: themeConfig.colors.textMuted }}>رفض</button>
           </div>
         </div>
       ))}
@@ -958,4 +1025,14 @@ function MarketplaceAdminPanel() {
       {toast && <p className="text-xs text-center font-bold" style={{ color: themeConfig.colors.success }}>{toast}</p>}
     </div>
   );
+}
+
+const DEFAULT_SECTIONS_SAFE: MarketplaceSectionConfig = {
+  showProductOfTheDay: true,
+  showFeaturedStrip: true,
+  showBanners: true,
+  showBarberExtras: true,
+  showCompanies: true,
+  showDoctors: true,
+  categoryOrder: [],
 }

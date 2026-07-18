@@ -44,13 +44,20 @@ export function trackMarketplaceEvent(
 export function summarizeMarketplaceAnalytics(sellerId?: string): MarketplaceAnalyticsSummary {
   const events = readEvents().filter(e => !sellerId || e.sellerId === sellerId);
   if (events.length < 5) {
-    return sellerId
+    const base = sellerId
       ? {
           ...mockMarketplaceAnalytics,
           views: Math.round(mockMarketplaceAnalytics.views * 0.35),
           clicks: Math.round(mockMarketplaceAnalytics.clicks * 0.35),
+          visitStoreClicks: Math.round(mockMarketplaceAnalytics.visitStoreClicks * 0.35),
         }
       : mockMarketplaceAnalytics;
+    return {
+      ...base,
+      conversionRatePct: base.views > 0
+        ? Math.round((base.visitStoreClicks / base.views) * 1000) / 10
+        : 0,
+    };
   }
 
   const count = (type: MarketplaceAnalyticsEventType) => events.filter(e => e.eventType === type).length;
@@ -61,17 +68,21 @@ export function summarizeMarketplaceAnalytics(sellerId?: string): MarketplaceAna
     if (e.wilaya) locationMap.set(e.wilaya, (locationMap.get(e.wilaya) || 0) + 1);
   }
 
+  const views = count('view');
+  const visitStoreClicks = count('visit_store');
+
   return {
-    views: count('view'),
+    views,
     clicks: count('click'),
     saves: count('save'),
     profileVisits: count('profile_visit'),
     searchImpressions: count('search_impression'),
     featuredImpressions: count('featured_impression'),
     featuredClicks: count('featured_click'),
-    visitStoreClicks: count('visit_store'),
+    visitStoreClicks,
     productOfDayViews: count('product_of_day_view'),
     productOfDayClicks: count('product_of_day_click'),
+    conversionRatePct: views > 0 ? Math.round((visitStoreClicks / views) * 1000) / 10 : 0,
     topCategories: [...categoryMap.entries()]
       .map(([id, c]) => ({ id, label: id, count: c }))
       .sort((a, b) => b.count - a.count)

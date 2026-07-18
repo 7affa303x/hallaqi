@@ -3,6 +3,7 @@ import type {
   MarketplaceProduct,
   MarketplaceCategory,
 } from '@/types/marketplace';
+import { planTierRank } from '@/lib/marketplace/planAccess';
 
 export function flattenCategories(categories: MarketplaceCategory[]): MarketplaceCategory[] {
   const out: MarketplaceCategory[] = [];
@@ -109,6 +110,7 @@ export function filterMarketplaceProducts(
     default:
       list.sort((a, b) =>
         Number(b.isProductOfTheDay) - Number(a.isProductOfTheDay)
+        || planTierRank(b.subscriptionPlan) - planTierRank(a.subscriptionPlan)
         || Number(b.isPremiumVisibility) - Number(a.isPremiumVisibility)
         || Number(b.isFeatured) - Number(a.isFeatured)
         || b.popularityScore - a.popularityScore

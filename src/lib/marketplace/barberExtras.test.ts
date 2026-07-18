@@ -42,6 +42,7 @@ describe('barber extras mapping', () => {
     expect(extras.some(p => p.title.includes('قص كلاسيكي'))).toBe(false);
     expect(extras.some(p => p.kind === 'service_extra')).toBe(true);
     expect(extras.every(p => p.kind === 'service_extra')).toBe(true);
+    expect(extras.every(p => p.sellerType === 'barber')).toBe(true);
     expect(extras.length).toBeGreaterThanOrEqual(2);
   });
 });

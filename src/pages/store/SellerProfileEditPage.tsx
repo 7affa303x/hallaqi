@@ -30,6 +30,9 @@ export default function SellerProfileEditPage() {
     brandName: '',
     logoUrl: '',
     coverUrl: '',
+    instagram: '',
+    facebook: '',
+    tiktok: '',
   });
 
   useEffect(() => {
@@ -55,6 +58,9 @@ export default function SellerProfileEditPage() {
         brandName: s.brandName || '',
         logoUrl: s.logoUrl || '',
         coverUrl: s.coverUrl || '',
+        instagram: s.socialLinks?.instagram || '',
+        facebook: s.socialLinks?.facebook || '',
+        tiktok: s.socialLinks?.tiktok || '',
       });
     })();
   }, [sellerId, role, appUser?.full_name]);
@@ -74,6 +80,11 @@ export default function SellerProfileEditPage() {
       brandName: form.brandName.trim(),
       logoUrl: form.logoUrl.trim(),
       coverUrl: form.coverUrl.trim(),
+      socialLinks: {
+        instagram: form.instagram.trim(),
+        facebook: form.facebook.trim(),
+        tiktok: form.tiktok.trim(),
+      },
     });
     setSaving(false);
     if (result.ok) {
@@ -103,16 +114,19 @@ export default function SellerProfileEditPage() {
 
       <div className="space-y-2">
         {([
-          ['displayName', 'الاسم الظاهر', Mail],
-          ['brandName', 'العلامة التجارية', Building2],
-          ['shortDescription', 'وصف قصير', Mail],
-          ['websiteUrl', 'رابط الموقع (Visit Store)', Globe],
-          ['contactEmail', 'البريد', Mail],
-          ['contactPhone', 'الهاتف', Phone],
-          ['wilaya', 'الولاية', MapPin],
-          ['deliveryAreas', 'مناطق التوصيل (مفصولة بفاصلة)', MapPin],
-          ['logoUrl', 'رابط الشعار', Globe],
-          ['coverUrl', 'رابط صورة الغلاف', Globe],
+          ['displayName', 'الاسم الظاهر'],
+          ['brandName', 'العلامة التجارية'],
+          ['shortDescription', 'وصف قصير'],
+          ['websiteUrl', 'رابط الموقع (Visit Store)'],
+          ['contactEmail', 'البريد'],
+          ['contactPhone', 'الهاتف'],
+          ['wilaya', 'الولاية'],
+          ['deliveryAreas', 'مناطق التوصيل (مفصولة بفاصلة)'],
+          ['logoUrl', 'رابط الشعار'],
+          ['coverUrl', 'رابط صورة الغلاف'],
+          ['instagram', 'Instagram'],
+          ['facebook', 'Facebook'],
+          ['tiktok', 'TikTok'],
         ] as const).map(([key, label]) => (
           <label key={key} className="block text-xs">
             <span style={{ color: themeConfig.colors.textMuted }}>{label}</span>
