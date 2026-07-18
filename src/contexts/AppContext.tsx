@@ -96,6 +96,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [screenParams, setScreenParams] = useState<ScreenParams | undefined>(undefined);
   const [, setHistory] = useState<HistoryEntry[]>([{ screen: 'home' }]);
 
+  /* ---- Tab ---- */
+  const [activeTab, setActiveTabState] = useState<TabName>('booking');
+  const [prevTab, setPrevTab] = useState<TabName | null>(null);
+
+  /** Reset to main tabs shell so bottom nav stays visible and stable. */
+  const resetToTabs = useCallback((tab: TabName = 'booking') => {
+    setActiveTabState(prev => {
+      setPrevTab(prev);
+      return tab;
+    });
+    setScreen('home');
+    setScreenParams(undefined);
+    setHistory([{ screen: 'home' }]);
+    window.history.replaceState({ hallaqi: true, tab }, '', '/');
+  }, []);
+
   /* ---- Initialize screen from URL on mount ---- */
   useEffect(() => {
     const pathname = window.location.pathname;
@@ -133,7 +149,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else if (queryScreen === 'notifications') {
       initialScreen = 'notifications';
     } else if (queryScreen === 'ai-advisor') {
-      initialScreen = 'ai-advisor';
+      // Open AI as a tab so bottom nav does not disappear
+      setActiveTabState('ai-hub');
+      initialScreen = 'home';
     } else if (queryScreen && queryScreens.has(queryScreen as ScreenName)) {
       initialScreen = queryScreen as ScreenName;
       initialParams = Object.fromEntries(
@@ -147,35 +165,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const navigate = useCallback((nextScreen: ScreenName, params?: ScreenParams) => {
+    // Always reset stack when returning home — fixes auth/register nav glitches
+    if (nextScreen === 'home') {
+      const tab = (params?.redirectTab as TabName) || 'booking';
+      setActiveTabState(prev => {
+        setPrevTab(prev);
+        return tab;
+      });
+      setScreen('home');
+      setScreenParams(undefined);
+      setHistory([{ screen: 'home' }]);
+      window.history.replaceState({ hallaqi: true, tab }, '', '/');
+      return;
+    }
     setScreen(nextScreen);
     setScreenParams(params);
     setHistory(prev => [...prev, { screen: nextScreen, params }]);
-    window.history.pushState({}, '', screenUrl(nextScreen, params));
+    window.history.pushState({ hallaqi: true, screen: nextScreen }, '', screenUrl(nextScreen, params));
   }, []);
 
   const goBack = useCallback(() => {
     setHistory(prev => {
-      if (prev.length <= 1) return prev;
+      if (prev.length <= 1) {
+        // Never no-op: fall back to home tabs (deep links / empty stack)
+        setScreen('home');
+        setScreenParams(undefined);
+        window.history.replaceState({ hallaqi: true }, '', '/');
+        return [{ screen: 'home' }];
+      }
       const next = prev.slice(0, -1);
       const last = next[next.length - 1];
       setScreen(last.screen);
       setScreenParams(last.params);
-      window.history.pushState({}, '', screenUrl(last.screen, last.params));
+      // replaceState avoids back-button loops created by pushState-on-back
+      window.history.replaceState({ hallaqi: true, screen: last.screen }, '', screenUrl(last.screen, last.params));
       return next;
     });
   }, []);
 
-  /* ---- Tab ---- */
-  const [activeTab, setActiveTabState] = useState<TabName>('booking');
-  const [prevTab, setPrevTab] = useState<TabName | null>(null);
-
   const setActiveTab = useCallback((tab: TabName) => {
-    setPrevTab(activeTab);
-    setActiveTabState(tab);
-    setScreen('home');
-    setScreenParams(undefined);
-    window.history.pushState({}, '', '/');
-  }, [activeTab]);
+    resetToTabs(tab);
+  }, [resetToTabs]);
+
+  // Browser / device system back
+  useEffect(() => {
+    const onPopState = () => {
+      setHistory(prev => {
+        if (prev.length <= 1) {
+          setScreen('home');
+          setScreenParams(undefined);
+          return [{ screen: 'home' }];
+        }
+        const next = prev.slice(0, -1);
+        const last = next[next.length - 1];
+        setScreen(last.screen);
+        setScreenParams(last.params);
+        return next;
+      });
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
     if (!appUser) return;
@@ -185,7 +235,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const intent = JSON.parse(serialized) as { screen?: ScreenName; params?: ScreenParams };
       if (intent.params?.redirectTab) setActiveTab(intent.params.redirectTab as TabName);
-      if (intent.screen && intent.screen !== 'login') navigate(intent.screen, intent.params);
+      if (intent.screen && intent.screen !== 'login' && intent.screen !== 'home') {
+        navigate(intent.screen, intent.params);
+      } else if (!intent.screen || intent.screen === 'home') {
+        setActiveTab('booking');
+      }
     } catch {
       // Ignore malformed, user-controlled session storage.
     }

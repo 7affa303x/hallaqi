@@ -170,7 +170,8 @@ function NetworkStatusBar() {
 function AppContent() {
   const { themeConfig, animationStyle, screen, dataError, refreshData } = useApp();
   const { isLoading: authLoading } = useAuth();
-  const showNav = screen === 'home';
+  // Keep bottom nav on home tabs AND legacy ai-advisor route (prevents nav disappearing)
+  const showNav = screen === 'home' || screen === 'ai-advisor';
   const setIsOnline = useStore(s => s.setIsOnline);
 
   useEffect(() => {

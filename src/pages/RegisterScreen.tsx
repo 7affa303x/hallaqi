@@ -79,7 +79,7 @@ export default function RegisterScreen() {
       );
       if (result.session) {
         setAuthenticated(true);
-        navigate('home');
+        navigate('home', { redirectTab: 'booking' });
       } else {
         setAuthenticated(false);
         setVerificationEmail(data.email);
@@ -103,7 +103,7 @@ export default function RegisterScreen() {
     try {
       await googleSignIn();
       setAuthenticated(true);
-      navigate('home');
+      navigate('home', { redirectTab: 'booking' });
     } catch {
       setLocalError('فشل التسجيل بـ Google. حاول مرة أخرى.');
     }
@@ -180,9 +180,10 @@ export default function RegisterScreen() {
       <div className="px-5 pt-6 pb-2">
         <motion.button
           whileTap={{ scale: 0.92 }}
-          onClick={() => navigate('home')}
+          onClick={() => navigate('home', { redirectTab: 'booking' })}
           className="w-10 h-10 rounded-2xl flex items-center justify-center mb-5"
           style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}
+          aria-label="رجوع"
         >
           <ArrowRight size={20} style={{ color: themeConfig.colors.text }} />
         </motion.button>

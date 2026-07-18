@@ -15,7 +15,7 @@ import BarberStudioHub from '@/components/barber/BarberStudioHub';
 import {
   CalendarDays, Clock, MapPin, Car, CreditCard,
   CheckCircle2, XCircle, AlertCircle, MessageSquare,
-  Star, Navigation, LogIn
+  Star, Navigation, LogIn, ArrowRight
 } from 'lucide-react';
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
@@ -133,8 +133,17 @@ export default function AppointmentsTab() {
       {/* Header */}
       <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
         <div className="flex items-center gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab('booking')}
+            className="w-9 h-9 rounded-xl flex items-center justify-center border"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+            aria-label="رجوع للحجز"
+          >
+            <ArrowRight size={18} style={{ color: themeConfig.colors.text }} />
+          </button>
           <BrandLogo className="w-9 h-9 shadow-sm" priority />
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>{translate(settings.language, 'myAppointments')}</h1>
             <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{translate(settings.language, 'appointmentsDescription')}</p>
           </div>

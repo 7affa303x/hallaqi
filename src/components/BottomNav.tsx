@@ -24,7 +24,7 @@ const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; spe
 ];
 
 export default function BottomNav() {
-  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings } = useApp();
+  const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings, screen } = useApp();
   const { isAuthenticated } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
 
@@ -32,12 +32,7 @@ export default function BottomNav() {
   const longPress = useLongPress(openRadial);
 
   const handleTabClick = (tab: typeof tabs[0]) => {
-    if (tab.key === 'ai-hub') {
-      // Single tap → AI assistant (core behavior)
-      setActiveTab('ai-hub');
-      navigate('ai-advisor');
-      return;
-    }
+    // Always stay in the tabs shell — never navigate away (that hid the bottom nav)
     setActiveTab(tab.key);
   };
 
@@ -53,7 +48,10 @@ export default function BottomNav() {
       >
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto relative">
           {tabs.map((tab) => {
-            const isActive = activeTab === tab.key || (tab.key === 'ai-hub' && false);
+            const isActive =
+              activeTab === tab.key
+              || (tab.key === 'booking' && activeTab === 'appointments')
+              || (tab.key === 'ai-hub' && screen === 'ai-advisor');
             const Icon = tab.icon;
             const label = translate(settings.language, tab.labelKey);
 
@@ -174,16 +172,13 @@ export default function BottomNav() {
         onClose={() => setRadialOpen(false)}
         onSelect={(action) => {
           if (action === 'ai') {
+            // Stay in tabs shell — keeps bottom nav visible
             setActiveTab('ai-hub');
-            navigate('ai-advisor');
           } else if (action === 'qr') {
-            setActiveTab('ai-hub');
             navigate('ai-hub-tool', { tool: 'qr' });
           } else if (action === 'camera') {
-            setActiveTab('ai-hub');
             navigate('ai-hub-tool', { tool: 'camera' });
           } else {
-            setActiveTab('ai-hub');
             navigate('ai-hub-tool', { tool: 'gallery' });
           }
         }}

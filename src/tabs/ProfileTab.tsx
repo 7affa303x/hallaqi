@@ -336,7 +336,7 @@ export default function ProfileTab() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('ai-advisor')}
+            onClick={() => setActiveTab('ai-hub')}
             className="flex items-center gap-2 p-3 rounded-2xl border text-right"
             style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
           >
@@ -349,7 +349,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {FEATURE_FLAGS.loyaltyEnabled && (
+      {FEATURE_FLAGS.loyaltyEnabled ? (
         <div className="px-4 mt-4">
           <button
             type="button"
@@ -366,6 +366,24 @@ export default function ProfileTab() {
             </div>
             <ChevronLeft size={17} style={{ color: themeConfig.colors.textMuted }} />
           </button>
+        </div>
+      ) : (
+        <div className="px-4 mt-4">
+          <div
+            className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right opacity-80"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '12' }}>
+              <Gift size={21} style={{ color: themeConfig.colors.textMuted }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>برنامج الولاء</p>
+              <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>نقاط ومكافآت للحجوزات</p>
+            </div>
+            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ backgroundColor: themeConfig.colors.warning + '22', color: themeConfig.colors.warning }}>
+              قريباً
+            </span>
+          </div>
         </div>
       )}
 

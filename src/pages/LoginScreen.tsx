@@ -48,12 +48,12 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
 
   const completeRedirect = () => {
     const redirectTab = redirectParams?.redirectTab;
-    if (typeof redirectTab === 'string') setActiveTab(redirectTab as TabName);
-    if (redirectScreen && redirectScreen !== 'login') {
+    if (redirectScreen && redirectScreen !== 'login' && redirectScreen !== 'home') {
+      if (typeof redirectTab === 'string') setActiveTab(redirectTab as TabName);
       navigate(redirectScreen as 'home', redirectParams as ScreenParams);
-    } else {
-      navigate('home');
+      return;
     }
+    setActiveTab(typeof redirectTab === 'string' ? (redirectTab as TabName) : 'booking');
   };
 
   const clearError = useCallback(() => {
@@ -118,9 +118,10 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
       <div className="px-5 pt-6 pb-2">
         <motion.button
           whileTap={{ scale: 0.92 }}
-          onClick={() => navigate('home')}
+          onClick={() => navigate('home', { redirectTab: 'booking' })}
           className="w-10 h-10 rounded-2xl flex items-center justify-center mb-5"
           style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}
+          aria-label="رجوع"
         >
           <ArrowRight size={20} style={{ color: themeConfig.colors.text }} />
         </motion.button>

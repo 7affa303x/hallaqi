@@ -13,7 +13,7 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock, Car, Heart,
   Scissors, BadgeCheck, Zap, TrendingUp, ChevronLeft, X,
-  Filter, Navigation, Globe, Sparkles, ShoppingBag
+  Filter, Navigation, Globe, Sparkles, ShoppingBag, CalendarDays
 } from 'lucide-react';
 
 const tagIcons: Record<string, typeof Zap> = {
@@ -167,7 +167,7 @@ export default function BookingTab() {
               <span className="hidden sm:inline">{tx('marketplace')}</span>
             </button>
             <button
-              onClick={() => navigate('ai-advisor')}
+              onClick={() => setActiveTab('ai-hub')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
               style={{ backgroundColor: themeConfig.colors.accent + '12', borderColor: themeConfig.colors.accent + '40', color: themeConfig.colors.accent }}
               title="مساعد حلاقي"
@@ -221,6 +221,36 @@ export default function BookingTab() {
             </button>
           )}
         </div>
+
+        {/* Appointments — large entry point (moved out of bottom nav) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!isAuthenticated) {
+              navigate('login', { redirectTab: 'appointments' });
+              return;
+            }
+            setActiveTab('appointments');
+          }}
+          className="w-full mb-3 flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl text-right active:scale-[0.99] transition-transform"
+          style={{
+            background: `linear-gradient(135deg, ${themeConfig.colors.primary}, ${themeConfig.colors.accent})`,
+            color: '#fff',
+            boxShadow: `0 8px 24px ${themeConfig.colors.primary}33`,
+          }}
+          aria-label={tx('appointments')}
+        >
+          <span className="flex items-center gap-3">
+            <span className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
+              <CalendarDays size={22} />
+            </span>
+            <span>
+              <span className="block text-base font-black leading-tight">{tx('appointments')}</span>
+              <span className="block text-[11px] opacity-90 mt-0.5">{tx('appointmentsDescription')}</span>
+            </span>
+          </span>
+          <ChevronLeft size={20} className="opacity-90" />
+        </button>
 
         {/* Quick Tags */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">

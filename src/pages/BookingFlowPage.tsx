@@ -592,7 +592,7 @@ export default function BookingFlowPage() {
             تفاصيل المختص
           </button>
           <button
-            onClick={() => { setConfirmed(false); setActiveTab('appointments'); navigate('home'); }}
+            onClick={() => { setConfirmed(false); setActiveTab('appointments'); }}
             className="flex-1 h-12 rounded-xl text-sm font-bold text-white"
             style={{ backgroundColor: themeConfig.colors.primary }}
           >

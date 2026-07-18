@@ -9,7 +9,7 @@ const CameraTab = lazy(() => import('@/tabs/CameraTab'));
  * Tap on the center button opens AI Advisor; long-press opens the radial menu.
  */
 export default function AiHubToolPage() {
-  const { themeConfig, screenParams, goBack, navigate } = useApp();
+  const { themeConfig, screenParams, goBack, setActiveTab } = useApp();
   const tool = screenParams?.tool || 'qr';
   const fileRef = useRef<HTMLInputElement>(null);
   const [galleryPreview, setGalleryPreview] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export default function AiHubToolPage() {
             type="button"
             className="mr-auto text-xs font-bold px-3 py-1.5 rounded-full"
             style={{ backgroundColor: `${themeConfig.colors.primary}15`, color: themeConfig.colors.primary }}
-            onClick={() => navigate('ai-advisor')}
+            onClick={() => setActiveTab('ai-hub')}
           >
             فتح المساعد AI
           </button>
@@ -89,7 +89,7 @@ export default function AiHubToolPage() {
             type="button"
             className="w-full py-3 text-sm font-bold"
             style={{ backgroundColor: themeConfig.colors.surface, color: themeConfig.colors.primary }}
-            onClick={() => navigate('ai-advisor')}
+            onClick={() => setActiveTab('ai-hub')}
           >
             متابعة مع مساعد AI
           </button>
