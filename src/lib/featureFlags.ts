@@ -36,9 +36,9 @@ export const FEATURE_FLAGS = {
    */
   dynamicOgEnabled: false,
   /**
-   * Full ar/fr/en string coverage — paused; primary UI remains Arabic with partial nav i18n.
+   * Full ar/fr/en string coverage for primary navigation and settings.
    */
-  fullI18nEnabled: false,
+  fullI18nEnabled: true,
   /**
    * React Query data layer — paused; Zustand + Context remain.
    */

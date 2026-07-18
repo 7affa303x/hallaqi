@@ -424,6 +424,8 @@ export const settingsSections = [
       { id: 'theme', label: 'السمة', icon: 'Palette', description: 'اختر سمة التطبيق المفضلة', type: 'select' },
       { id: 'animation', label: 'نمط الحركة', icon: 'Sparkles', description: 'اختر نمط الانتقالات والحركات', type: 'select' },
       { id: 'language', label: 'اللغة', icon: 'Globe', description: 'العربية / الفرنسية / الإنجليزية', type: 'select' },
+      { id: 'country', label: 'البلد', icon: 'MapPin', description: 'اختر بلدك من قائمة دول العالم', type: 'select' },
+      { id: 'currency', label: 'العملة', icon: 'CreditCard', description: 'عملات الوطن العربي + دولار + يورو', type: 'select' },
       { id: 'fontSize', label: 'حجم الخط', icon: 'Type', description: 'صغير / متوسط / كبير', type: 'select' },
     ],
   },

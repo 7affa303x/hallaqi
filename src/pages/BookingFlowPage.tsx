@@ -28,6 +28,7 @@ import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { reportClientError } from '@/lib/error-reporting';
+import { useI18n } from '@/hooks/useI18n';
 
 const ALL_TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -110,6 +111,7 @@ const generateDates = () => {
 
 export default function BookingFlowPage() {
   const { themeConfig, screenParams, barbers, bookings: userBookings, addBooking, navigate, setActiveTab, goBack, refreshData } = useApp();
+  const { money } = useI18n();
   const { appUser } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -617,7 +619,7 @@ export default function BookingFlowPage() {
         <div className="w-full max-w-xs p-3 rounded-xl mb-4 text-right" style={{ backgroundColor: themeConfig.colors.success + '12' }}>
           <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>الدفع نقداً عند الزيارة</p>
           <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-            حضّر المبلغ ({payableTotal} دج) وادفعه للحلاق في الصالون. لا يُخصم شيء من بطاقتك حالياً.
+            حضّر المبلغ ({money(payableTotal)}) وادفعه للحلاق في الصالون. لا يُخصم شيء من بطاقتك حالياً.
           </p>
         </div>
         <div className="w-full max-w-xs p-4 rounded-xl border mb-6" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
@@ -631,7 +633,7 @@ export default function BookingFlowPage() {
           </div>
           <div className="flex justify-between pt-2 border-t" style={{ borderColor: themeConfig.colors.border }}>
             <span className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي</span>
-            <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{payableTotal} دج</span>
+            <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(payableTotal)}</span>
           </div>
         </div>
         <div className="flex gap-2 w-full max-w-xs">
@@ -681,7 +683,7 @@ export default function BookingFlowPage() {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{totalPrice} دج</p>
+          <p className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{money(totalPrice)}</p>
           <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{totalDuration} دقيقة</p>
         </div>
       </div>
@@ -705,7 +707,7 @@ export default function BookingFlowPage() {
                     {isSelected && <Check size={12} className="text-white" />}
                   </div>
                   <div className="flex-1"><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{svc.name}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{svc.duration} دقيقة</p></div>
-                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{svc.price} دج</p>
+                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(svc.price)}</p>
                 </button>
               );
             })}
@@ -802,17 +804,17 @@ export default function BookingFlowPage() {
             <div className="flex items-center gap-2 mb-3"><img src={barber.avatar} alt={barber.name} className="w-8 h-8 rounded-lg object-cover" /><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{barber.name}</p></div>
             <div className="space-y-2">
               {selectedServicesData.map(svc => (
-                <div key={svc.id} className="flex justify-between"><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name}</span><span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{svc.price} دج</span></div>
+                <div key={svc.id} className="flex justify-between"><span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name}</span><span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{money(svc.price)}</span></div>
               ))}
             </div>
             <div className="flex justify-between mt-3 pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
               <span className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الإجمالي</span>
-              <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{payableTotal} دج</span>
+              <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(payableTotal)}</span>
             </div>
             {selectedVoucher && (
               <div className="flex justify-between mt-2">
                 <span className="text-[11px]" style={{ color: themeConfig.colors.success }}>{selectedVoucher.title}</span>
-                <span className="text-[11px] font-bold" style={{ color: themeConfig.colors.success }}>-{discountAmount} دج</span>
+                <span className="text-[11px] font-bold" style={{ color: themeConfig.colors.success }}>-{money(discountAmount)}</span>
               </div>
             )}
             {FEATURE_FLAGS.loyaltyEnabled && (
@@ -914,7 +916,7 @@ export default function BookingFlowPage() {
           <button type="submit" disabled={isSaving || isPaymentProcessing || isCCPProcessing}
             className="w-full h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             style={{ backgroundColor: themeConfig.colors.primary }}>
-            {(isSaving || isPaymentProcessing || isCCPProcessing) ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> {watchedPaymentMethod === 'card' ? 'جاري التوجيه للدفع...' : 'جاري الحفظ...'}</> : <>{watchedPaymentMethod === 'card' ? `الدفع بالبطاقة - ${payableTotal} دج` : `تأكيد الحجز - ${payableTotal} دج`}</>}
+            {(isSaving || isPaymentProcessing || isCCPProcessing) ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> {watchedPaymentMethod === 'card' ? 'جاري التوجيه للدفع...' : 'جاري الحفظ...'}</> : <>{watchedPaymentMethod === 'card' ? `الدفع بالبطاقة - ${money(payableTotal)}` : `تأكيد الحجز - ${money(payableTotal)}`}</>}
           </button>
         </form>
       )}

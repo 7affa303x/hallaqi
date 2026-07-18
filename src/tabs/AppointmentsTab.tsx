@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/useApp';
 import { SkeletonBookingCard } from '@/components/Skeleton';
 import EmptyState from '@/components/EmptyState';
 import BrandLogo from '@/components/BrandLogo';
+import { useI18n } from '@/hooks/useI18n';
 import { translate } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import type { Booking, BookingStatus } from '@/types';
@@ -46,6 +47,7 @@ function openDirections(location: string) {
 export default function AppointmentsTab() {
   const { bookings, themeConfig, settings, cancelBooking, navigate, setActiveTab, isLoading, refreshData } = useApp();
   const { isAuthenticated, appUser } = useAuth();
+  const { money } = useI18n();
   const [activeFilter, setActiveFilter] = useState('upcoming');
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -223,8 +225,8 @@ export default function AppointmentsTab() {
                       </div>
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{booking.totalPrice} دج</p>
-                      {booking.discountAmount && <span className="text-[9px] font-medium text-green-600">وفرت {booking.discountAmount} دج</span>}
+                      <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(booking.totalPrice)}</p>
+                      {booking.discountAmount && <span className="text-[9px] font-medium text-green-600">وفرت {money(booking.discountAmount)}</span>}
                       {booking.paymentStatus === 'paid' && <span className="text-[10px] font-medium text-green-500">مدفوع</span>}
                       {booking.paymentStatus === 'pending' && <span className="text-[10px] font-medium text-amber-500">قيد الدفع</span>}
                     </div>
@@ -235,7 +237,7 @@ export default function AppointmentsTab() {
                     {booking.services.map(svc => (
                       <div key={svc.id} className="flex items-center justify-between">
                         <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name}</span>
-                        <span className="text-xs font-medium" style={{ color: themeConfig.colors.text }}>{svc.price} دج</span>
+                        <span className="text-xs font-medium" style={{ color: themeConfig.colors.text }}>{money(svc.price)}</span>
                       </div>
                     ))}
                   </div>

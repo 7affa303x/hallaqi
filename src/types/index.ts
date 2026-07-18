@@ -316,6 +316,10 @@ export interface AppSettings {
   theme: ThemeName;
   animationStyle: AnimationStyle;
   language: 'ar' | 'fr' | 'en';
+  /** ISO 3166-1 alpha-2 country code (display / localization). */
+  countryCode: string;
+  /** Display currency code (prices stored in DZD; conversion is indicative). */
+  currencyCode: string;
   notifications: {
     pushEnabled: boolean;
     emailEnabled: boolean;

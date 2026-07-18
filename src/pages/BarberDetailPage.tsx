@@ -20,6 +20,7 @@ import {
 import type { PortfolioItem } from '@/types/supabase-aliases';
 import type { Barber } from '@/types';
 import BrandLogo from '@/components/BrandLogo';
+import { useI18n } from '@/hooks/useI18n';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
 const daysArSchedule = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
@@ -41,6 +42,7 @@ function viewOnMap(location: string, wilaya: string) {
 export default function BarberDetailPage() {
   const { themeConfig, screenParams, navigate, goBack, barbers, toggleFollow } = useApp();
   const { appUser, isAuthenticated } = useAuth();
+  const { money } = useI18n();
   const [activeSection, setActiveSection] = useState<'services' | 'reviews' | 'portfolio' | 'hours'>('services');
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [loadingPortfolio, setLoadingPortfolio] = useState(false);
@@ -490,7 +492,7 @@ export default function BarberDetailPage() {
                   </div>
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{svc.price} دج</p>
+                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(svc.price)}</p>
                 </div>
               </div>
             ))}

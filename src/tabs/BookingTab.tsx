@@ -8,9 +8,11 @@ import BrandLogo from '@/components/BrandLogo';
 import { motion } from 'framer-motion';
 import type { BarberTag, ServiceCategory } from '@/types';
 import { rankBarberRecommendations } from '@/lib/recommendations';
+import { useI18n } from '@/hooks/useI18n';
 import { isDisplayableBarber } from '@/lib/utils';
 import { trackProductEvent } from '@/lib/product-analytics';
-import { translate, type TranslationKey } from '@/lib/i18n';
+import type { TranslationKey } from '@/lib/i18n';
+import { translate } from '@/lib/i18n';
 import {
   Search, SlidersHorizontal, MapPin, Star, Clock, Car, Heart,
   Scissors, BadgeCheck, Zap, TrendingUp, ChevronLeft, X,
@@ -49,6 +51,7 @@ function distanceInKm(
 export default function BookingTab() {
   const { barbers, bookings, currentUser, themeConfig, settings, toggleFollow, navigate, isLoading, setActiveTab } = useApp();
   const { isAuthenticated } = useAuth();
+  const { t, money } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<BarberTag[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -289,9 +292,9 @@ export default function BookingTab() {
             <div className="mb-3">
               <p className="text-xs font-medium mb-2" style={{ color: themeConfig.colors.textMuted }}>الولاية</p>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                <button onClick={() => { setSelectedWilaya(''); localStorage.removeItem('hallaqi-discovery-wilaya'); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: !selectedWilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: !selectedWilaya ? '#fff' : themeConfig.colors.textMuted }}>كل الولايات</button>
+                <button type="button" onClick={() => { setSelectedWilaya(''); localStorage.removeItem('hallaqi-discovery-wilaya'); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: !selectedWilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: !selectedWilaya ? '#fff' : themeConfig.colors.textMuted }}>{t('allWilayas')}</button>
                 {availableWilayas.map(wilaya => (
-                  <button key={wilaya} onClick={() => { setSelectedWilaya(wilaya); localStorage.setItem('hallaqi-discovery-wilaya', wilaya); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: selectedWilaya === wilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: selectedWilaya === wilaya ? '#fff' : themeConfig.colors.textMuted }}>{wilaya}</button>
+                  <button key={wilaya} type="button" onClick={() => { setSelectedWilaya(wilaya); localStorage.setItem('hallaqi-discovery-wilaya', wilaya); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: selectedWilaya === wilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: selectedWilaya === wilaya ? '#fff' : themeConfig.colors.textMuted }}>{wilaya}</button>
                 ))}
               </div>
             </div>
@@ -505,7 +508,7 @@ export default function BookingTab() {
                         <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
                           <Clock size={10} className="inline ml-0.5" />{svc.duration}د
                         </span>
-                        <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{svc.price} دج</span>
+                        <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{money(svc.price)}</span>
                       </div>
                     </div>
                   ))}
@@ -566,13 +569,13 @@ export default function BookingTab() {
 
       <div className="px-4 mt-6 mb-4 text-center space-y-2">
         <p className="text-[11px] leading-5" style={{ color: themeConfig.colors.textMuted }}>
-          ادفع نقداً عند الزيارة · الإلغاء مجاني قبل ساعتين · الدعم: support@hallaqi.app
+          {t('cashOnVisit')} · support@hallaqi.app
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-bold">
-          <button type="button" onClick={() => navigate('home', { openLegal: 'help', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>المساعدة</button>
-          <button type="button" onClick={() => navigate('home', { openLegal: 'about', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>من نحن</button>
-          <button type="button" onClick={() => navigate('home', { openLegal: 'privacy', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>الخصوصية</button>
-          <button type="button" onClick={() => navigate('home', { openLegal: 'terms', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>الشروط</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'help', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>{t('help')}</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'about', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>{t('about')}</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'privacy', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>{t('privacy')}</button>
+          <button type="button" onClick={() => navigate('home', { openLegal: 'terms', redirectTab: 'profile' })} style={{ color: themeConfig.colors.primary }}>{t('terms')}</button>
         </div>
       </div>
     </div>

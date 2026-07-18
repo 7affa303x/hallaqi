@@ -48,6 +48,8 @@ import {
   isWebPushSupported,
 } from '@/lib/push-notifications';
 import { translate } from '@/lib/i18n';
+import { WORLD_COUNTRIES, countryLabel, findCountry } from '@/lib/locale/countries';
+import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol, findCurrency } from '@/lib/locale/currencies';
 
 interface UserStats {
   totalBookings?: number;
@@ -73,7 +75,7 @@ const iconMap: Record<string, LucideIcon> = {
   Crown: CrownIcon,
 };
 
-type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'notifications' |
+type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'country' | 'currency' | 'notifications' |
   'privacy' | 'account' | 'subscription' | 'payment' | 'id-verification' |
   'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile' | 'services' | 'loyalty' |
   'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves';
@@ -160,6 +162,8 @@ export default function ProfileTab() {
   if (subPage === 'theme') return <ThemeSelector onBack={() => setSubPage('main')} />;
   if (subPage === 'animation') return <AnimationSelector onBack={() => setSubPage('main')} />;
   if (subPage === 'language') return <LanguageSelector onBack={() => setSubPage('main')} />;
+  if (subPage === 'country') return <CountrySelector onBack={() => setSubPage('main')} />;
+  if (subPage === 'currency') return <CurrencySelector onBack={() => setSubPage('main')} />;
   if (subPage === 'notifications') return <NotificationsSettings onBack={() => setSubPage('main')} />;
   if (subPage === 'privacy') return <PrivacySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'subscription') return <SubscriptionPage onBack={() => setSubPage('main')} />;
@@ -204,6 +208,11 @@ export default function ProfileTab() {
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-bold text-white">{translate(settings.language, 'profile')}</h1>
+          <p className="text-[10px] text-white/70 mt-0.5">
+            {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
+            {' · '}
+            {findCurrency(settings.currencyCode).code}
+          </p>
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('messages')} aria-label="المحادثات" className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><MessageSquare size={16} className="text-white" /></button>
             <button
@@ -500,7 +509,7 @@ export default function ProfileTab() {
                   if (item.id === 'reportBug') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Bug%20Report'; return; }
                   if (item.id === 'featureRequest') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Feature%20Request'; return; }
                   const pageMap: Record<string, ProfileSubPage> = {
-                    theme: 'theme', animation: 'animation', language: 'language', fontSize: 'accessibility',
+                    theme: 'theme', animation: 'animation', language: 'language', country: 'country', currency: 'currency', fontSize: 'accessibility',
                     pushNotifications: 'notifications', emailNotifications: 'notifications', smsNotifications: 'notifications',
                     bookingReminders: 'notifications', promotions: 'notifications', forumReplies: 'notifications',
                     competitionUpdates: 'notifications', newFollowers: 'notifications',
@@ -942,28 +951,133 @@ function AnimationSelector({ onBack }: { onBack: () => void }) {
 
 function LanguageSelector({ onBack }: { onBack: () => void }) {
   const { themeConfig, settings, updateSettings } = useApp();
-  const languages = [{ key: 'ar', label: 'العربية', flag: '🇩🇿' }, { key: 'fr', label: 'Français', flag: '🇫🇷' }, { key: 'en', label: 'English', flag: '🇬🇧' }];
+  const languages = [
+    { key: 'ar' as const, label: 'العربية', flag: '🇩🇿' },
+    { key: 'fr' as const, label: 'Français', flag: '🇫🇷' },
+    { key: 'en' as const, label: 'English', flag: '🇬🇧' },
+  ];
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>اللغة</h2>
+        <button type="button" onClick={onBack} aria-label={translate(settings.language, 'back')} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{translate(settings.language, 'language')}</h2>
       </div>
       <div className="px-4 mt-4 space-y-2">
-        {!FEATURE_FLAGS.fullI18nEnabled && (
-          <PausedFeatureBanner
-            title="ترجمة كاملة للواجهة"
-            description={`الواجهة الأساسية عربية. ترجمة fr/en للتنقل فقط حالياً — التغطية الكاملة ${COMING_SOON_LABEL}.`}
-            kind="soon"
-            colors={themeConfig.colors}
-          />
-        )}
         {languages.map(lang => (
-          <button key={lang.key} onClick={() => updateSettings({ language: lang.key as 'ar' | 'fr' | 'en' })} className="w-full flex items-center gap-3 p-3 rounded-2xl border transition-all" style={{ backgroundColor: settings.language === lang.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: settings.language === lang.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
-            <span className="text-2xl">{lang.flag}</span><div className="flex-1 text-right"><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{lang.label}</p></div>
-            {settings.language === lang.key && <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary }}><Check size={14} className="text-white" /></div>}
+          <button
+            key={lang.key}
+            type="button"
+            onClick={() => updateSettings({ language: lang.key })}
+            className="w-full flex items-center gap-3 p-3 rounded-2xl border transition-all"
+            style={{
+              backgroundColor: settings.language === lang.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface,
+              borderColor: settings.language === lang.key ? themeConfig.colors.primary : themeConfig.colors.border,
+            }}
+          >
+            <span className="text-2xl">{lang.flag}</span>
+            <div className="flex-1 text-start"><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{lang.label}</p></div>
+            {settings.language === lang.key && (
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary }}>
+                <Check size={14} className="text-white" />
+              </div>
+            )}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function CountrySelector({ onBack }: { onBack: () => void }) {
+  const { themeConfig, settings, updateSettings } = useApp();
+  const [query, setQuery] = useState('');
+  const language = settings.language;
+  const filtered = WORLD_COUNTRIES.filter(country => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      country.code.toLowerCase().includes(q)
+      || country.nameAr.includes(query.trim())
+      || country.nameFr.toLowerCase().includes(q)
+      || country.nameEn.toLowerCase().includes(q)
+    );
+  });
+
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg border-b space-y-2" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onBack} aria-label={translate(language, 'back')} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+          <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{translate(language, 'selectCountry')}</h2>
+        </div>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={translate(language, 'searchCountry')}
+          className="w-full h-11 rounded-xl border px-3 text-sm outline-none"
+          style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
+        />
+      </div>
+      <div className="px-4 mt-3 space-y-1.5 max-h-[70vh] overflow-y-auto">
+        {filtered.map(country => {
+          const selected = settings.countryCode === country.code;
+          return (
+            <button
+              key={country.code}
+              type="button"
+              onClick={() => updateSettings({ countryCode: country.code })}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl border text-start"
+              style={{
+                backgroundColor: selected ? themeConfig.colors.primary + '08' : themeConfig.colors.surface,
+                borderColor: selected ? themeConfig.colors.primary : themeConfig.colors.border,
+              }}
+            >
+              <span className="text-[10px] font-bold w-8" style={{ color: themeConfig.colors.textMuted }}>{country.code}</span>
+              <p className="flex-1 text-sm font-bold" style={{ color: themeConfig.colors.text }}>{countryLabel(country, language)}</p>
+              {selected && <Check size={16} style={{ color: themeConfig.colors.primary }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CurrencySelector({ onBack }: { onBack: () => void }) {
+  const { themeConfig, settings, updateSettings } = useApp();
+  const language = settings.language;
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
+        <button type="button" onClick={onBack} aria-label={translate(language, 'back')} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{translate(language, 'selectCurrency')}</h2>
+      </div>
+      <p className="px-4 mt-3 text-[11px] leading-5" style={{ color: themeConfig.colors.textMuted }}>
+        {translate(language, 'displayCurrencyNote')}
+      </p>
+      <div className="px-4 mt-3 space-y-2">
+        {DISPLAY_CURRENCIES.map(currency => {
+          const selected = settings.currencyCode === currency.code;
+          return (
+            <button
+              key={currency.code}
+              type="button"
+              onClick={() => updateSettings({ currencyCode: currency.code })}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl border text-start"
+              style={{
+                backgroundColor: selected ? themeConfig.colors.primary + '08' : themeConfig.colors.surface,
+                borderColor: selected ? themeConfig.colors.primary : themeConfig.colors.border,
+              }}
+            >
+              <span className="text-xs font-black w-12" style={{ color: themeConfig.colors.primary }}>{currency.code}</span>
+              <div className="flex-1">
+                <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{currencyLabel(currency, language)}</p>
+                <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{currencySymbol(currency, language)}</p>
+              </div>
+              {selected && <Check size={16} style={{ color: themeConfig.colors.primary }} />}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

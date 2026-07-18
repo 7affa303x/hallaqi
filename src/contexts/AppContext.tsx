@@ -420,13 +420,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   /* ---- Settings ---- */
-  const [settings, setSettings] = useState<AppSettings>({
-    theme: currentTheme,
-    animationStyle: animationStyle,
-    language: globalLanguage,
-    notifications: { pushEnabled: true, emailEnabled: true, smsEnabled: false, bookingReminders: true, promotions: true, forumReplies: true, competitionUpdates: true, newFollowers: true },
-    privacy: { profileVisible: true, showLocation: true, showBookings: false, allowMessages: 'all' },
-    accessibility: { fontSize: 'medium', highContrast: false, reduceMotion: false, screenReader: false },
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const prefs = (() => {
+      try {
+        const raw = localStorage.getItem('hallaqi-locale-prefs-v1');
+        return raw ? JSON.parse(raw) as { countryCode?: string; currencyCode?: string; language?: 'ar' | 'fr' | 'en' } : {};
+      } catch {
+        return {};
+      }
+    })();
+    return {
+      theme: currentTheme,
+      animationStyle: animationStyle,
+      language: prefs.language || globalLanguage,
+      countryCode: prefs.countryCode || 'DZ',
+      currencyCode: prefs.currencyCode || 'DZD',
+      notifications: { pushEnabled: true, emailEnabled: true, smsEnabled: false, bookingReminders: true, promotions: true, forumReplies: true, competitionUpdates: true, newFollowers: true },
+      privacy: { profileVisible: true, showLocation: true, showBookings: false, allowMessages: 'all' },
+      accessibility: { fontSize: 'medium', highContrast: false, reduceMotion: false, screenReader: false },
+    };
   });
 
   useEffect(() => { setSettings(p => ({ ...p, language: globalLanguage })); }, [globalLanguage]);
@@ -446,6 +458,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (newSettings.language) useStore.getState().setLanguage(newSettings.language);
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
+      try {
+        localStorage.setItem('hallaqi-locale-prefs-v1', JSON.stringify({
+          language: updated.language,
+          countryCode: updated.countryCode,
+          currencyCode: updated.currencyCode,
+        }));
+      } catch { /* ignore */ }
       if (appUser && isSupabaseConfigured() && !isDeveloperMode) {
         queueMicrotask(() => {
           void upsertUserSettings(appUser.id, updated).catch(err => {
@@ -462,7 +481,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!appUser || !isSupabaseConfigured() || isDeveloperMode) return;
     void getUserSettings(appUser.id)
       .then(saved => {
-        if (saved) setSettings(prev => ({ ...prev, ...saved }));
+        if (saved) {
+          setSettings(prev => ({
+            ...prev,
+            ...saved,
+            countryCode: (saved as AppSettings).countryCode || prev.countryCode || 'DZ',
+            currencyCode: (saved as AppSettings).currencyCode || prev.currencyCode || 'DZD',
+            language: saved.language || prev.language,
+          }));
+        }
       })
       .catch(err => console.warn('[AppContext] settings fetch failed:', err));
   }, [appUser]);

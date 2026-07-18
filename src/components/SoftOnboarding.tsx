@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { translate } from '@/lib/i18n';
 import { X, CalendarDays, ShoppingBag, Sparkles } from 'lucide-react';
 
 const STORAGE_KEY = 'hallaqi-onboarding-v1-done';
@@ -15,6 +16,7 @@ export default function SoftOnboarding() {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = settings.accessibility.reduceMotion;
+  const t = (key: Parameters<typeof translate>[1]) => translate(settings.language, key);
 
   useEffect(() => {
     try {
@@ -62,23 +64,23 @@ export default function SoftOnboarding() {
   const steps = [
     {
       icon: CalendarDays,
-      title: 'احجز موعدك بسهولة',
-      body: 'اختار حلاق قريب ليك، الخدمة، والوقت — وخلّص الدفع نقداً عند الزيارة.',
-      cta: 'استكشف الحجز',
+      title: t('onboardingBookingTitle'),
+      body: t('onboardingBookingBody'),
+      cta: t('booking'),
       action: () => setActiveTab('booking'),
     },
     {
       icon: ShoppingBag,
-      title: 'سوق العناية',
-      body: 'تصفّح منتجات ومتاجر وشركات — الشراء عبر زيارة المتجر الخارجي.',
-      cta: 'افتح السوق',
+      title: t('onboardingMarketTitle'),
+      body: t('onboardingMarketBody'),
+      cta: t('marketplace'),
       action: () => setActiveTab('marketplace'),
     },
     {
       icon: Sparkles,
-      title: 'مساعد حلاقي',
-      body: 'نصائح عناية بالعربية مرتبطة بالمنصة والحلاقين. مجاني بعد تسجيل الدخول.',
-      cta: 'جرّب المساعد',
+      title: t('onboardingAiTitle'),
+      body: t('onboardingAiBody'),
+      cta: t('assistant'),
       action: () => setActiveTab('ai-hub'),
     },
   ];
@@ -136,7 +138,7 @@ export default function SoftOnboarding() {
                 className="flex-1 h-11 rounded-xl text-xs font-bold border"
                 style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}
               >
-                تخطّي
+                {t('skip')}
               </button>
               <button
                 type="button"
@@ -144,7 +146,7 @@ export default function SoftOnboarding() {
                 className="flex-1 h-11 rounded-xl text-xs font-bold text-white"
                 style={{ backgroundColor: themeConfig.colors.primary }}
               >
-                التالي
+                {t('next')}
               </button>
             </>
           ) : (
