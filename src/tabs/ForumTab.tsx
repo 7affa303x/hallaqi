@@ -304,7 +304,7 @@ function ForumPostCard({ post, isPinned = false, navigate, themeConfig }: PostCa
               className="relative"
               style={{ cursor: isBarberAuthor ? 'pointer' : 'default' }}
             >
-              <img src={post.authorAvatar} alt={post.authorName} className="w-10 h-10 rounded-xl object-cover" />
+              <img src={post.authorAvatar} alt={post.authorName} loading="lazy" decoding="async" className="w-10 h-10 rounded-xl object-cover" />
               {post.isVerified && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.surface }}>
                   <BadgeCheck size={14} className="text-sky-500" />
@@ -351,7 +351,7 @@ function ForumPostCard({ post, isPinned = false, navigate, themeConfig }: PostCa
         <p className="text-xs leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
           {isExpanded ? post.content : post.content.slice(0, 150) + (post.content.length > 150 ? '...' : '')}
         </p>
-        {post.image && <img src={post.image} alt="" className="w-full max-h-64 object-cover rounded-xl mt-2" />}
+        {post.image && <img src={post.image} alt="" loading="lazy" decoding="async" className="w-full max-h-64 object-cover rounded-xl mt-2" />}
         {post.content.length > 150 && (
           <button onClick={() => setIsExpanded(!isExpanded)} className="text-[11px] font-medium mt-1" style={{ color: themeConfig.colors.primary }}>
             {isExpanded ? 'عرض أقل' : 'قراءة المزيد'}

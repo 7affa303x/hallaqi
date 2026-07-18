@@ -32,8 +32,11 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 function mapAiError(code?: string, fallback = 'تعذر تنفيذ الطلب حالياً'): never {
-  if (code === 'AI_NOT_CONFIGURED' || code === 'AI_IMAGE_NOT_CONFIGURED') {
-    throw new Error('المساعد يحتاج مفتاح Gemini على الخادم');
+  if (code === 'AI_NOT_CONFIGURED') {
+    throw new Error('المساعد النصي يحتاج إعداد GROQ_API_KEY على الخادم');
+  }
+  if (code === 'AI_IMAGE_NOT_CONFIGURED') {
+    throw new Error('توليد الصور غير مفعّل حالياً (يتطلب Gemini)');
   }
   if (code === 'AI_RATE_LIMITED') {
     throw new Error('وصلت للحد اليومي للمساعد. جرّب غداً.');

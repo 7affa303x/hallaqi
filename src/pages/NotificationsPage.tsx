@@ -61,7 +61,7 @@ export default function NotificationsPage() {
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b"
         style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}
       >
-        <button onClick={goBack} className="w-10 h-10 rounded-xl flex items-center justify-center">
+        <button onClick={goBack} aria-label="رجوع" className="w-10 h-10 rounded-xl flex items-center justify-center">
           <ArrowLeft size={22} style={{ color: themeConfig.colors.text }} />
         </button>
         <div className="flex-1">

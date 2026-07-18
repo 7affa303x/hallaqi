@@ -46,6 +46,8 @@ export default function MarketplaceTab() {
     sortBy: 'popularity',
   });
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     setSections(readMarketplaceSectionConfig());
@@ -57,33 +59,41 @@ export default function MarketplaceTab() {
   }, [filters.query]);
 
   const fetchKey = useMemo(
-    () => JSON.stringify({ ...filters, query: debouncedQuery }),
-    [filters, debouncedQuery]
+    () => JSON.stringify({ ...filters, query: debouncedQuery, retryTick }),
+    [filters, debouncedQuery, retryTick]
   );
 
   useEffect(() => {
     let cancelled = false;
-    const activeFilters = JSON.parse(fetchKey) as MarketplaceFilters;
+    const parsed = JSON.parse(fetchKey) as MarketplaceFilters & { retryTick?: number };
+    const { retryTick: _r, ...activeFilters } = parsed;
     (async () => {
       setLoading(true);
-      const [cats, prods, sells, day, places] = await Promise.all([
-        getMarketplaceCategories(),
-        getMarketplaceProducts(activeFilters),
-        getMarketplaceSellers(),
-        getProductOfTheDayProduct(),
-        getMarketplacePlacements(),
-      ]);
-      if (cancelled) return;
-      setCategories(cats);
-      setProducts(prods);
-      setSellers(sells);
-      setPotd(day);
-      setPlacements(places.filter(p => p.isActive));
-      setLoading(false);
-      trackMarketplaceEvent('search_impression', {
-        categoryId: activeFilters.categoryId || undefined,
-        wilaya: activeFilters.wilaya || undefined,
-      });
+      setLoadError('');
+      try {
+        const [cats, prods, sells, day, places] = await Promise.all([
+          getMarketplaceCategories(),
+          getMarketplaceProducts(activeFilters),
+          getMarketplaceSellers(),
+          getProductOfTheDayProduct(),
+          getMarketplacePlacements(),
+        ]);
+        if (cancelled) return;
+        setCategories(cats);
+        setProducts(prods);
+        setSellers(sells);
+        setPotd(day);
+        setPlacements(places.filter(p => p.isActive));
+        trackMarketplaceEvent('search_impression', {
+          categoryId: activeFilters.categoryId || undefined,
+          wilaya: activeFilters.wilaya || undefined,
+        });
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'تعذر تحميل السوق');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
   }, [fetchKey]);
@@ -557,6 +567,15 @@ export default function MarketplaceTab() {
             <SkeletonMarketplaceCard />
             <SkeletonMarketplaceCard />
           </div>
+        ) : loadError ? (
+          <EmptyState
+            icon={Search}
+            title="تعذر تحميل السوق"
+            description={loadError}
+            actionLabel="إعادة المحاولة"
+            onAction={() => setRetryTick(n => n + 1)}
+            themeConfig={themeConfig}
+          />
         ) : products.length === 0 ? (
           <EmptyState
             icon={Search}

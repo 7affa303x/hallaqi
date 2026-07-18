@@ -1,4 +1,4 @@
-const baseUrl = 'https://www.hallaqi.app';
+const baseUrl = 'https://hallaqi.vercel.app';
 
 function xmlEscape(value: string) {
   return value.replace(/[<>&'"]/g, character => ({
@@ -36,8 +36,10 @@ export async function GET() {
 
   const urls = [
     { location: '/', frequency: 'daily', priority: '1.0' },
+    { location: '/?tab=booking', frequency: 'daily', priority: '0.95' },
     { location: '/?tab=marketplace', frequency: 'daily', priority: '0.9' },
     { location: '/?tab=forum', frequency: 'daily', priority: '0.7' },
+    { location: '/?tab=ai-hub', frequency: 'weekly', priority: '0.6' },
     ...professionalIds.map(id => ({ location: `/barber/${encodeURIComponent(id)}`, frequency: 'weekly', priority: '0.9' })),
     ...postIds.map(id => ({ location: `/post/${encodeURIComponent(id)}`, frequency: 'weekly', priority: '0.6' })),
     ...sellers.map(s => ({ location: sellerPath(s.seller_type, s.id), frequency: 'weekly', priority: '0.8' })),

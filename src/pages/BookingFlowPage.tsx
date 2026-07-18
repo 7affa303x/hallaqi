@@ -25,7 +25,9 @@ import { bookingStep3Schema } from '@/lib/validation';
 import type { BookingStep3FormData } from '@/lib/validation';
 import { preferredBookingHour, rankAvailableSlots } from '@/lib/scheduling';
 import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
+import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
+import { reportClientError } from '@/lib/error-reporting';
 
 const ALL_TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -179,7 +181,10 @@ export default function BookingFlowPage() {
         url.searchParams.delete('cancelledBooking');
         window.history.replaceState({}, '', url.toString());
       })
-      .catch((err) => console.error('Failed to cancel unpaid booking:', err));
+      .catch((err) => {
+        console.error('Failed to cancel unpaid booking:', err);
+        reportClientError(err instanceof Error ? err : new Error(String(err)));
+      });
   }, [screenParams?.cancelledBooking]);
 
   useEffect(() => {
@@ -451,6 +456,7 @@ export default function BookingFlowPage() {
               await updateBookingStatus(saved.id, 'cancelled');
             } catch (cancelErr) {
               console.error('Failed to cancel unpaid booking after Stripe error:', cancelErr);
+              reportClientError(cancelErr instanceof Error ? cancelErr : new Error(String(cancelErr)));
             }
             setSaveError(payErr instanceof Error ? payErr.message : 'تعذر بدء الدفع بالبطاقة. ألغينا الحجز تلقائياً.');
             setIsSaving(false);
@@ -862,7 +868,7 @@ export default function BookingFlowPage() {
           <div className="rounded-xl border p-3" style={{ backgroundColor: `${themeConfig.colors.info}08`, borderColor: themeConfig.colors.border }}>
             <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>سياسة الإلغاء</p>
             <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-              يمكنك طلب الإلغاء من المواعيد قبل الموعد. عدم الحضور دون إشعار قد يؤثر على حجوزاتك القادمة حسب سياسة الحلاق.
+              {CANCEL_POLICY.detailsAr}
             </p>
           </div>
 

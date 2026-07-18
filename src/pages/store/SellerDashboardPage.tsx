@@ -11,6 +11,7 @@ import {
 import { MARKETPLACE_PREMIUM_LISTING_CAP } from '@/types/marketplace';
 import { canAccessAiListingTools } from '@/lib/marketplace/planAccess';
 import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
+import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import type { MarketplacePlanTier, MarketplaceSeller, MarketplaceSubscriptionPlan } from '@/types/marketplace';
 
 /**
@@ -186,6 +187,15 @@ export default function SellerDashboardPage() {
         </button>
       </div>
 
+      {!FEATURE_FLAGS.paidSubscriptionsEnabled && (
+        <PausedFeatureBanner
+          className="mb-3"
+          title="الترقية المدفوعة"
+          description="متوقفة عند الإطلاق. ابقَ على المجاني وجهّز منتجاتك؛ المواضع المدفوعة متوقفة أيضاً."
+          kind="paused"
+          colors={themeConfig.colors}
+        />
+      )}
       <h2 className="text-sm font-black mb-2 flex items-center gap-1" style={{ color: themeConfig.colors.text }}>
         <Crown size={14} /> خطط الاشتراك {role === 'company' ? '(تسعير الشركات)' : ''}
         {!FEATURE_FLAGS.paidSubscriptionsEnabled && (

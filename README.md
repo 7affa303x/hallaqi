@@ -1,28 +1,33 @@
 # Hallaqi - حلاقي
 
-**Hallaqi** is an Algerian barber discovery, booking, community, and payments platform built with React, TypeScript, Tailwind CSS, and Supabase.
+**Hallaqi** is an Algerian barber discovery, booking, community, and marketplace platform built with React, TypeScript, Tailwind CSS, and Supabase.
+
+**Production:** https://hallaqi.vercel.app
 
 ## Features
 
 - **Barber Discovery** — Search, filter, and browse barbers by location, rating, and services
-- **Online Booking** — Atomic multi-service appointments (cash at soft launch)
+- **Online Booking** — Atomic multi-service appointments (**cash** at soft launch)
 - **Marketplace** — Stores / companies / doctors with external Visit Store (https only)
-- **Forum** — Community discussions, likes, bookmarks, reports, and live competitions
+- **Forum** — Community discussions, likes, device bookmarks, reports, and competitions
 - **QR Code** — Generate and scan barber QR codes
 - **Smart Matching** — Explainable barber recommendations and optimized appointment times
-- **AI Advisor** — Groq-powered Arabic grooming advice (free tier)
+- **AI Advisor** — Groq-powered Arabic grooming advice (free tier; image gen paused)
 - **Authentication** — Email/password and Google OAuth via Supabase Auth
 - **Security** — Optional TOTP two-factor authentication and administrator AAL2
 - **Real-time** — Live in-app notifications and conversation inbox
-- **Arabic Interface** — Full RTL Arabic support
-- **PWA** — Installable app shell with offline asset caching
+- **Arabic Interface** — Full RTL Arabic (partial fr/en nav i18n)
+- **PWA** — Installable app shell with offline asset caching + offline.html
 
 ### Paused at soft launch (متوقف)
 - Card / CCP / Baridi Mob payments
-- Paid subscription upgrades
-- Paid ad placements
+- Paid subscription upgrades & ad placements
 - Loyalty program
 - In-app product checkout / commissions / shipping
+- Web Push (needs VAPID), WhatsApp support, Gemini images
+- Full fr/en UI, React Query, E2E CI, dynamic OG
+
+See [docs/LAUNCH_NOTES.md](docs/LAUNCH_NOTES.md) for the full launch checklist.
 
 ## Tech Stack
 
@@ -33,8 +38,8 @@
 | Animation | Framer Motion |
 | State | Zustand + React Context |
 | Backend | Supabase (Auth, Database, Storage, Realtime) |
-| Intelligence | Deterministic ranking + Vercel AI SDK / AI Gateway |
-| Observability | Vercel Web Analytics + Speed Insights |
+| Intelligence | Deterministic ranking + Groq / Vercel AI SDK |
+| Observability | Vercel Web Analytics + Speed Insights (consent) |
 | Icons | Lucide React |
 
 ## Quick Start
@@ -51,7 +56,7 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your Supabase + GROQ_API_KEY credentials
 ```
 
 ### 3. Supabase Setup
@@ -74,12 +79,14 @@ cp .env.example .env
 npm run dev
 ```
 
-### 5. Build
+### 5. Quality checks
 
 ```bash
-npm run typecheck  # TypeScript check
-npm run lint       # ESLint check
-npm run build      # Production build
+npm run typecheck
+npm run lint
+npm run test:run
+npm run build
+# or all: npm run check
 ```
 
 ## Environment Variables
@@ -88,10 +95,13 @@ npm run build      # Production build
 |----------|----------|-------------|
 | `VITE_SUPABASE_URL` | Yes | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Supabase anon/public key |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | For card payments | Stripe publishable key |
-| `VITE_CCP_ACCOUNT_NUMBER` | For manual payments | Approved merchant CCP account |
-| `VITE_CCP_CARD_NUMBER` | For manual payments | Approved merchant card number |
-| `VITE_VAPID_PUBLIC_KEY` | For Web Push | Public VAPID key; private key remains server-side |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server | Service role for privileged APIs |
+| `GROQ_API_KEY` | For AI text | Free Groq key for Arabic advice |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Card payments | Stripe publishable key (paused) |
+| `VITE_CCP_ACCOUNT_NUMBER` | Manual payments | CCP account (paused) |
+| `VITE_CCP_CARD_NUMBER` | Manual payments | CCP card (paused) |
+| `VITE_VAPID_PUBLIC_KEY` | Web Push | Public VAPID key (paused) |
+| `VITE_SUPPORT_WHATSAPP` | Support chat | E.164 number (paused) |
 
 ## Scripts
 
@@ -101,6 +111,8 @@ npm run build      # Production build
 | `npm run build` | Production build |
 | `npm run typecheck` | TypeScript type checking |
 | `npm run lint` | ESLint |
+| `npm run test:run` | Unit tests (Vitest) |
+| `npm run check` | typecheck + lint + test + build |
 | `npm run preview` | Preview production build |
 
 ## Documentation
@@ -108,11 +120,9 @@ npm run build      # Production build
 - [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture
 - [DATABASE.md](DATABASE.md) — Database schema and migrations
 - [DEPLOYMENT.md](DEPLOYMENT.md) — Deployment guide
+- [docs/LAUNCH_NOTES.md](docs/LAUNCH_NOTES.md) — Soft-launch status
 - [CHANGELOG.md](CHANGELOG.md) — Version history
 
 ## License
 
 MIT
- 
- 
-

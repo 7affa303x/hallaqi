@@ -8,8 +8,11 @@ function getAuthErrorMessage(err: { message?: string; code?: string; status?: nu
   // Check specific error codes/messages before the broad "email" match below,
   // otherwise messages that merely contain the word "email" (e.g. the
   // "email rate limit exceeded" throttling error) get mislabelled.
-  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || msg.includes('rate limit')) {
-    return 'طلبات كثيرة. حاول لاحقاً';
+  if (code === 'over_email_send_rate_limit' || msg.includes('email rate limit')) {
+    return 'تم تجاوز حد إرسال البريد. انتظر دقيقة ثم حاول مرة أخرى.';
+  }
+  if (code === 'over_request_rate_limit' || msg.includes('rate limit')) {
+    return 'طلبات كثيرة لتسجيل الدخول. انتظر نحو دقيقة ثم حاول مجدداً.';
   }
   if (code === 'invalid_credentials' || msg.includes('invalid login')) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
   if (code === 'user_not_found' || msg.includes('user not found')) return 'لا يوجد حساب بهذا البريد';

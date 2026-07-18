@@ -4,6 +4,7 @@ import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserConversations } from '@/supabase/database';
 import BrandLogo from '@/components/BrandLogo';
+import EmptyState from '@/components/EmptyState';
 
 type ConversationSummary = Awaited<ReturnType<typeof getUserConversations>>[number];
 
@@ -49,7 +50,7 @@ export default function MessagesPage() {
             style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
           >
             {conversation.participant_avatar
-              ? <img src={conversation.participant_avatar} alt="" className="w-12 h-12 rounded-xl object-cover" />
+              ? <img src={conversation.participant_avatar} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-xl object-cover" />
               : <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '12' }}><MessageSquare size={20} style={{ color: themeConfig.colors.primary }} /></div>}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
@@ -62,7 +63,12 @@ export default function MessagesPage() {
           </button>
         ))}
         {!loading && conversations.length === 0 && !error && (
-          <div className="text-center py-20"><MessageSquare size={44} className="mx-auto" style={{ color: themeConfig.colors.textMuted + '50' }} /><p className="text-sm mt-3" style={{ color: themeConfig.colors.textMuted }}>لا توجد محادثات بعد</p><p className="text-xs mt-1" style={{ color: themeConfig.colors.textMuted }}>ابدأ من ملف الحلاق أو من موعدك</p></div>
+          <EmptyState
+            icon={MessageSquare}
+            title="لا توجد محادثات بعد"
+            description="ابدأ من ملف الحلاق أو من موعدك"
+            themeConfig={themeConfig}
+          />
         )}
         {error && <p role="alert" className="text-xs p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>{error}</p>}
       </main>
