@@ -20,6 +20,7 @@ import {
 import type { PortfolioItem } from '@/types/supabase-aliases';
 import type { Barber } from '@/types';
 import BrandLogo from '@/components/BrandLogo';
+import { pushRecentBarber } from '@/lib/deviceStorage';
 import { useI18n } from '@/hooks/useI18n';
 
 // Saturday=0, Sunday=1, Monday=2, Tuesday=3, Wednesday=4, Thursday=5, Friday=6
@@ -69,6 +70,7 @@ export default function BarberDetailPage() {
       setLoadingDetails(false);
       return;
     }
+    pushRecentBarber(barberId);
     if (listedBarber) setBarber(listedBarber);
     setLoadingDetails(true);
     void getProfessionalById(barberId)

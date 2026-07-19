@@ -19,6 +19,7 @@ interface RawService {
   description?: string | null;
   category?: string | string[] | null;
   image?: string | null;
+  is_active?: boolean | null;
 }
 
 type RawPortfolioItem = string | { url?: string | null };
@@ -74,8 +75,9 @@ export function transformToBarber(professional: RawProfessional): Barber {
   const rawServices = professional.services || [];
   const portfolio = professional.portfolio_items || [];
 
-  // Map raw DB services to app Service type — drop junk/test rows that destroy trust
+  // Map raw DB services to app Service type — drop inactive + junk/test rows that destroy trust
   const services: Service[] = rawServices
+    .filter((s: RawService) => s.is_active !== false)
     .map((s: RawService) => ({
       id: s.id || '',
       name: (s.name || '').trim(),
@@ -183,4 +185,55 @@ export function isDisplayableBarber(barber: Barber): boolean {
   if (!barber.name || barber.name === 'حلاق') return false;
   if (barber.wilaya === 'ولاية غير محددة' && barber.location === 'عنوان غير محدد') return false;
   return true;
+}
+
+const ALGIERS_TZ = 'Africa/Algiers';
+
+function parseTimeToMinutes(value: string): number | null {
+  if (!value || value === 'closed') return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function getAlgiersClock(now: Date): { dayKey: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: ALGIERS_TZ,
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+
+  const weekday = (parts.find(part => part.type === 'weekday')?.value || 'Sunday').toLowerCase();
+  let hour = Number(parts.find(part => part.type === 'hour')?.value ?? 0);
+  const minute = Number(parts.find(part => part.type === 'minute')?.value ?? 0);
+  if (hour === 24) hour = 0;
+  return { dayKey: weekday, minutes: hour * 60 + minute };
+}
+
+/** Whether a barber is open right now in Africa/Algiers local time. */
+export function isBarberOpenNow(workingHours: WorkingHours, now: Date = new Date()): boolean {
+  if (!workingHours) return false;
+  const { dayKey, minutes } = getAlgiersClock(now);
+  const today = workingHours[dayKey];
+  if (!today || today.isOpen === false) return false;
+
+  const openMinutes = parseTimeToMinutes(today.open);
+  const closeMinutes = parseTimeToMinutes(today.close);
+  if (openMinutes == null || closeMinutes == null) return false;
+
+  // Same-day window (e.g. 09:00–17:00)
+  if (closeMinutes > openMinutes) {
+    return minutes >= openMinutes && minutes < closeMinutes;
+  }
+  // Overnight window (e.g. 22:00–02:00)
+  if (closeMinutes < openMinutes) {
+    return minutes >= openMinutes || minutes < closeMinutes;
+  }
+  return false;
 }

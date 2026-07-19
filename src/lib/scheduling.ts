@@ -75,3 +75,77 @@ export function preferredBookingHour(times: string[]): number | undefined {
   if (!values.length) return undefined;
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
+
+const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
+export interface NextSlotHint {
+  date: string;
+  time: string;
+  labelAr: string;
+  labelFr: string;
+  labelEn: string;
+}
+
+function generateSlots(open: string, close: string, stepMinutes = 30): string[] {
+  const start = minutes(open);
+  const end = minutes(close);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+  const slots: string[] = [];
+  for (let m = start; m + stepMinutes <= end; m += stepMinutes) {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    slots.push(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
+  }
+  return slots;
+}
+
+/** Approximate next open slot from working hours only (no booking occupancy). */
+export function getNextAvailableSlotHint(
+  workingHours: Record<string, { open: string; close: string; isOpen: boolean }>,
+  now = new Date()
+): NextSlotHint | null {
+  const algiersNow = new Date(
+    now.toLocaleString('en-US', { timeZone: 'Africa/Algiers' })
+  );
+
+  for (let offset = 0; offset < 7; offset++) {
+    const day = new Date(algiersNow);
+    day.setDate(algiersNow.getDate() + offset);
+    const key = DAY_KEYS[day.getDay()];
+    const hours = workingHours[key];
+    if (!hours?.isOpen || hours.open === 'closed' || hours.close === 'closed') continue;
+
+    const slots = generateSlots(hours.open, hours.close);
+    if (!slots.length) continue;
+
+    let candidates = slots;
+    if (offset === 0) {
+      const nowMinutes = algiersNow.getHours() * 60 + algiersNow.getMinutes() + 30;
+      candidates = slots.filter(slot => minutes(slot) >= nowMinutes);
+    }
+    if (!candidates.length) continue;
+
+    const time = candidates[0];
+    const date = day.toISOString().slice(0, 10);
+    const dayLabelAr = offset === 0 ? 'اليوم' : offset === 1 ? 'غداً' : day.toLocaleDateString('ar-DZ', { weekday: 'short' });
+    const dayLabelFr = offset === 0 ? 'Aujourd’hui' : offset === 1 ? 'Demain' : day.toLocaleDateString('fr-DZ', { weekday: 'short' });
+    const dayLabelEn = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : day.toLocaleDateString('en-GB', { weekday: 'short' });
+
+    return {
+      date,
+      time,
+      labelAr: `${dayLabelAr} ${time}`,
+      labelFr: `${dayLabelFr} ${time}`,
+      labelEn: `${dayLabelEn} ${time}`,
+    };
+  }
+  return null;
+}
+
+export function nextSlotLabel(
+  hint: NextSlotHint | null,
+  language: 'ar' | 'fr' | 'en'
+): string | null {
+  if (!hint) return null;
+  return language === 'fr' ? hint.labelFr : language === 'en' ? hint.labelEn : hint.labelAr;
+}

@@ -59,7 +59,7 @@ interface HistoryEntry { screen: ScreenName; params?: ScreenParams }
 const queryScreens = new Set<ScreenName>([
   'booking-flow', 'chat-room', 'messages', 'notifications', 'create-post',
   'login', 'register', 'payment-success', 'admin-dashboard', 'ai-advisor',
-  'mfa-challenge', 'coming-soon',
+  'mfa-challenge', 'compare-barbers', 'coming-soon',
 ]);
 
 function screenUrl(screen: ScreenName, params?: ScreenParams): string {
@@ -435,6 +435,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       language: prefs.language || globalLanguage,
       countryCode: prefs.countryCode || 'DZ',
       currencyCode: prefs.currencyCode || 'DZD',
+      discoveryWilaya: (() => {
+        try { return localStorage.getItem('hallaqi-discovery-wilaya') || ''; } catch { return ''; }
+      })(),
       notifications: { pushEnabled: true, emailEnabled: true, smsEnabled: false, bookingReminders: true, promotions: true, forumReplies: true, competitionUpdates: true, newFollowers: true },
       privacy: { profileVisible: true, showLocation: true, showBookings: false, allowMessages: 'all' },
       accessibility: { fontSize: 'medium', highContrast: false, reduceMotion: false, screenReader: false },
@@ -464,6 +467,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           countryCode: updated.countryCode,
           currencyCode: updated.currencyCode,
         }));
+        if (typeof updated.discoveryWilaya === 'string') {
+          localStorage.setItem('hallaqi-discovery-wilaya', updated.discoveryWilaya);
+        }
       } catch { /* ignore */ }
       if (appUser && isSupabaseConfigured() && !isDeveloperMode) {
         queueMicrotask(() => {
@@ -488,7 +494,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             countryCode: (saved as AppSettings).countryCode || prev.countryCode || 'DZ',
             currencyCode: (saved as AppSettings).currencyCode || prev.currencyCode || 'DZD',
             language: saved.language || prev.language,
+            discoveryWilaya: saved.discoveryWilaya !== undefined ? saved.discoveryWilaya : prev.discoveryWilaya,
           }));
+          if (saved.discoveryWilaya) {
+            try { localStorage.setItem('hallaqi-discovery-wilaya', saved.discoveryWilaya); } catch { /* ignore */ }
+          }
         }
       })
       .catch(err => console.warn('[AppContext] settings fetch failed:', err));

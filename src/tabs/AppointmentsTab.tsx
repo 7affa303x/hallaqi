@@ -280,6 +280,19 @@ export default function AppointmentsTab() {
                           style={{ backgroundColor: themeConfig.colors.success + '10', color: themeConfig.colors.success }}>
                           <Navigation size={14} /> الاتجاهات
                         </button>
+                        <button
+                          onClick={() => navigate('booking-flow', {
+                            barberId: booking.barberId,
+                            serviceIds: booking.services.map(service => service.id).join(','),
+                            preferredTime: booking.time,
+                            preferredDate: booking.date,
+                            rescheduleBookingId: booking.id,
+                          })}
+                          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold transition-all"
+                          style={{ backgroundColor: themeConfig.colors.info + '12', color: themeConfig.colors.info }}
+                        >
+                          <CalendarDays size={14} /> إعادة جدولة
+                        </button>
                         <button onClick={() => {
                           if (window.confirm(CANCEL_POLICY.confirmAr(booking.barberName))) void cancelBooking(booking.id);
                         }}

@@ -320,6 +320,8 @@ export interface AppSettings {
   countryCode: string;
   /** Display currency code (prices stored in DZD; conversion is indicative). */
   currencyCode: string;
+  /** Preferred wilaya for booking discovery (synced when logged in). */
+  discoveryWilaya?: string;
   notifications: {
     pushEnabled: boolean;
     emailEnabled: boolean;
@@ -406,15 +408,19 @@ export type ScreenName =
   | 'seller-profile-edit'
   | 'marketplace-analytics'
   | 'ai-listing-tools'
+  | 'compare-barbers'
   | 'coming-soon';
 
 export interface ScreenParams {
   barberId?: string;
+  barberIds?: string;
   chatId?: string;
   postId?: string;
   bookingId?: string;
   serviceIds?: string;
   preferredTime?: string;
+  preferredDate?: string;
+  rescheduleBookingId?: string;
   redirectScreen?: string;
   redirectTab?: string;
   title?: string;

@@ -9,7 +9,7 @@ import type {
 } from '@/types/supabase-aliases';
 import type { Json } from '@/types/supabase';
 import type { AppSettings } from '@/types';
-import { transformToBarber } from '@/lib/utils';
+import { transformToBarber, isDisplayableBarber } from '@/lib/utils';
 
 function guard(): void {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
@@ -94,10 +94,12 @@ export async function deleteCurrentAccount() {
 
 export async function getProfessionals(filters?: { city?: string; search?: string; category?: string }) {
   guard();
+  // services!inner excludes professionals with zero active services at the DB layer (#28)
   let query = supabase
     .from('professionals')
-    .select('*, profiles(full_name, avatar_url, city, user_role, verification_status), services(*), availability_schedules(*)')
+    .select('*, profiles(full_name, avatar_url, city, user_role, verification_status), services!inner(*), availability_schedules(*)')
     .eq('is_active', true)
+    .eq('services.is_active', true)
     .limit(50)
     .order('average_rating', { ascending: false });
 
@@ -107,7 +109,14 @@ export async function getProfessionals(filters?: { city?: string; search?: strin
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || []).map(transformToBarber);
+  // Deduplicate if PostgREST returns duplicate pro rows for multi-service joins
+  const seen = new Set<string>();
+  const unique = (data || []).filter(row => {
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
+    return true;
+  });
+  return unique.map(transformToBarber).filter(isDisplayableBarber);
 }
 
 export async function getProfessionalById(id: string) {
@@ -742,7 +751,7 @@ export async function getUserSettings(userId: string): Promise<Partial<AppSettin
   guard();
   const { data, error } = await supabase
     .from('user_settings')
-    .select('notification_preferences, privacy_preferences, accessibility_preferences')
+    .select('notification_preferences, privacy_preferences, accessibility_preferences, language, country_code, currency_code, discovery_wilaya')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -751,6 +760,12 @@ export async function getUserSettings(userId: string): Promise<Partial<AppSettin
     notifications: data.notification_preferences as unknown as AppSettings['notifications'],
     privacy: data.privacy_preferences as unknown as AppSettings['privacy'],
     accessibility: data.accessibility_preferences as unknown as AppSettings['accessibility'],
+    language: (data.language === 'fr' || data.language === 'en' || data.language === 'ar')
+      ? data.language
+      : undefined,
+    countryCode: data.country_code || undefined,
+    currencyCode: data.currency_code || undefined,
+    discoveryWilaya: data.discovery_wilaya || undefined,
   };
 }
 
@@ -761,6 +776,10 @@ export async function upsertUserSettings(userId: string, settings: AppSettings) 
     notification_preferences: settings.notifications as unknown as Json,
     privacy_preferences: settings.privacy as unknown as Json,
     accessibility_preferences: settings.accessibility as unknown as Json,
+    language: settings.language,
+    country_code: settings.countryCode,
+    currency_code: settings.currencyCode,
+    discovery_wilaya: settings.discoveryWilaya || '',
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' });
   if (error) throw new Error(error.message);

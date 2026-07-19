@@ -52,5 +52,19 @@ export function isForumBookmarked(postId: string): boolean {
   return getForumBookmarkIds().includes(postId);
 }
 
+const RECENT_BARBERS_KEY = 'hallaqi-recent-barbers';
+const RECENT_BARBERS_CAP = 12;
+
+/** MRU list of visited barber ids (device-only). */
+export function getRecentBarberIds(): string[] {
+  return readIds(RECENT_BARBERS_KEY);
+}
+
+export function pushRecentBarber(barberId: string): void {
+  if (!barberId) return;
+  const next = [barberId, ...getRecentBarberIds().filter(id => id !== barberId)].slice(0, RECENT_BARBERS_CAP);
+  writeIds(RECENT_BARBERS_KEY, next);
+}
+
 /** Shown next to local-only saves until server sync exists. */
 export const DEVICE_SAVE_HINT = 'محفوظ على هذا الجهاز فقط';

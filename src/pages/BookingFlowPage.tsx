@@ -25,10 +25,12 @@ import { bookingStep3Schema } from '@/lib/validation';
 import type { BookingStep3FormData } from '@/lib/validation';
 import { preferredBookingHour, rankAvailableSlots } from '@/lib/scheduling';
 import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
-import { CANCEL_POLICY } from '@/lib/cancelPolicy';
+import { cancelPolicyDetails, cancelPolicySummary } from '@/lib/cancelPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { reportClientError } from '@/lib/error-reporting';
 import { useI18n } from '@/hooks/useI18n';
+
+const BOOKING_DRAFT_KEY = 'hallaqi-booking-draft-v1';
 
 const ALL_TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -110,7 +112,7 @@ const generateDates = () => {
 };
 
 export default function BookingFlowPage() {
-  const { themeConfig, screenParams, barbers, bookings: userBookings, addBooking, navigate, setActiveTab, goBack, refreshData } = useApp();
+  const { themeConfig, screenParams, barbers, bookings: userBookings, addBooking, navigate, setActiveTab, goBack, refreshData, settings } = useApp();
   const { money } = useI18n();
   const { appUser } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -139,6 +141,7 @@ export default function BookingFlowPage() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [availableVouchers, setAvailableVouchers] = useState<AvailableVoucher[]>([]);
   const [selectedVoucherId, setSelectedVoucherId] = useState('');
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const {
     register: registerStep3,
@@ -168,8 +171,67 @@ export default function BookingFlowPage() {
       const validIds = requestedServices.filter(id => barber.services.some(service => service.id === id));
       setSelectedServices(validIds);
     }
+    if (screenParams?.preferredDate) setSelectedDate(screenParams.preferredDate);
+    if (screenParams?.preferredTime) setSelectedTime(screenParams.preferredTime);
+    if (screenParams?.rescheduleBookingId && (screenParams?.serviceIds || screenParams?.preferredTime)) {
+      setStep(2);
+    }
     setInitializedFromParams(true);
-  }, [barber, initializedFromParams, screenParams?.serviceIds]);
+  }, [barber, initializedFromParams, screenParams?.preferredDate, screenParams?.preferredTime, screenParams?.rescheduleBookingId, screenParams?.serviceIds]);
+
+  // Restore offline booking draft for this barber (#57)
+  useEffect(() => {
+    if (!barber || draftRestored) return;
+    try {
+      const raw = localStorage.getItem(BOOKING_DRAFT_KEY);
+      if (!raw) {
+        setDraftRestored(true);
+        return;
+      }
+      const draft = JSON.parse(raw) as {
+        barberId?: string;
+        serviceIds?: string[];
+        date?: string;
+        time?: string;
+        step?: 1 | 2 | 3;
+      };
+      if (draft.barberId !== barber.id) {
+        setDraftRestored(true);
+        return;
+      }
+      if (Array.isArray(draft.serviceIds) && draft.serviceIds.length) {
+        setSelectedServices(draft.serviceIds.filter(id => barber.services.some(s => s.id === id)));
+      }
+      if (draft.date) setSelectedDate(draft.date);
+      if (draft.time) setSelectedTime(draft.time);
+      if (draft.step === 2 || draft.step === 3) setStep(draft.step);
+    } catch {
+      // ignore corrupt draft
+    } finally {
+      setDraftRestored(true);
+    }
+  }, [barber, draftRestored]);
+
+  // Persist draft while composing (#57)
+  useEffect(() => {
+    if (!barber || !draftRestored || confirmed) return;
+    try {
+      if (!selectedServices.length && !selectedDate && !selectedTime) {
+        localStorage.removeItem(BOOKING_DRAFT_KEY);
+        return;
+      }
+      localStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({
+        barberId: barber.id,
+        serviceIds: selectedServices,
+        date: selectedDate,
+        time: selectedTime,
+        step,
+        savedAt: Date.now(),
+      }));
+    } catch {
+      // ignore quota
+    }
+  }, [barber, confirmed, draftRestored, selectedDate, selectedServices, selectedTime, step]);
 
   // Cancel orphan booking if user returned from Stripe cancel URL
   useEffect(() => {
@@ -421,7 +483,19 @@ export default function BookingFlowPage() {
           paymentMethod: data.paymentMethod,
           total: saved.total_price,
           usedVoucher: Boolean(selectedVoucher),
+          reschedule: Boolean(screenParams?.rescheduleBookingId),
         });
+
+        // Soft reschedule (#58): cancel the previous booking after the new one is created
+        if (screenParams?.rescheduleBookingId && screenParams.rescheduleBookingId !== saved.id) {
+          try {
+            await updateBookingStatus(screenParams.rescheduleBookingId, 'cancelled');
+          } catch (rescheduleErr) {
+            console.error('Failed to cancel previous booking after reschedule:', rescheduleErr);
+            reportClientError(rescheduleErr instanceof Error ? rescheduleErr : new Error(String(rescheduleErr)));
+          }
+        }
+
         // If card payment selected, redirect to Stripe Checkout
         if (data.paymentMethod === 'card') {
           const baseUrl = window.location.origin;
@@ -544,6 +618,7 @@ export default function BookingFlowPage() {
         await refreshData();
 
         setConfirmed(true);
+        try { localStorage.removeItem(BOOKING_DRAFT_KEY); } catch { /* ignore */ }
       }
     } catch (err) {
       console.error('Booking save failed:', err);
@@ -691,6 +766,12 @@ export default function BookingFlowPage() {
       {/* === STEP 1: SERVICES === */}
       {step === 1 && (
         <div className="px-4 mt-4">
+          <div className="rounded-xl border p-3 mb-3" style={{ backgroundColor: `${themeConfig.colors.info}08`, borderColor: themeConfig.colors.border }}>
+            <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>سياسة الإلغاء</p>
+            <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+              {cancelPolicySummary(settings.language)}
+            </p>
+          </div>
           <div className="flex items-center gap-2 mb-3">
             <img src={barber.avatar} alt={barber.name} className="w-8 h-8 rounded-lg object-cover" />
             <div><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{barber.name}</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اختر الخدمات المطلوبة</p></div>
@@ -720,6 +801,12 @@ export default function BookingFlowPage() {
       {/* === STEP 2: DATE & TIME === */}
       {step === 2 && (
         <div className="px-4 mt-4">
+          <div className="rounded-xl border p-3 mb-3" style={{ backgroundColor: `${themeConfig.colors.info}08`, borderColor: themeConfig.colors.border }}>
+            <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>سياسة الإلغاء</p>
+            <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+              {cancelPolicySummary(settings.language)}
+            </p>
+          </div>
           {/* Date selector */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-3"><Calendar size={16} style={{ color: themeConfig.colors.primary }} /><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>اختر التاريخ</p></div>
@@ -869,14 +956,14 @@ export default function BookingFlowPage() {
               ))}
             </div>
             <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-              عند الإطلاق: الدفع النقدي عند الزيارة متاح. البطاقة وCCP وبريدي موب <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</span> حتى تفعيل التحصيل.
+              عند الإطلاق: الدفع النقدي عند الزيارة متاح. المبلغ المعروض بعملة العرض للتقريب؛ التسوية عند الزيارة بالدينار الجزائري (DZD). البطاقة وCCP وبريدي موب <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</span> حتى تفعيل التحصيل.
             </p>
           </div>
 
           <div className="rounded-xl border p-3" style={{ backgroundColor: `${themeConfig.colors.info}08`, borderColor: themeConfig.colors.border }}>
             <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>سياسة الإلغاء</p>
             <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-              {CANCEL_POLICY.detailsAr}
+              {cancelPolicyDetails(settings.language)}
             </p>
           </div>
 

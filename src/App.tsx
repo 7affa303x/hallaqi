@@ -51,6 +51,7 @@ const SellerPlacementsPage = lazy(() => import('@/pages/store/SellerPlacementsPa
 const SellerProfileEditPage = lazy(() => import('@/pages/store/SellerProfileEditPage'));
 const MarketplaceAnalyticsPage = lazy(() => import('@/pages/analytics/MarketplaceAnalyticsPage'));
 const AiListingToolsPage = lazy(() => import('@/pages/marketplace/AiListingToolsPage'));
+const CompareBarbersPage = lazy(() => import('@/pages/CompareBarbersPage'));
 
 function TabContent({ tab }: { tab: string }) {
   let content;
@@ -85,6 +86,8 @@ function ScreenRouter() {
   switch (screen) {
     case 'barber-detail':
       return <Suspense fallback={<LoadingFallback />}><BarberDetailPage /></Suspense>;
+    case 'compare-barbers':
+      return <Suspense fallback={<LoadingFallback />}><CompareBarbersPage /></Suspense>;
     case 'booking-flow':
       return <Suspense fallback={<LoadingFallback />}><BookingFlowPage /></Suspense>;
     case 'chat-room':
