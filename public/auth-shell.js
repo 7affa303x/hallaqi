@@ -109,6 +109,18 @@
       window.__HALLAQI_OAUTH_RETURN = true;
       window.__HALLAQI_AUTH_SHELL_PENDING = false;
       window.__HALLAQI_SKIP_SW_REGISTER = true;
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            return Promise.all(regs.map(function (r) { return r.unregister(); }));
+          });
+        }
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          });
+        }
+      } catch (e) { /* ignore */ }
       return;
     }
 

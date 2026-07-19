@@ -79,8 +79,12 @@ jobs:
               echo "Production auth-shell skips OAuth reload"
               exit 0
             fi
-            if echo "$HTML" | grep -q '\[?&\]code='; then
-              echo "Production index.html has inline PKCE safety net"
+            if echo "$HTML" | grep -q 'oauth-guard.js'; then
+              echo "Production has CSP-safe oauth-guard.js"
+              exit 0
+            fi
+            if echo "$BODY" | grep -q '__HALLAQI_SKIP_SW_REGISTER'; then
+              echo "Production auth-shell unregisters SW on OAuth"
               exit 0
             fi
           done
