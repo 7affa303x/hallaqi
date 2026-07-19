@@ -29,12 +29,18 @@ export function filterMarketplaceProducts(
 
   const q = filters.query?.trim().toLowerCase();
   if (q) {
+    const numericQ = Number(q.replace(/[^\d.]/g, ''));
+    const hasNumeric = Number.isFinite(numericQ) && q.replace(/[^\d.]/g, '').length >= 2;
     list = list.filter(p =>
       p.title.toLowerCase().includes(q)
       || p.description.toLowerCase().includes(q)
       || p.brand.toLowerCase().includes(q)
       || p.keywords.some(k => k.toLowerCase().includes(q))
       || (p.sellerName || '').toLowerCase().includes(q)
+      || (hasNumeric && (
+        String(Math.round(p.priceDzd)).includes(String(Math.round(numericQ)))
+        || Math.abs(p.priceDzd - numericQ) < 1
+      ))
     );
   }
 

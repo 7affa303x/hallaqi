@@ -26,6 +26,7 @@ import type { BookingStep3FormData } from '@/lib/validation';
 import { preferredBookingHour, rankAvailableSlots } from '@/lib/scheduling';
 import { FEATURE_FLAGS, PAUSED_LABEL, COMING_SOON_LABEL, isCashOnlyPayments } from '@/lib/featureFlags';
 import { cancelPolicyDetails, cancelPolicySummary } from '@/lib/cancelPolicy';
+import { refundPolicySummary } from '@/lib/paymentPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { reportClientError } from '@/lib/error-reporting';
 import { useI18n } from '@/hooks/useI18n';
@@ -1001,6 +1002,9 @@ export default function BookingFlowPage() {
             )}
             <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
               المبلغ المعروض بعملة العرض للتقريب؛ التسوية عند الزيارة بالدينار الجزائري (DZD). البطاقة وStripe وCCP غير معروضة كخيار رئيسي في الجزائر حالياً.
+            </p>
+            <p className="text-[10px] mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+              {refundPolicySummary(settings.language)}
             </p>
           </div>
 

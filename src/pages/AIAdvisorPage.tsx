@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Image, LogIn, MapPin, Send, Sparkles, WandSparkles } from 'lucide-react';
+import { ArrowRight, Image, LogIn, MapPin, Send, Sparkles, ThumbsDown, ThumbsUp, WandSparkles } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
 import { buildClientSiteContext } from '@/lib/ai/siteContext';
 import { looksLikeMedicalQuestion, medicalRefusalMessage } from '@/lib/ai/medicalGuard';
+import { aiAdviceExamples, AI_DAILY_QUOTA_HINT } from '@/lib/ai/adviceExamples';
 import { translateApiError } from '@/lib/apiErrors';
+import { trackProductEvent } from '@/lib/product-analytics';
 import {
   getAICapabilities,
   requestGroomingAdvice,
@@ -14,6 +16,27 @@ import {
   type AICapabilities,
   type GroomingAdvice,
 } from '@/lib/ai/http';
+
+const RATING_KEY = 'hallaqi-ai-advice-ratings-v1';
+
+function readAdviceRating(fingerprint: string): 'up' | 'down' | null {
+  try {
+    const raw = localStorage.getItem(RATING_KEY);
+    const map = raw ? JSON.parse(raw) as Record<string, 'up' | 'down'> : {};
+    return map[fingerprint] || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAdviceRating(fingerprint: string, value: 'up' | 'down') {
+  try {
+    const raw = localStorage.getItem(RATING_KEY);
+    const map = raw ? JSON.parse(raw) as Record<string, 'up' | 'down'> : {};
+    map[fingerprint] = value;
+    localStorage.setItem(RATING_KEY, JSON.stringify(map));
+  } catch { /* ignore */ }
+}
 
 const fallbackCapabilities: AICapabilities = {
   deterministicRecommendations: true,
@@ -35,6 +58,7 @@ export default function AIAdvisorPage() {
   const [loading, setLoading] = useState(false);
   /** Short session memory — last 3 questions (#123) */
   const [recentQuestions, setRecentQuestions] = useState<string[]>([]);
+  const [rating, setRating] = useState<'up' | 'down' | null>(null);
 
   useEffect(() => {
     void getAICapabilities().then(setCapabilities).catch(() => {
@@ -43,6 +67,8 @@ export default function AIAdvisorPage() {
   }, []);
 
   const imagePaused = !FEATURE_FLAGS.aiImageGenerationEnabled;
+  const examples = useMemo(() => aiAdviceExamples(settings.language), [settings.language]);
+  const quotaHint = AI_DAILY_QUOTA_HINT[settings.language] || AI_DAILY_QUOTA_HINT.ar;
 
   const discoveryWilaya = useMemo(() => {
     try {
@@ -65,6 +91,14 @@ export default function AIAdvisorPage() {
     userWilaya,
     discoveryWilaya,
   }), [barbers, bookings, userWilaya, discoveryWilaya]);
+
+  const suggestedBarbers = useMemo(() => {
+    const hints = siteContext.topBarbers || [];
+    return hints
+      .map(h => barbers.find(b => b.id === h.id) || barbers.find(b => b.name === h.name))
+      .filter((b): b is NonNullable<typeof b> => Boolean(b))
+      .slice(0, 3);
+  }, [siteContext.topBarbers, barbers]);
 
   const contextLabel = siteContext.wilaya
     ? `مرتبط بمنطقة ${siteContext.wilaya}`
@@ -93,6 +127,7 @@ export default function AIAdvisorPage() {
     setError('');
     setAdvice(null);
     setStyleImage('');
+    setRating(null);
     try {
       if (mode === 'advice') {
         setAdvice(await requestGroomingAdvice({
@@ -113,6 +148,20 @@ export default function AIAdvisorPage() {
       setLoading(false);
     }
   };
+
+  const rateAdvice = (value: 'up' | 'down') => {
+    if (!advice) return;
+    const fp = `${question.slice(0, 40)}::${advice.answer.slice(0, 40)}`;
+    writeAdviceRating(fp, value);
+    setRating(value);
+    trackProductEvent('AI Advice Rated', { helpful: value === 'up' });
+  };
+
+  useEffect(() => {
+    if (!advice) return;
+    const fp = `${question.slice(0, 40)}::${advice.answer.slice(0, 40)}`;
+    setRating(readAdviceRating(fp));
+  }, [advice, question]);
 
   const providerReady = mode === 'advice'
     ? capabilities.generativeAdvice
@@ -172,6 +221,22 @@ export default function AIAdvisorPage() {
           ) : null
         )}
 
+        {mode === 'advice' && (
+          <div className="flex flex-wrap gap-2">
+            {examples.map(ex => (
+              <button
+                key={ex}
+                type="button"
+                onClick={() => setQuestion(ex)}
+                className="text-[10px] px-2.5 py-1.5 rounded-lg border"
+                style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.primary, backgroundColor: themeConfig.colors.surface }}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        )}
+
         {recentQuestions.length > 0 && mode === 'advice' && (
           <div className="flex flex-wrap gap-2">
             {recentQuestions.map(rq => (
@@ -196,7 +261,7 @@ export default function AIAdvisorPage() {
             maxLength={500}
             rows={5}
             disabled={mode === 'image' && imagePaused}
-            placeholder={mode === 'advice' || imagePaused ? 'مثال: ما الخدمة المناسبة لشعر جاف ومجعد؟' : 'مثال: تسريحة قصيرة متدرجة لشعر مجعد، مرجع صالون واقعي'}
+            placeholder={examples[0]}
             className="w-full mt-3 rounded-xl border p-3 text-sm resize-none disabled:opacity-50"
             style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
           />
@@ -205,14 +270,9 @@ export default function AIAdvisorPage() {
               {capabilities.externalBlocker || 'المساعد ينتظر إعداد GROQ_API_KEY (مجاني) على الخادم.'}
             </p>
           )}
-          {providerReady && capabilities.provider === 'groq' && (
+          {providerReady && mode === 'advice' && (
             <p className="text-[11px] mt-2" style={{ color: themeConfig.colors.textMuted }}>
-              يعرف سياسات Hallaqi والحلاقين على المنصة. حد يومي لحماية الخدمة.
-            </p>
-          )}
-          {providerReady && capabilities.provider === 'gemini' && (
-            <p className="text-[11px] mt-2" style={{ color: themeConfig.colors.textMuted }}>
-              يعمل عبر Gemini مباشرة.
+              {quotaHint}
             </p>
           )}
           <button
@@ -240,6 +300,33 @@ export default function AIAdvisorPage() {
             <p className="text-sm leading-relaxed" style={{ color: themeConfig.colors.text }}>{advice.answer}</p>
             {advice.suggestedServices.length > 0 && <div className="flex flex-wrap gap-1">{advice.suggestedServices.map(service => <span key={service} className="text-[10px] px-2 py-1 rounded-full" style={{ backgroundColor: themeConfig.colors.primary + '12', color: themeConfig.colors.primary }}>{service}</span>)}</div>}
             {advice.cautions.map(caution => <p key={caution} className="text-[10px]" style={{ color: themeConfig.colors.warning }}>• {caution}</p>)}
+            {suggestedBarbers.length > 0 && (
+              <div className="pt-2 border-t space-y-2" style={{ borderColor: themeConfig.colors.border }}>
+                <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>حلاقون على المنصة</p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedBarbers.map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => navigate('barber-detail', { barberId: b.id })}
+                      className="text-[10px] font-bold px-2.5 py-1.5 rounded-lg border"
+                      style={{ borderColor: themeConfig.colors.primary + '40', color: themeConfig.colors.primary, backgroundColor: themeConfig.colors.primary + '10' }}
+                    >
+                      {b.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>هل كانت مفيدة؟</span>
+              <button type="button" aria-label="مفيدة" onClick={() => rateAdvice('up')} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: rating === 'up' ? themeConfig.colors.success : themeConfig.colors.border, color: rating === 'up' ? themeConfig.colors.success : themeConfig.colors.textMuted }}>
+                <ThumbsUp size={14} />
+              </button>
+              <button type="button" aria-label="غير مفيدة" onClick={() => rateAdvice('down')} className="w-8 h-8 rounded-lg flex items-center justify-center border" style={{ borderColor: rating === 'down' ? themeConfig.colors.error : themeConfig.colors.border, color: rating === 'down' ? themeConfig.colors.error : themeConfig.colors.textMuted }}>
+                <ThumbsDown size={14} />
+              </button>
+            </div>
           </div>
         )}
         {mode === 'image' && styleImage && <img src={styleImage} alt="مرجع تسريحة مولد بالذكاء الاصطناعي" className="w-full rounded-2xl" loading="lazy" />}

@@ -15,7 +15,7 @@ import {
   Trash2, Download, AlertTriangle, Check, X, Sparkles,
   Scissors, Clock, TrendingUp, Award, Zap, Crown as CrownIcon,
   ArrowLeft, LogIn, UserPlus as UserPlusIcon, Gift,
-  Store, Building2, Stethoscope, CalendarDays, ShoppingBag, Bookmark,
+  Store, Building2, Stethoscope, CalendarDays, ShoppingBag, Bookmark, BookOpen,
 } from 'lucide-react';
 import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
@@ -24,6 +24,9 @@ import SavedItemsPage from '@/components/SavedItemsPage';
 import ChangelogPage from '@/pages/ChangelogPage';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
+import { getLegalContent, getHelpContent, getWhyHallaqiContent } from '@/lib/legalContent';
+import { refundPolicySummary, paymentMethodsLegalNote } from '@/lib/paymentPolicy';
+import { BARBER_GLOSSARY, glossaryLabel, glossaryMeaning } from '@/lib/barberGlossary';
 import {
   createIdVerificationRequest,
   getLatestIdVerificationRequest,
@@ -73,13 +76,13 @@ const iconMap: Record<string, LucideIcon> = {
   UserPlus, Lock, Smartphone, CreditCard, Wallet, HelpCircle, Phone,
   Bug, Lightbulb, Info, FileText, FileCode, Trash2, Download, AlertTriangle,
   Check, X, Sparkles, Scissors, Clock, TrendingUp, Award, Zap, Gift,
-  Crown: CrownIcon,
+  Crown: CrownIcon, BookOpen, Store, Building2, Stethoscope, Bookmark,
 };
 
 type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'country' | 'currency' | 'region' | 'notifications' |
   'privacy' | 'account' | 'subscription' | 'payment' | 'id-verification' |
   'linked-accounts' | 'help' | 'about' | 'changelog' | 'badges' | 'stats' | 'edit-profile' | 'services' | 'loyalty' |
-  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves';
+  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves' | 'glossary' | 'why';
 
 export default function ProfileTab() {
   const { themeConfig, settings, navigate, setActiveTab, unreadCount, bookings, barbers, screenParams } = useApp();
@@ -116,6 +119,8 @@ export default function ProfileTab() {
   // Legal / about / help are public — available before login
   if (subPage === 'help') return <InformationPage onBack={() => setSubPage('main')} kind="help" />;
   if (subPage === 'about') return <InformationPage onBack={() => setSubPage('main')} kind="about" />;
+  if (subPage === 'why') return <InformationPage onBack={() => setSubPage('main')} kind="why" />;
+  if (subPage === 'glossary') return <GlossaryPage onBack={() => setSubPage('main')} />;
   if (subPage === 'privacy-policy') return <LegalPage onBack={() => setSubPage('main')} kind="privacy" />;
   if (subPage === 'terms') return <LegalPage onBack={() => setSubPage('main')} kind="terms" />;
   if (subPage === 'licenses') return <LegalPage onBack={() => setSubPage('main')} kind="licenses" />;
@@ -521,7 +526,7 @@ export default function ProfileTab() {
                   if (item.id === 'featureRequest') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Feature%20Request'; return; }
                   const pageMap: Record<string, ProfileSubPage> = {
                     theme: 'theme', animation: 'animation', language: 'region', country: 'region', currency: 'region', fontSize: 'accessibility',
-                    regionSettings: 'region', aboutApp: 'about',
+                    regionSettings: 'region', aboutApp: 'about', whyHallaqi: 'why', glossary: 'glossary',
                     pushNotifications: 'notifications', emailNotifications: 'notifications', smsNotifications: 'notifications',
                     bookingReminders: 'notifications', promotions: 'notifications', forumReplies: 'notifications',
                     competitionUpdates: 'notifications', newFollowers: 'notifications',
@@ -719,38 +724,8 @@ function AccessibilitySettings({ onBack }: { onBack: () => void }) {
 }
 
 function LegalPage({ onBack, kind }: { onBack: () => void; kind: 'privacy' | 'terms' | 'licenses' }) {
-  const { themeConfig } = useApp();
-  const content = {
-    privacy: {
-      title: 'سياسة الخصوصية',
-      sections: [
-        ['البيانات التي نجمعها', 'بيانات الحساب (الاسم، البريد، الهاتف)، الحجوزات، الموقع الاختياري، صور الملف/المحفظة، إيصالات الدفع، وبيانات الاستخدام لتحسين الخدمة.'],
-        ['كيفية الاستخدام', 'نشغّل الحجز والدفع والتواصل ومنع الاحتيال، ونفعّل مساعد AI عبر مزودين مثل Groq/Google عند تفعيل الميزة، دون بيع بياناتك الشخصية.'],
-        ['المدفوعات والوثائق', 'إيصالات CCP/بريدي والبطاقات والمستندات خاصة — تظهر فقط لصاحب الحساب والأدمن/الحلاق المعني بالموافقة.'],
-        ['السوق الخارجي', 'عند زيارة متجر خارجي (Visit Store) تغادر Hallaqi؛ سياسة ذلك الموقع منفصلة عنّا.'],
-        ['حقوقك', 'يمكنك طلب تصدير بياناتك أو حذف حسابك من الإعدادات. للاستفسار: عبر الدعم داخل التطبيق.'],
-        ['ملفات الارتباط والتحليلات', 'قد نستخدم أدوات تحليل (مثل Vercel Analytics) لقياس الأداء دون تحديد هوية شخصية قدر الإمكان.'],
-      ],
-    },
-    terms: {
-      title: 'شروط الاستخدام',
-      sections: [
-        ['الحسابات والأدوار', 'يختار المستخدم دوره (عميل، حلاق، متجر، شركة، طبيب). حسابات السوق قد تبقى معلّقة حتى موافقة الإدارة.'],
-        ['الحجوزات', 'يلتزم العميل بمعلومات صحيحة، ويلتزم الحلاق بتحديث التوفر والخدمات والأسعار. الإلغاء يخضع لسياسة الحلاق الظاهرة عند الحجز.'],
-        ['المدفوعات', 'الدفع الإلكتروني أو اليدوي (CCP) يخضع للتحقق. لا يُعد الإيصال قبولاً نهائياً حتى اعتماده. الحجوزات غير المدفوعة بالبطاقة قد تُلغى.'],
-        ['السوق', 'الشراء داخل التطبيق للمنتجات غير مفعّل عند الإطلاق؛ الروابط الخارجية على مسؤولية البائع والمشتري.'],
-        ['المساعد الذكي', 'محتوى AI استرشادي فقط وليس تشخيصاً طبياً. للمشاكل الجلدية أو تساقط غير مفسَّر راجع مختصاً.'],
-        ['السلوك', 'يُمنع الاحتيال والتحرش والمحتوى المضلل، ويحق للإدارة تعليق الحساب عند المخالفة.'],
-      ],
-    },
-    licenses: {
-      title: 'التراخيص مفتوحة المصدر',
-      sections: [
-        ['التقنيات', 'React وVite وSupabase وTailwind CSS وLucide وVercel AI SDK ومكتباتها وفق تراخيصها الأصلية.'],
-        ['العلامة', 'اسم وشعار Hallaqi وأصوله البصرية ملك للمنتج ولا تشملها تراخيص مكتبات البرمجيات.'],
-      ],
-    },
-  }[kind];
+  const { themeConfig, settings } = useApp();
+  const content = getLegalContent(kind, settings.language);
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
@@ -764,8 +739,24 @@ function LegalPage({ onBack, kind }: { onBack: () => void; kind: 'privacy' | 'te
             <p className="text-xs leading-6 mt-2" style={{ color: themeConfig.colors.textMuted }}>{text}</p>
           </section>
         ))}
+        {kind === 'terms' && (
+          <>
+            <section className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
+                {settings.language === 'en' ? 'Refunds' : settings.language === 'fr' ? 'Remboursements' : 'الاسترداد'}
+              </h3>
+              <p className="text-xs leading-6 mt-2" style={{ color: themeConfig.colors.textMuted }}>{refundPolicySummary(settings.language)}</p>
+            </section>
+            <section className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
+                {settings.language === 'en' ? 'Payment methods' : settings.language === 'fr' ? 'Moyens de paiement' : 'وسائل الدفع'}
+              </h3>
+              <p className="text-xs leading-6 mt-2" style={{ color: themeConfig.colors.textMuted }}>{paymentMethodsLegalNote(settings.language)}</p>
+            </section>
+          </>
+        )}
         <p className="text-[10px] text-center" style={{ color: themeConfig.colors.textMuted }}>
-          آخر تحديث: 18 تموز/يوليو 2026 · مطابق لتوجيهات الإطلاق الناعم
+          {settings.language === 'en' ? 'Last updated: 18 July 2026' : settings.language === 'fr' ? 'Dernière mise à jour : 18 juillet 2026' : 'آخر تحديث: 18 تموز/يوليو 2026'} · soft launch
         </p>
       </div>
     </div>
@@ -860,62 +851,119 @@ function LoyaltyPage({ onBack }: { onBack: () => void }) {
   );
 }
 
-function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 'about' }) {
-  const { themeConfig } = useApp();
-  const isHelp = kind === 'help';
+function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 'about' | 'why' }) {
+  const { themeConfig, settings } = useApp();
+  const lang = settings.language;
+  if (kind === 'help') {
+    const content = getHelpContent(lang);
+    return (
+      <div className="pb-20">
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+          <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{content.title}</h2>
+        </div>
+        <div className="p-4 space-y-3">
+          {content.sections.map(([title, text]) => (
+            <div key={title} className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{title}</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{text}</p>
+            </div>
+          ))}
+          <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{lang === 'en' ? 'Cancel policy' : lang === 'fr' ? 'Annulation' : 'سياسة الإلغاء'}</h3>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{lang === 'fr' ? CANCEL_POLICY.summaryFr : lang === 'en' ? CANCEL_POLICY.summaryEn : CANCEL_POLICY.summaryAr}</p>
+          </div>
+          <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{lang === 'en' ? 'Support' : lang === 'fr' ? 'Support' : 'الدعم'}</h3>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
+              <a href="mailto:support@hallaqi.app" className="font-bold underline" style={{ color: themeConfig.colors.primary }}>support@hallaqi.app</a>
+              {!isWhatsAppSupportConfigured() && (
+                <> · WhatsApp <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{COMING_SOON_LABEL}</span></>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (kind === 'why') {
+    const content = getWhyHallaqiContent(lang);
+    return (
+      <div className="pb-20">
+        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+          <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{content.title}</h2>
+        </div>
+        <div className="p-4 space-y-3">
+          {content.sections.map(([title, text]) => (
+            <div key={title} className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{title}</h3>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
         <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{isHelp ? 'مركز المساعدة' : 'عن حلاقي'}</h2>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>{lang === 'en' ? 'About Hallaqi' : lang === 'fr' ? 'À propos' : 'عن حلاقي'}</h2>
       </div>
       <div className="p-4 space-y-3">
-        {isHelp ? (
-          <>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الحجوزات</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع النقدي متاح؛ البطاقة وCCP متوقفان عند الإطلاق. {CANCEL_POLICY.summaryAr}</p>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدعم والتواصل</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
-                راسلنا على <a href="mailto:support@hallaqi.app" className="font-bold underline" style={{ color: themeConfig.colors.primary }}>support@hallaqi.app</a>.
-                {!isWhatsAppSupportConfigured() && (
-                  <> واتساب الدعم <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{COMING_SOON_LABEL}</span>.</>
-                )}
-                {' '}لا ترسل كلمة المرور أبداً.
-              </p>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>السوق</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اكتشف منتجات ومتاجر ثم اشترِ عبر Visit Store (https). لا يوجد دفع منتجات داخل التطبيق عند الإطلاق.</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
-              <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية للحجز والسوق والمنتدى ومساعد AI — تربط العملاء بالحلاقين والمتاجر والشركات والأطباء.</p>
-              <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.1.0 · إطلاق ناعم في الجزائر</p>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>اتصل بنا</h3>
-              <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
-                البريد: support@hallaqi.app<br />
-                الموقع: https://hallaqi.app<br />
-                الجزائر
-              </p>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>إشعار قانوني (Mentions)</h3>
-              <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
-                خدمة رقمية لإدارة الحجوزات والاكتشاف. الدفع النقدي عند الزيارة هو الافتراضي في الإطلاق الناعم.
-                سياسة الخصوصية وشروط الاستخدام متاحة من الملف الشخصي. للاستفسارات القانونية: support@hallaqi.app.
-              </p>
-            </div>
-          </>
-        )}
+        <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
+          <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
+          <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
+            {lang === 'en'
+              ? 'Algerian platform for booking, marketplace, forum, and AI tips.'
+              : lang === 'fr'
+                ? 'Plateforme algérienne pour réservation, marketplace, forum et conseils IA.'
+                : 'منصة جزائرية للحجز والسوق والمنتدى ومساعد AI — تربط العملاء بالحلاقين والمتاجر والشركات والأطباء.'}
+          </p>
+          <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>v12.1.0 · soft launch</p>
+        </div>
+        <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{lang === 'en' ? 'Contact' : lang === 'fr' ? 'Contact' : 'اتصل بنا'}</h3>
+          <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
+            support@hallaqi.app<br />
+            https://hallaqi.app<br />
+            الجزائر / Algérie
+          </p>
+        </div>
+        <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+          <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>Mentions légales</h3>
+          <p className="text-xs mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
+            {paymentMethodsLegalNote(lang)} {refundPolicySummary(lang)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GlossaryPage({ onBack }: { onBack: () => void }) {
+  const { themeConfig, settings } = useApp();
+  const lang = settings.language;
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+        <button type="button" onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center">
+          <ArrowLeft size={20} style={{ color: themeConfig.colors.text }} />
+        </button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>
+          {lang === 'en' ? 'Barber glossary' : lang === 'fr' ? 'Glossaire' : 'قاموس الحلاقة'}
+        </h2>
+      </div>
+      <div className="p-4 space-y-2">
+        {BARBER_GLOSSARY.map(term => (
+          <section key={term.id} className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{glossaryLabel(term, lang)}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{term.ar} · {term.fr} · {term.en}</p>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>{glossaryMeaning(term, lang)}</p>
+          </section>
+        ))}
       </div>
     </div>
   );

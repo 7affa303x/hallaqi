@@ -12,7 +12,8 @@ export type ProductEvent =
   | 'Loyalty Voucher Selected'
   | 'Discovery Filter Applied'
   | 'Discovery Share'
-  | 'Discovery Compare Opened';
+  | 'Discovery Compare Opened'
+  | 'AI Advice Rated';
 
 export function trackProductEvent(
   name: ProductEvent,

@@ -14,7 +14,7 @@ import { isForumBookmarked, toggleForumBookmark } from '@/lib/deviceStorage';
 import {
   MessageCircle, Trophy, Eye, Shield, BadgeCheck, Pin,
   Megaphone, Heart, MessageSquare, Share2, Bookmark,
-  Filter, TrendingUp, Users, Award, LogIn, Plus
+  Filter, TrendingUp, Users, Award, LogIn, Plus, Search, Flag
 } from 'lucide-react';
 
 const roleIcons: Record<string, typeof Shield> = { admin: Shield, expert: Award, barber: BadgeCheck, user: Users };
@@ -28,6 +28,7 @@ export default function ForumTab() {
   const [selectedCategory, setSelectedCategory] = useState<ForumCategory | 'all'>('all');
   const [showSort, setShowSort] = useState(false);
   const [sortMode, setSortMode] = useState<'newest' | 'trending' | 'liked' | 'commented'>('newest');
+  const [searchQuery, setSearchQuery] = useState('');
   const [competitions, setCompetitions] = useState<ActiveCompetition[]>([]);
   const [competitionMessage, setCompetitionMessage] = useState('');
   const [busyCompetition, setBusyCompetition] = useState('');
@@ -71,9 +72,20 @@ export default function ForumTab() {
   };
 
   const filteredPosts = useMemo(() => {
-    const posts = selectedCategory === 'all'
+    const q = searchQuery.trim().toLowerCase();
+    let posts = selectedCategory === 'all'
       ? [...forumPosts]
       : forumPosts.filter(p => p.category === selectedCategory);
+    if (q) {
+      posts = posts.filter(p =>
+        p.title.toLowerCase().includes(q)
+        || p.content.toLowerCase().includes(q)
+        ||         p.authorName.toLowerCase().includes(q)
+        || (p.tags || []).some(tag => tag.toLowerCase().includes(q))
+      );
+    }
+    // Prefer non-empty bodies in the feed (#151)
+    posts = posts.filter(p => (p.title?.trim().length ?? 0) > 0 && (p.content?.trim().length ?? 0) > 8);
     return posts.sort((a, b) => {
       if (sortMode === 'liked') return b.likes - a.likes;
       if (sortMode === 'commented') return b.comments.length - a.comments.length;
@@ -83,7 +95,7 @@ export default function ForumTab() {
       }
       return Date.parse(b.createdAt) - Date.parse(a.createdAt);
     });
-  }, [forumPosts, selectedCategory, sortMode]);
+  }, [forumPosts, selectedCategory, sortMode, searchQuery]);
   const pinnedPosts = filteredPosts.filter(p => p.isPinned);
   const regularPosts = filteredPosts.filter(p => !p.isPinned);
 
@@ -119,6 +131,17 @@ export default function ForumTab() {
               <Filter size={16} />
             </button>
           </div>
+        </div>
+
+        <div className="relative mb-2">
+          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: themeConfig.colors.textMuted }} />
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={settings.language === 'en' ? 'Search posts…' : settings.language === 'fr' ? 'Rechercher…' : 'ابحث في المنشورات…'}
+            className="w-full rounded-xl pr-9 pl-3 py-2 text-xs outline-none border"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
+          />
         </div>
 
         {/* Category Filter */}
@@ -339,6 +362,18 @@ function ForumPostCard({ post, isPinned = false, navigate, themeConfig }: PostCa
           <div className="flex items-center gap-1">
             {isPinned && <Pin size={12} style={{ color: themeConfig.colors.primary }} />}
             {post.isAnnouncement && <Megaphone size={12} style={{ color: themeConfig.colors.warning }} />}
+            <button
+              type="button"
+              aria-label="إبلاغ"
+              onClick={(e) => {
+                e.stopPropagation();
+                nav('post-detail', { postId: post.id, openReport: '1' });
+              }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ color: themeConfig.colors.textMuted }}
+            >
+              <Flag size={12} />
+            </button>
             <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{post.createdAt.split('T')[0]}</span>
           </div>
         </div>

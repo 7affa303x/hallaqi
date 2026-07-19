@@ -33,6 +33,7 @@ import {
   serviceLabel,
   type StudioBooking,
 } from '@/lib/barber/studioHelpers';
+import { barberFirstBookingSteps } from '@/lib/barber/firstBookingGuide';
 import type { BookingStatus } from '@/types';
 import type { Database } from '@/types/supabase';
 
@@ -69,6 +70,13 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
   const [toast, setToast] = useState('');
   const [acceptingBookings, setAcceptingBookings] = useState(true);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [showFirstGuide, setShowFirstGuide] = useState(() => {
+    try {
+      return localStorage.getItem('hallaqi-barber-first-guide-v1') !== '1';
+    } catch {
+      return true;
+    }
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -253,6 +261,35 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
             <Sparkles size={18} style={{ color: themeConfig.colors.primary }} />
           </button>
         </div>
+
+        {showFirstGuide && (
+          <div
+            className="rounded-2xl border p-3 mb-3 space-y-2 print:hidden"
+            style={{ backgroundColor: themeConfig.colors.info + '10', borderColor: themeConfig.colors.border }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>
+                {settings.language === 'en' ? 'First booking checklist' : settings.language === 'fr' ? 'Checklist premier RDV' : 'دليل أول حجز'}
+              </p>
+              <button
+                type="button"
+                className="text-[10px] font-bold"
+                style={{ color: themeConfig.colors.primary }}
+                onClick={() => {
+                  try { localStorage.setItem('hallaqi-barber-first-guide-v1', '1'); } catch { /* ignore */ }
+                  setShowFirstGuide(false);
+                }}
+              >
+                {settings.language === 'en' ? 'Got it' : settings.language === 'fr' ? 'OK' : 'فهمت'}
+              </button>
+            </div>
+            <ol className="space-y-1 list-decimal list-inside">
+              {barberFirstBookingSteps(settings.language).map(step => (
+                <li key={step} className="text-[10px] leading-5" style={{ color: themeConfig.colors.textMuted }}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        )}
 
         <div
           className="rounded-2xl p-3 mb-3 relative overflow-hidden"

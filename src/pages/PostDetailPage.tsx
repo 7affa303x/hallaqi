@@ -28,6 +28,10 @@ export default function PostDetailPage() {
 
   const post = forumPosts.find(p => p.id === screenParams?.postId);
 
+  useEffect(() => {
+    if (screenParams?.openReport === '1') setShowReport(true);
+  }, [screenParams?.openReport]);
+
   const loadComments = useCallback(async () => {
     if (!screenParams?.postId) return;
     try {

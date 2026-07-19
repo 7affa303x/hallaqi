@@ -14,6 +14,7 @@ import {
 } from '@/supabase/database';
 import BarberStudioHub from '@/components/barber/BarberStudioHub';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
+import { prepareCashReminder } from '@/lib/paymentPolicy';
 import {
   CalendarDays, Clock, MapPin, Car, CreditCard,
   CheckCircle2, XCircle, AlertCircle, MessageSquare,
@@ -307,6 +308,14 @@ export default function AppointmentsTab() {
                       <CreditCard size={12} style={{ color: themeConfig.colors.textMuted }} />
                       <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{getPaymentLabel(booking.paymentMethod)}</span>
                     </div>
+                    {['pending', 'confirmed'].includes(booking.status) && (booking.paymentMethod === 'cash' || !booking.paymentMethod) && (
+                      <div
+                        className="mt-2 rounded-xl px-2.5 py-2 text-[10px] font-bold leading-5"
+                        style={{ backgroundColor: themeConfig.colors.warning + '14', color: themeConfig.colors.warning }}
+                      >
+                        {prepareCashReminder(settings.language, money(booking.totalPrice))}
+                      </div>
+                    )}
                     {booking.note && (
                       <div className="flex items-center gap-2">
                         <MessageSquare size={12} style={{ color: themeConfig.colors.textMuted }} />

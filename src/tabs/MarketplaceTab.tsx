@@ -16,6 +16,8 @@ import {
   getProductOfTheDayProduct,
 } from '@/supabase/marketplace';
 import { formatDzd, discountPercent, flattenCategories } from '@/lib/marketplace/filters';
+import { useI18n } from '@/hooks/useI18n';
+import { translate } from '@/lib/i18n';
 import { trackMarketplaceEvent } from '@/lib/marketplace/analytics';
 import { mapBarberExtrasToMarketplace } from '@/lib/marketplace/barberExtras';
 import { isDisplayableProduct } from '@/lib/marketplace/displayable';
@@ -30,7 +32,8 @@ import type {
 } from '@/types/marketplace';
 
 export default function MarketplaceTab() {
-  const { themeConfig, navigate, barbers } = useApp();
+  const { money } = useI18n();
+  const { themeConfig, navigate, barbers, settings } = useApp();
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [sellers, setSellers] = useState<MarketplaceSeller[]>([]);
@@ -180,11 +183,15 @@ export default function MarketplaceTab() {
           <input
             value={filters.query || ''}
             onChange={e => setFilters(f => ({ ...f, query: e.target.value }))}
-            placeholder="ابحث عن منتج، علامة، متجر..."
+            placeholder="ابحث عن منتج، علامة، متجر، أو سعر..."
             className="w-full rounded-2xl pr-9 pl-3 py-2.5 text-sm outline-none"
             style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text, border: `1px solid ${themeConfig.colors.border}` }}
           />
         </div>
+        <p className="text-[9px] mt-1.5 px-1" style={{ color: themeConfig.colors.textMuted }}>
+          {translate(settings.language, 'displayCurrencyNote')}
+          {settings.currencyCode && settings.currencyCode !== 'DZD' ? ` · ${money(1000)} ≈ 1000 دج` : ''}
+        </p>
       </header>
 
       {/* Product of the Day — advertising placement */}
@@ -213,16 +220,19 @@ export default function MarketplaceTab() {
                 <h2 className="text-xl font-black">{potd.title}</h2>
                 <p className="text-sm opacity-90 line-clamp-1">{potd.offerText || potd.description}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-black">{formatDzd(potd.priceDzd)}</span>
+                  <span className="text-lg font-black">{money(potd.priceDzd)}</span>
                   {potd.compareAtPriceDzd && (
                     <>
-                      <span className="text-xs line-through opacity-70">{formatDzd(potd.compareAtPriceDzd)}</span>
+                      <span className="text-xs line-through opacity-70">{money(potd.compareAtPriceDzd)}</span>
                       <span className="text-[10px] font-black bg-rose-500 px-1.5 py-0.5 rounded">
                         -{discountPercent(potd.priceDzd, potd.compareAtPriceDzd)}%
                       </span>
                     </>
                   )}
                 </div>
+                {settings.currencyCode !== 'DZD' && (
+                  <p className="text-[10px] opacity-80 mt-0.5">{formatDzd(potd.priceDzd)} · عرض فقط</p>
+                )}
               </div>
             </div>
           </button>
@@ -348,6 +358,7 @@ export default function MarketplaceTab() {
           { key: 'potd', label: 'منتج اليوم', on: !!filters.productOfTheDayOnly, toggle: () => setFilters(f => ({ ...f, productOfTheDayOnly: !f.productOfTheDayOnly })) },
           { key: 'store', label: 'متاجر', on: filters.sellerType === 'store', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'store' ? null : 'store' })) },
           { key: 'company', label: 'شركات', on: filters.sellerType === 'company', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'company' ? null : 'company' })) },
+          { key: 'doctor', label: 'أطباء', on: filters.sellerType === 'doctor', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'doctor' ? null : 'doctor' })) },
         ].map(chip => (
           <button
             key={chip.key}
@@ -515,41 +526,37 @@ export default function MarketplaceTab() {
         </section>
       )}
 
-      {/* Featured sellers */}
-      <section className="mt-4 px-4">
-        <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>متاجر وشركات</h3>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-          {sellers
-            .filter(s =>
-              (s.sellerType === 'store')
-              || (s.sellerType === 'company' && sections.showCompanies)
-              || (s.sellerType === 'doctor' && sections.showDoctors)
-            )
-            .slice(0, 8)
-            .map(seller => (
-            <button
-              key={seller.id}
-              type="button"
-              onClick={() => openSeller(seller)}
-              className="shrink-0 w-36 p-3 rounded-2xl text-right border"
-              style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-            >
-              <div className="w-10 h-10 rounded-full bg-cover bg-center mb-2"
-                style={{ backgroundImage: `url(${seller.logoUrl})` }} />
-              <p className="text-xs font-black line-clamp-1" style={{ color: themeConfig.colors.text }}>{seller.displayName}</p>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {seller.isVerified && <BadgeCheck size={12} style={{ color: themeConfig.colors.primary }} />}
-                {seller.isPremium && <Crown size={12} style={{ color: themeConfig.colors.accent }} />}
-                {seller.isCompanyBadge && <Building2 size={12} style={{ color: themeConfig.colors.primary }} />}
-                {seller.isTrustedDoctor && <Stethoscope size={12} style={{ color: themeConfig.colors.primary }} />}
-              </div>
-              <p className="text-[10px] mt-1 flex items-center gap-0.5" style={{ color: themeConfig.colors.textMuted }}>
-                <MapPin size={10} /> {seller.wilaya}
-              </p>
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* Featured sellers — stores / companies / doctors separated (#118) */}
+      {stores.length > 0 && (
+        <section className="mt-4 px-4">
+          <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>متاجر</h3>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {stores.slice(0, 8).map(seller => (
+              <SellerChip key={seller.id} seller={seller} onOpen={() => openSeller(seller)} />
+            ))}
+          </div>
+        </section>
+      )}
+      {sections.showCompanies && companies.length > 0 && (
+        <section className="mt-4 px-4">
+          <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>شركات</h3>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {companies.slice(0, 8).map(seller => (
+              <SellerChip key={seller.id} seller={seller} onOpen={() => openSeller(seller)} />
+            ))}
+          </div>
+        </section>
+      )}
+      {sections.showDoctors && sellers.some(s => s.sellerType === 'doctor') && (
+        <section className="mt-4 px-4">
+          <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>أطباء / عيادات</h3>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            {sellers.filter(s => s.sellerType === 'doctor').slice(0, 8).map(seller => (
+              <SellerChip key={seller.id} seller={seller} onOpen={() => openSeller(seller)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Results grid */}
       <section className="mt-5 px-4">
@@ -600,6 +607,36 @@ export default function MarketplaceTab() {
   );
 }
 
+function SellerChip({ seller, onOpen }: { seller: MarketplaceSeller; onOpen: () => void }) {
+  const { themeConfig } = useApp();
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="shrink-0 w-36 p-3 rounded-2xl text-right border"
+      style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+    >
+      <div className="w-10 h-10 rounded-full bg-cover bg-center mb-2"
+        style={{ backgroundImage: `url(${seller.logoUrl})` }} />
+      <p className="text-xs font-black line-clamp-1" style={{ color: themeConfig.colors.text }}>{seller.displayName}</p>
+      <div className="flex flex-wrap gap-1 mt-1 items-center">
+        {seller.isVerified && (
+          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5"
+            style={{ backgroundColor: themeConfig.colors.primary + '18', color: themeConfig.colors.primary }}>
+            <BadgeCheck size={10} /> بائع موثوق
+          </span>
+        )}
+        {seller.isPremium && <Crown size={12} style={{ color: themeConfig.colors.accent }} />}
+        {seller.isCompanyBadge && <Building2 size={12} style={{ color: themeConfig.colors.primary }} />}
+        {seller.isTrustedDoctor && <Stethoscope size={12} style={{ color: themeConfig.colors.primary }} />}
+      </div>
+      <p className="text-[10px] mt-1 flex items-center gap-0.5" style={{ color: themeConfig.colors.textMuted }}>
+        <MapPin size={10} /> {seller.wilaya}
+      </p>
+    </button>
+  );
+}
+
 function ProductCard({
   product,
   onOpen,
@@ -610,6 +647,7 @@ function ProductCard({
   compact?: boolean;
 }) {
   const { themeConfig, settings } = useApp();
+  const { money } = useI18n();
   const pct = discountPercent(product.priceDzd, product.compareAtPriceDzd);
   const reduceMotion = settings.accessibility.reduceMotion;
   const src = product.imageUrls[0] || '/logo-icon.png';
@@ -648,12 +686,15 @@ function ProductCard({
       <div className="p-2.5 space-y-1">
         <p className="text-xs font-black line-clamp-2" style={{ color: themeConfig.colors.text }}>{product.title}</p>
         <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{product.brand}</p>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black" style={{ color: themeConfig.colors.primary }}>{formatDzd(product.priceDzd)}</span>
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-xs font-black" style={{ color: themeConfig.colors.primary }}>{money(product.priceDzd)}</span>
           <span className="text-[10px] flex items-center gap-0.5" style={{ color: themeConfig.colors.textMuted }}>
             <Star size={10} className="fill-amber-400 text-amber-400" /> {product.rating.toFixed(1)}
           </span>
         </div>
+        {settings.currencyCode !== 'DZD' && (
+          <p className="text-[9px]" style={{ color: themeConfig.colors.textMuted }}>{formatDzd(product.priceDzd)} · عرض فقط</p>
+        )}
         {product.externalUrl && (
           <span className="text-[9px] font-bold inline-flex items-center gap-0.5" style={{ color: themeConfig.colors.accent }}>
             <ExternalLink size={9} /> زيارة المتجر
