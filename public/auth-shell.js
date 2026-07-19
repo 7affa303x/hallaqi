@@ -121,7 +121,7 @@
         reloadWithRefresh('oauth');
       };
       clearShellCaches().then(finishReload, finishReload);
-      // Never leave a white screen if cache APIs hang.
+      // Never leave a white screen if cache APIs hang (Brave after manual cache clear).
       setTimeout(finishReload, 2500);
       return;
     }
@@ -129,8 +129,7 @@
     if (hasHashToken) {
       // Let the app boot immediately so detectSessionInUrl can consume #access_token.
       window.__HALLAQI_AUTH_SHELL_PENDING = false;
-      // Best-effort SW cleanup in the background — no reload (would risk losing hash timing).
-      try { clearShellCaches(); } catch (e) { /* ignore */ }
+      // Do NOT clear SW/caches here — on some mobile browsers that hangs and blocks reload.
       return;
     }
 

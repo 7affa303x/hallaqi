@@ -9,8 +9,20 @@ declare global {
   }
 }
 
+async function waitForAuthShellGate(): Promise<void> {
+  const hash = window.location.hash || ''
+  if (window.__HALLAQI_AUTH_SHELL_PENDING && (/access_token=/.test(hash) || /type=recovery/.test(hash))) {
+    window.__HALLAQI_AUTH_SHELL_PENDING = false
+  }
+  if (!window.__HALLAQI_AUTH_SHELL_PENDING) return
+
+  // auth-shell may hang on SW/cache APIs after manual cache clear — never block boot forever.
+  await new Promise<void>(resolve => window.setTimeout(resolve, 4000))
+  window.__HALLAQI_AUTH_SHELL_PENDING = false
+}
+
 async function boot() {
-  // Inline index.html script owns the first OAuth return — do not mount or consume ?code=.
+  await waitForAuthShellGate()
   if (window.__HALLAQI_AUTH_SHELL_PENDING) return
 
   const reloading = await ensureFreshAppShell()

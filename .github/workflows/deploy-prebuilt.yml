@@ -73,11 +73,16 @@ jobs:
           for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             sleep 5
             BODY=$(curl -sS "https://hallaqi.app/auth-shell.js")
+            HTML=$(curl -sS "https://hallaqi.app/")
+            echo "attempt $i"
             if echo "$BODY" | grep -q 'hasHashToken'; then
               echo "Production auth-shell has hash-token fix"
               exit 0
             fi
-            echo "attempt $i: fix not live yet"
+            if echo "$HTML" | grep -q 'access_token=/.test(h)'; then
+              echo "Production index.html has inline OAuth safety net"
+              exit 0
+            fi
           done
-          echo "$BODY" | head -c 800
+          echo "$BODY" | head -c 400
           exit 1
