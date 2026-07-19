@@ -278,7 +278,7 @@ export default function AdminDashboard() {
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      client: 'عميل', barber: 'حلاق', store: 'متجر', company: 'شركة', doctor: 'طبيب',
+      client: 'زبون', barber: 'حلاق', store: 'متجر', company: 'شركة (اشتراك)', doctor: 'دكتور',
       specialist: 'متخصص', admin: 'مدير', moderator: 'مشرف',
     };
     return labels[role] || role;
@@ -469,13 +469,13 @@ export default function AdminDashboard() {
 }
 
 /* ================= ADMIN MANAGEMENT SECTIONS (I2 / I3 / H3) ================= */
-const ROLE_OPTIONS = ['client', 'barber', 'store', 'company', 'doctor', 'specialist', 'moderator', 'admin'];
+const ROLE_OPTIONS = ['client', 'barber', 'doctor', 'store', 'company', 'specialist', 'moderator', 'admin'];
 const ROLE_LABELS: Record<string, string> = {
-  client: 'عميل',
+  client: 'زبون',
   barber: 'حلاق',
   store: 'متجر',
-  company: 'شركة',
-  doctor: 'طبيب',
+  company: 'شركة (اشتراك)',
+  doctor: 'دكتور',
   specialist: 'متخصص',
   moderator: 'مشرف محتوى',
   admin: 'مدير',
@@ -761,7 +761,7 @@ function AdminSection({ section, adminId, onBack }: { section: 'users' | 'bookin
             <div key={booking.id} className="p-3 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface, border: `1px solid ${themeConfig.colors.border}` }}>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{booking.profiles?.full_name || 'عميل'}</p>
+                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{booking.profiles?.full_name || 'زبون'}</p>
                   <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
                     {booking.professionals?.business_name || booking.professionals?.profiles?.full_name || 'حلاق'} · {booking.booking_services?.map(item => item.services?.name).filter(Boolean).join(' + ') || booking.services?.name || 'خدمة'}
                   </p>

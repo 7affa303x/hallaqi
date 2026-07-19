@@ -53,7 +53,7 @@ export default function DoctorDetailPage() {
                 {seller.isTrustedDoctor && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: `${themeConfig.colors.primary}15`, color: themeConfig.colors.primary }}>
-                    <Stethoscope size={12} /> طبيب موثوق
+                    <Stethoscope size={12} /> دكتور موثوق
                   </span>
                 )}
                 {seller.isVerified && (
@@ -64,7 +64,7 @@ export default function DoctorDetailPage() {
                 )}
               </div>
               <p className="text-[10px] mt-1.5 leading-4" style={{ color: themeConfig.colors.textMuted }}>
-                طبيب موثوق = مراجعة المنصة · المحتوى استشاري عام وليس تشخيصاً
+                دكتور موثوق = مراجعة المنصة · المحتوى استشاري عام وليس تشخيصاً
               </p>
               <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>{seller.shortDescription}</p>
               <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: themeConfig.colors.textMuted }}>

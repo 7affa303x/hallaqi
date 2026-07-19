@@ -183,7 +183,7 @@ export function mapReviewRow(value: unknown): Review {
   return {
     id: asString(row.id),
     authorId: asString(row.reviewer_id),
-    authorName: asString(profile.full_name, 'عميل'),
+    authorName: asString(profile.full_name, 'زبون'),
     authorAvatar: asString(profile.avatar_url, '/logo-icon.png'),
     rating: asNumber(row.rating),
     comment: asString(row.comment),

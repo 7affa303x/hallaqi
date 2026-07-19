@@ -50,7 +50,7 @@ export default function SellerDashboardPage() {
     })();
   }, [sellerId, role, appUser?.full_name]);
 
-  const title = role === 'company' ? 'لوحة الشركة' : role === 'doctor' ? 'لوحة الطبيب' : 'لوحة المتجر';
+  const title = role === 'company' ? 'لوحة الشركة' : role === 'doctor' ? 'لوحة الدكتور' : 'لوحة المتجر';
   const Icon = role === 'company' ? Building2 : role === 'doctor' ? Stethoscope : Store;
 
   const requestPlan = async () => {

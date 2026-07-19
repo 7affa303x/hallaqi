@@ -1678,6 +1678,7 @@ export type Database = {
     }
     Functions: {
       complete_barber_onboarding: { Args: never; Returns: undefined }
+      change_account_type: { Args: { target_role: string }; Returns: undefined }
       consume_ai_quota: { Args: { ai_feature: string }; Returns: boolean }
       create_booking_with_services: {
         Args: {

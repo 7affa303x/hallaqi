@@ -221,7 +221,7 @@ export async function requestDoctorFreeVerification(sellerId: string): Promise<{
         .from('marketplace_sellers' as never)
         .update({
           // Free verification request — admin still approves account
-          short_description: 'طلب توثيق طبيب مجاني',
+          short_description: 'طلب توثيق دكتور مجاني',
         } as never)
         .eq('id', sellerId)
         .eq('seller_type', 'doctor');
@@ -235,7 +235,7 @@ export async function requestDoctorFreeVerification(sellerId: string): Promise<{
     ...current,
     sellerType: 'doctor',
     // Marks verification requested; admin approval sets isVerified / isTrustedDoctor
-    shortDescription: current.shortDescription || 'طلب توثيق طبيب مجاني قيد المراجعة',
+    shortDescription: current.shortDescription || 'طلب توثيق دكتور مجاني قيد المراجعة',
   };
   saveLocalSeller(next);
   try {

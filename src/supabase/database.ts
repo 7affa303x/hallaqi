@@ -139,6 +139,13 @@ export async function completeBarberOnboarding() {
   if (error) throw new Error(error.message);
 }
 
+/** Switch among public account types: client | barber | doctor | store (not company). */
+export async function changeAccountType(targetRole: 'client' | 'barber' | 'doctor' | 'store') {
+  guard();
+  const { error } = await supabase.rpc('change_account_type', { target_role: targetRole });
+  if (error) throw new Error(error.message);
+}
+
 export async function getProfessionalWithProfile(proId: string) {
   guard();
   const { data, error } = await supabase

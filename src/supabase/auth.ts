@@ -32,7 +32,7 @@ export async function signUp(
   email: string,
   password: string,
   fullName: string,
-  accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
+  accountType: 'client' | 'barber' | 'store' | 'doctor' = 'client',
   phoneNumber?: string | null,
 ) {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');

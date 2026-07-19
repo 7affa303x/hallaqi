@@ -32,7 +32,7 @@ export const registerSchema = z.object({
   password: z.string().min(1, 'أدخل كلمة المرور').min(6, 'يجب أن تكون 6 أحرف على الأقل'),
   confirm: z.string().min(1, 'أكد كلمة المرور'),
   /** Soft launch: client | barber only. Wider roles stay in type for admin/legacy. */
-  accountType: z.enum(['client', 'barber', 'store', 'company', 'doctor']),
+  accountType: z.enum(['client', 'barber', 'store', 'doctor']),
   acceptedTerms: z.boolean().refine(v => v === true, 'يجب قبول الشروط'),
 }).refine(data => data.password === data.confirm, {
   message: 'كلمتا المرور غير متطابقتين',

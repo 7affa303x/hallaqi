@@ -16,7 +16,7 @@ import {
   Trash2, Download, AlertTriangle, Check, X, Sparkles,
   Scissors, Clock, TrendingUp, Award, Zap, Crown as CrownIcon,
   ArrowLeft, LogIn, UserPlus as UserPlusIcon, Gift,
-  Store, Building2, Stethoscope, CalendarDays, ShoppingBag, Bookmark,
+  Store, Building2, Stethoscope, CalendarDays, ShoppingBag, Bookmark, RefreshCw,
 } from 'lucide-react';
 import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
@@ -24,6 +24,7 @@ import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
+import { accountRoleLabel, sellerDashboardTitle, PUBLIC_ACCOUNT_TYPES, type PublicAccountType } from '@/lib/accountRoles';
 import {
   createIdVerificationRequest,
   getLatestIdVerificationRequest,
@@ -38,6 +39,7 @@ import {
   getBlockedUsers,
   blockUser,
   unblockUser,
+  changeAccountType,
 } from '@/supabase/database';
 import { uploadIdCard } from '@/supabase/storage';
 import { supabase } from '@/supabase/client';
@@ -79,7 +81,7 @@ const iconMap: Record<string, LucideIcon> = {
 type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'country' | 'currency' | 'notifications' |
   'privacy' | 'account' | 'subscription' | 'payment' | 'id-verification' |
   'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile' | 'services' | 'loyalty' |
-  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves';
+  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves' | 'account-type';
 
 export default function ProfileTab() {
   const { themeConfig, settings, navigate, setActiveTab, unreadCount, bookings, barbers, screenParams } = useApp();
@@ -179,6 +181,14 @@ export default function ProfileTab() {
   if (subPage === 'saves') return <SavedItemsPage onBack={() => setSubPage('main')} />;
   if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
   if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
+  if (subPage === 'account-type') {
+    return (
+      <AccountTypePage
+        onBack={() => setSubPage('main')}
+        currentRole={userRole}
+      />
+    );
+  }
 
   const storedStats = (appUser as unknown as { stats?: UserStats })?.stats;
   const stats = {
@@ -208,14 +218,15 @@ export default function ProfileTab() {
     <div className="pb-20">
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold text-white">{translate(settings.language, 'profile')}</h1>
-          <p className="text-[10px] text-white/70 mt-0.5">
-            {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
-            {' · '}
-            {findCurrency(settings.currencyCode).code}
-          </p>
+          <div>
+            <h1 className="text-lg font-bold text-white">{translate(settings.language, 'profile')}</h1>
+            <p className="text-[10px] text-white/70 mt-0.5">
+              {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
+              {' · '}
+              {findCurrency(settings.currencyCode).code}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate('messages')} aria-label="المحادثات" className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><MessageSquare size={16} className="text-white" /></button>
             <button
               onClick={() => navigate('notifications')}
               aria-label="الإشعارات"
@@ -245,7 +256,8 @@ export default function ProfileTab() {
             </div>
             <p className="text-xs text-white/70 mt-0.5">{userEmail}</p>
             {userPhone && <p className="text-xs text-white/70">{userPhone}</p>}
-            <div className="flex items-center gap-2 mt-1.5">
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/15 text-white font-bold">{accountRoleLabel(userRole)}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.rank}</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.points} نقطة</span>
               {userRole === 'admin' && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-white font-medium">مشرف</span>}
@@ -268,6 +280,62 @@ export default function ProfileTab() {
           </div>
         </div>
       </div>
+
+      {/* Messages — prominent entry (not a corner icon) */}
+      <div className="px-4 mt-4">
+        <button
+          type="button"
+          onClick={() => navigate('messages')}
+          className="w-full flex items-center gap-3 p-4 rounded-2xl text-right shadow-sm"
+          style={{
+            background: `linear-gradient(135deg, ${themeConfig.colors.primary}18, ${themeConfig.colors.accent}12)`,
+            border: `1.5px solid ${themeConfig.colors.primary}35`,
+          }}
+          aria-label="الرسائل"
+        >
+          <div className="relative w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary }}>
+            <MessageSquare size={22} className="text-white" />
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-1.5 -left-1.5 min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+                style={{ backgroundColor: themeConfig.colors.error }}
+              >
+                {Math.min(unreadCount, 99)}
+              </span>
+            )}
+          </div>
+          <span className="flex-1">
+            <span className="block text-base font-bold" style={{ color: themeConfig.colors.text }}>الرسائل</span>
+            <span className="block text-xs mt-0.5" style={{ color: themeConfig.colors.textMuted }}>
+              {unreadCount > 0 ? `${Math.min(unreadCount, 99)} غير مقروءة` : 'محادثاتك مع الحلاقين والمتاجر'}
+            </span>
+          </span>
+          <ChevronLeft size={18} style={{ color: themeConfig.colors.primary }} />
+        </button>
+      </div>
+
+      {/* Account type conversion */}
+      {appUser && userRole !== 'admin' && userRole !== 'moderator' && (
+        <div className="px-4 mt-2">
+          <button
+            type="button"
+            onClick={() => setSubPage('account-type')}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.accent + '18' }}>
+              <RefreshCw size={18} style={{ color: themeConfig.colors.accent }} />
+            </div>
+            <span className="flex-1">
+              <span className="block text-sm font-bold" style={{ color: themeConfig.colors.text }}>تحويل نوع الحساب</span>
+              <span className="block text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
+                نوعك الحالي: {accountRoleLabel(userRole)} · زبون / حلاق / دكتور / متجر
+              </span>
+            </span>
+            <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
+          </button>
+        </div>
+      )}
 
       {(userRole === 'barber' || userRole === 'specialist') && onboardingPercent < 100 && (
         <div className="px-4 mt-4">
@@ -323,7 +391,7 @@ export default function ProfileTab() {
             <CalendarDays size={16} style={{ color: themeConfig.colors.primary }} />
             <span>
               <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مواعيدي</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>الحجوزات والرسائل</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>الحجوزات القادمة</span>
             </span>
           </button>
           <button
@@ -367,10 +435,11 @@ export default function ProfileTab() {
                 : <Store size={18} style={{ color: themeConfig.colors.primary }} />}
             <span className="flex-1">
               <span className="block text-sm font-bold" style={{ color: themeConfig.colors.text }}>
-                {userRole === 'company' ? 'لوحة الشركة' : userRole === 'doctor' ? 'لوحة الطبيب' : 'لوحة المتجر'}
+                {sellerDashboardTitle(userRole)}
               </span>
               <span className="block text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
                 منتجات وتحليلات{FEATURE_FLAGS.hideMonetizationSurfaces ? '' : ' · اشتراكات · مواضع إعلان'}
+                {userRole === 'store' ? ' · اشتراك الشركة من صفحة الاشتراك' : ''}
               </span>
             </span>
             <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
@@ -719,8 +788,8 @@ function LegalPage({ onBack, kind }: { onBack: () => void; kind: 'privacy' | 'te
     terms: {
       title: 'شروط الاستخدام',
       sections: [
-        ['الحسابات والأدوار', 'في الإطلاق الناعم: عميل أو حلاق. أدوار السوق (متجر/شركة/طبيب) لاحقاً بعد موافقة الإدارة.'],
-        ['الحجوزات', 'يلتزم العميل بمعلومات صحيحة، ويلتزم الحلاق بتحديث التوفر والخدمات والأسعار. الإلغاء يخضع لسياسة الحلاق الظاهرة عند الحجز.'],
+        ['الحسابات والأدوار', 'أنواع الحساب: زبون، حلاق، دكتور، متجر. اشتراك «شركة» متاح للمتاجر عبر صفحة الاشتراك وليس كنوع حساب مستقل. يمكنك تحويل نوع حسابك من الملف الشخصي.'],
+        ['الحجوزات', 'يلتزم الزبون بمعلومات صحيحة، ويلتزم الحلاق بتحديث التوفر والخدمات والأسعار. الإلغاء يخضع لسياسة الحلاق الظاهرة عند الحجز.'],
         ['المدفوعات', 'الدفع نقداً عند الزيارة للحلاق. لا يُطلب دفع إلكتروني مسبقاً في هذه المرحلة.'],
         ['السوق', 'الشراء داخل التطبيق للمنتجات غير مفعّل عند الإطلاق؛ الروابط الخارجية على مسؤولية البائع والمشتري.'],
         ['المساعد الذكي', 'محتوى AI استرشادي فقط وليس تشخيصاً طبياً. للمشاكل الجلدية أو تساقط غير مفسَّر راجع مختصاً.'],
@@ -1262,6 +1331,107 @@ function PrivacySettings({ onBack }: { onBack: () => void }) {
   );
 }
 
+function AccountTypePage({ onBack, currentRole }: { onBack: () => void; currentRole: string }) {
+  const { themeConfig } = useApp();
+  const { refreshProfile } = useAuth();
+  const [selected, setSelected] = useState<PublicAccountType>(
+    (PUBLIC_ACCOUNT_TYPES as readonly string[]).includes(currentRole)
+      ? (currentRole as PublicAccountType)
+      : 'client',
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const options: { value: PublicAccountType; icon: LucideIcon; hint: string }[] = [
+    { value: 'client', icon: UserIcon, hint: 'احجز مواعيد وتصفح السوق' },
+    { value: 'barber', icon: Scissors, hint: 'استوديو عمل وحجوزات العملاء' },
+    { value: 'doctor', icon: Stethoscope, hint: 'محتوى استشاري ومنتجات العناية' },
+    { value: 'store', icon: Store, hint: 'عرض منتجاتك · اشتراك الشركة منفصل' },
+  ];
+
+  const submit = async () => {
+    if (selected === currentRole) {
+      onBack();
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      await changeAccountType(selected);
+      await refreshProfile();
+      setDone(true);
+      window.setTimeout(() => {
+        onBack();
+        window.location.reload();
+      }, 700);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر تحويل نوع الحساب');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+        <button type="button" onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center">
+          <ArrowLeft size={20} style={{ color: themeConfig.colors.text }} />
+        </button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>تحويل نوع الحساب</h2>
+      </div>
+      <div className="px-4 mt-4 space-y-3">
+        <p className="text-xs leading-5" style={{ color: themeConfig.colors.textMuted }}>
+          نوعك الحالي: <strong style={{ color: themeConfig.colors.text }}>{accountRoleLabel(currentRole)}</strong>.
+          اختر النوع الجديد. اشتراك «شركة» ليس نوع حساب — يظهر للمتاجر من صفحة الاشتراك.
+        </p>
+        {options.map(option => {
+          const Icon = option.icon;
+          const active = selected === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setSelected(option.value)}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right"
+              style={{
+                backgroundColor: active ? themeConfig.colors.primary + '10' : themeConfig.colors.surface,
+                borderColor: active ? themeConfig.colors.primary : themeConfig.colors.border,
+              }}
+            >
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '14' }}>
+                <Icon size={18} style={{ color: themeConfig.colors.primary }} />
+              </div>
+              <span className="flex-1">
+                <span className="block text-sm font-bold" style={{ color: themeConfig.colors.text }}>{accountRoleLabel(option.value)}</span>
+                <span className="block text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{option.hint}</span>
+              </span>
+              {active && <Check size={16} style={{ color: themeConfig.colors.primary }} />}
+            </button>
+          );
+        })}
+        {error && (
+          <p role="alert" className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.error + '12', color: themeConfig.colors.error }}>{error}</p>
+        )}
+        {done && (
+          <p role="status" className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.success + '12', color: themeConfig.colors.success }}>
+            تم التحويل إلى {accountRoleLabel(selected)}
+          </p>
+        )}
+        <button
+          type="button"
+          disabled={busy || done}
+          onClick={() => void submit()}
+          className="w-full h-12 rounded-2xl text-sm font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: themeConfig.colors.primary }}
+        >
+          {busy ? 'جاري التحويل…' : selected === currentRole ? 'العودة' : `تحويل إلى ${accountRoleLabel(selected)}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SubscriptionPage({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
   const { appUser } = useAuth();
@@ -1308,6 +1478,11 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
         )}
       </div>
       <div className="px-4 mt-4 space-y-3">
+        {(appUser?.user_role === 'store' || appUser?.user_role === 'company') && (
+          <div className="p-3 rounded-xl text-xs leading-5" style={{ backgroundColor: themeConfig.colors.info + '12', color: themeConfig.colors.info }}>
+            اشتراك «شركة» يرفع ظهور المتجر ويمنح شارة شركة — وهو <strong>اشتراك</strong> وليس نوع حساب منفصل.
+          </div>
+        )}
         {!FEATURE_FLAGS.paidSubscriptionsEnabled && (
           <div className="p-3 rounded-xl text-xs leading-5" style={{ backgroundColor: themeConfig.colors.warning + '12', color: themeConfig.colors.warning }}>
             ترقية الاشتراكات المدفوعة <strong>متوقفة</strong> عند الإطلاق. الخطة المجانية متاحة؛ الطلبات المدفوعة ستُفعَّل لاحقاً.

@@ -102,7 +102,7 @@ export default function SellerProfileEditPage() {
           <ArrowLeft size={18} />
         </button>
         <h1 className="text-base font-black flex items-center gap-1" style={{ color: themeConfig.colors.text }}>
-          <Building2 size={16} /> تعديل ملف {role === 'company' ? 'الشركة' : role === 'doctor' ? 'الطبيب' : 'المتجر'}
+          <Building2 size={16} /> تعديل ملف {role === 'company' ? 'الشركة' : role === 'doctor' ? 'الدكتور' : 'المتجر'}
         </h1>
       </div>
 

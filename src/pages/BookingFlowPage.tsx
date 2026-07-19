@@ -496,7 +496,7 @@ export default function BookingFlowPage() {
           await sendNotification({
             userId: barber.id,
             title: 'حجز جديد',
-            message: `لديك حجز جديد من ${appUser.full_name || 'عميل'} - ${selectedDate} ${selectedTime}`,
+            message: `لديك حجز جديد من ${appUser.full_name || 'زبون'} - ${selectedDate} ${selectedTime}`,
             type: 'booking',
             metadata: { booking_id: saved.id },
           });
@@ -581,7 +581,7 @@ export default function BookingFlowPage() {
               transactionReference: ref,
               bookingId: savedBookingId,
               professionalId: barber?.id || '',
-              clientName: appUser?.full_name || 'عميل',
+              clientName: appUser?.full_name || 'زبون',
             });
             if (success) {
               setTimeout(() => { setShowReceiptUpload(false); setConfirmed(true); }, 1500);

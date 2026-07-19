@@ -13,7 +13,7 @@ interface Props {
 }
 
 const actions: { id: RadialAction; label: string; icon: typeof Sparkles; angle: number }[] = [
-  { id: 'ai', label: 'AI', icon: Sparkles, angle: -90 },
+  { id: 'ai', label: 'المساعد', icon: Sparkles, angle: -90 },
   { id: 'qr', label: 'QR', icon: QrCode, angle: -20 },
   { id: 'camera', label: 'كاميرا', icon: Camera, angle: 50 },
   { id: 'gallery', label: 'معرض', icon: Images, angle: 120 },
@@ -69,7 +69,7 @@ export default function AiRadialMenu({ open, onClose, onSelect }: Props) {
             </button>
           </div>
           <p className="absolute bottom-16 text-xs text-white/90 font-semibold flex items-center gap-1">
-            <MessageSquareHeart size={14} /> اضغط مطولاً للوصول السريع
+            <MessageSquareHeart size={14} /> اختر ميزة المساعد
           </p>
         </motion.div>
       )}

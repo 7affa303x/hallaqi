@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     displayName: string,
-    accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
+    accountType: 'client' | 'barber' | 'store' | 'doctor' = 'client',
     phoneNumber?: string | null,
   ) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
@@ -323,6 +323,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, error: null }));
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    if (isDeveloperMode || !state.user?.id) return;
+    try {
+      const profile = await fetchUserProfile(state.user.id);
+      setState(s => ({ ...s, appUser: profile, error: profile ? null : s.error }));
+    } catch {
+      /* keep existing profile on refresh failure */
+    }
+  }, [state.user?.id]);
+
   const value = useMemo<AuthContextValue>(() => ({
     ...state,
     login,
@@ -331,7 +341,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     forgotPassword,
     clearError,
-  }), [state, login, register, googleSignIn, logout, forgotPassword, clearError]);
+    refreshProfile,
+  }), [state, login, register, googleSignIn, logout, forgotPassword, clearError, refreshProfile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

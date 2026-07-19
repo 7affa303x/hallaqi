@@ -17,13 +17,14 @@ export interface AuthContextValue extends AuthState {
     email: string,
     password: string,
     displayName: string,
-    accountType?: 'client' | 'barber' | 'store' | 'company' | 'doctor',
+    accountType?: 'client' | 'barber' | 'store' | 'doctor',
     phoneNumber?: string | null,
   ) => Promise<{ user: User | null; session: Session | null }>;
   googleSignIn: () => Promise<unknown>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   clearError: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

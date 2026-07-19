@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import type { TabName } from '@/types';
@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { translate, type TranslationKey } from '@/lib/i18n';
 import AiRadialMenu from '@/components/nav/AiRadialMenu';
-import { useLongPress } from '@/hooks/useLongPress';
 
 const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; special?: boolean }[] = [
   { key: 'booking', labelKey: 'booking', icon: Scissors },
@@ -27,9 +26,6 @@ export default function BottomNav() {
   const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings, screen } = useApp();
   const { isAuthenticated } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
-
-  const openRadial = useCallback(() => setRadialOpen(true), []);
-  const longPress = useLongPress(openRadial);
 
   const handleTabClick = (tab: typeof tabs[0]) => {
     // Always stay in the tabs shell — never navigate away (that hid the bottom nav)
@@ -51,7 +47,7 @@ export default function BottomNav() {
             const isActive =
               activeTab === tab.key
               || (tab.key === 'booking' && activeTab === 'appointments')
-              || (tab.key === 'ai-hub' && screen === 'ai-advisor');
+              || (tab.key === 'ai-hub' && (screen === 'ai-advisor' || radialOpen));
             const Icon = tab.icon;
             const label = translate(settings.language, tab.labelKey);
 
@@ -60,16 +56,10 @@ export default function BottomNav() {
                 <button
                   key={tab.key}
                   type="button"
-                  aria-label={`${label} — اضغط للذكاء الاصطناعي، اضغط مطولاً للإجراءات السريعة`}
+                  aria-label={`${label} — اضغط لعرض المزايا`}
+                  aria-expanded={radialOpen}
                   className="relative flex flex-col items-center justify-center w-16 h-14 -mt-5"
-                  onPointerDown={longPress.onPointerDown}
-                  onPointerUp={longPress.onPointerUp}
-                  onPointerLeave={longPress.onPointerLeave}
-                  onPointerCancel={longPress.onPointerCancel}
-                  onClick={() => {
-                    if (longPress.didLongPress()) return;
-                    handleTabClick(tab);
-                  }}
+                  onClick={() => setRadialOpen(true)}
                 >
                   <motion.div
                     className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4"
@@ -78,7 +68,6 @@ export default function BottomNav() {
                       borderColor: themeConfig.colors.surface,
                     }}
                     whileTap={{ scale: 0.92 }}
-                    animate={{ scale: longPress.pressed ? 1.08 : 1 }}
                   >
                     <span className="relative inline-flex items-center justify-center">
                       <Heart size={22} className="text-white fill-white/30" />

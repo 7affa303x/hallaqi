@@ -56,9 +56,10 @@ export const FEATURE_FLAGS = {
    */
   algeriaOnlyDiscovery: true,
   /**
-   * Soft launch: register as client or barber only (no store/company/doctor).
+   * Soft launch: public account types are زبون / حلاق / دكتور / متجر.
+   * Company is a subscription tier for stores — not a signup account type.
    */
-  clientBarberRegistrationOnly: true,
+  clientBarberRegistrationOnly: false,
   /**
    * Soft launch: hide subscription / paid placement / Baridi entry points.
    */
