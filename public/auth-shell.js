@@ -1,30 +1,33 @@
 /**
- * Early auth/host guards — must stay a standalone file (CSP blocks inline scripts).
- * Loaded before the app bundle so OAuth returns never remount a stale SW shell.
+ * Early shell guards — runs before React (CSP-safe external script).
+ * 1) Apex redirect
+ * 2) OAuth return → purge SW/cache once
+ * 3) Every visit → fetch fresh index.html build id; auto-upgrade if deploy changed
  */
 (function () {
-  try {
-    if (location.hostname === 'www.hallaqi.app') {
-      location.replace('https://hallaqi.app' + location.pathname + location.search + location.hash);
-      return;
-    }
+  var BUILD_KEY = 'hallaqi-app-build-v1';
+  var UPGRADE_KEY = 'hallaqi-shell-upgrade';
 
-    var q = location.search || '';
-    var h = location.hash || '';
-    var auth = /[?&]code=/.test(q) || /[?&]error=/.test(q) || /access_token=/.test(h) || /type=recovery/.test(h);
-    if (!auth) return;
+  function getStoredBuild() {
+    try { return localStorage.getItem(BUILD_KEY) || ''; } catch (e) { return ''; }
+  }
 
-    var codeMatch = q.match(/[?&]code=([^&]+)/);
-    var refreshKey = 'hallaqi-auth-shell-refreshed:' + (codeMatch ? codeMatch[1].slice(0, 24) : 'err');
-    if (sessionStorage.getItem(refreshKey) === '1') return;
-    sessionStorage.setItem(refreshKey, '1');
+  function setStoredBuild(id) {
+    try { if (id) localStorage.setItem(BUILD_KEY, id); } catch (e) { /* ignore */ }
+  }
 
-    window.__HALLAQI_AUTH_SHELL_PENDING = true;
-    var reload = function () {
-      var u = new URL(location.href);
-      u.searchParams.set('hallaqi_refresh', 'oauth');
-      location.replace(u.pathname + u.search + u.hash);
-    };
+  function readBuildFromHtml(html) {
+    var m = html.match(/name=["']hallaqi-build["'][^>]*content=["']([^"']+)["']/i)
+      || html.match(/content=["']([^"']+)["'][^>]*name=["']([^"']+)["']/i);
+    return m ? (m[1] || m[2] || '') : '';
+  }
+
+  function readBuildFromDocument() {
+    var meta = document.querySelector('meta[name="hallaqi-build"]');
+    return meta ? (meta.getAttribute('content') || '') : '';
+  }
+
+  function clearShellCaches() {
     var tasks = [];
     if (window.caches) {
       tasks.push(caches.keys().then(function (keys) {
@@ -36,7 +39,90 @@
         return Promise.all(regs.map(function (r) { return r.unregister(); }));
       }));
     }
-    if (tasks.length) Promise.all(tasks).then(reload, reload);
-    else reload();
-  } catch (e) { /* ignore */ }
+    return tasks.length ? Promise.all(tasks) : Promise.resolve();
+  }
+
+  function reloadWithRefresh(tag) {
+    var u = new URL(location.href);
+    u.searchParams.set('hallaqi_refresh', String(tag || 'shell').slice(0, 24));
+    location.replace(u.pathname + u.search + u.hash);
+  }
+
+  function maybeUpgradeShell(serverBuild) {
+    if (!serverBuild) return Promise.resolve(false);
+    var local = getStoredBuild();
+    if (local === serverBuild) return Promise.resolve(false);
+
+    var attempted = '';
+    try { attempted = sessionStorage.getItem(UPGRADE_KEY) || ''; } catch (e) { /* ignore */ }
+
+    // Already tried this build once — accept to avoid infinite reload loops.
+    if (attempted === serverBuild) {
+      setStoredBuild(serverBuild);
+      return Promise.resolve(false);
+    }
+
+    try { sessionStorage.setItem(UPGRADE_KEY, serverBuild); } catch (e) { /* ignore */ }
+
+    return clearShellCaches().then(function () {
+      setStoredBuild(serverBuild);
+      reloadWithRefresh(serverBuild);
+      return true;
+    });
+  }
+
+  function finishShellGate(reloading) {
+    if (!reloading) window.__HALLAQI_AUTH_SHELL_PENDING = false;
+  }
+
+  function runVersionCheck() {
+    var docBuild = readBuildFromDocument();
+    return fetch(location.origin + '/index.html?_shell=' + Date.now(), {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var serverBuild = readBuildFromHtml(html) || docBuild;
+        return maybeUpgradeShell(serverBuild);
+      })
+      .catch(function () {
+        return maybeUpgradeShell(docBuild);
+      });
+  }
+
+  try {
+    if (location.hostname === 'www.hallaqi.app') {
+      location.replace('https://hallaqi.app' + location.pathname + location.search + location.hash);
+      return;
+    }
+
+    window.__HALLAQI_AUTH_SHELL_PENDING = true;
+
+    var q = location.search || '';
+    var h = location.hash || '';
+    var auth = /[?&]code=/.test(q) || /[?&]error=/.test(q) || /access_token=/.test(h) || /type=recovery/.test(h);
+
+    if (auth) {
+      var codeMatch = q.match(/[?&]code=([^&]+)/);
+      var refreshKey = 'hallaqi-auth-shell-refreshed:' + (codeMatch ? codeMatch[1].slice(0, 24) : 'err');
+      if (sessionStorage.getItem(refreshKey) === '1') {
+        finishShellGate(false);
+        return;
+      }
+      sessionStorage.setItem(refreshKey, '1');
+      clearShellCaches().then(function () {
+        reloadWithRefresh('oauth');
+      }, function () {
+        reloadWithRefresh('oauth');
+      });
+      return;
+    }
+
+    runVersionCheck()
+      .then(function (reloading) { finishShellGate(reloading); })
+      .catch(function () { finishShellGate(false); });
+  } catch (e) {
+    window.__HALLAQI_AUTH_SHELL_PENDING = false;
+  }
 })();

@@ -2,11 +2,13 @@ import path from "path"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
+import { hallaqiBuildPlugin } from "./vite-plugin-hallaqi-build"
 
 export default defineConfig({
   // Absolute base — relative `./` broke asset/SW resolution on mobile & preview URLs.
   base: '/',
   plugins: [
+    hallaqiBuildPlugin(),
     react(),
     VitePWA({
       /**

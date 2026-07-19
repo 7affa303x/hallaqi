@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
+    <!-- HALLAQI_BUILD -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="theme-color" content="#0F766E" />
@@ -82,8 +83,8 @@
       * { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; }
     </style>
-    <!-- External only — CSP forbids inline scripts on production. Cache-bust query forces fresh fetch. -->
-    <script src="/auth-shell.js?v=2026-07-19-2"></script>
+    <!-- Loaded before the app — checks server build id and drops stale SW/cache automatically. -->
+    <script src="/auth-shell.js"></script>
   </head>
   <body>
     <div id="root"></div>
