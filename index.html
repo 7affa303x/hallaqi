@@ -83,22 +83,14 @@
       * { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; }
     </style>
+    <!-- OAuth guard BEFORE auth-shell — CSP blocks inline scripts on production. -->
+    <script src="/oauth-guard.js"></script>
     <!-- Loaded before the app — checks server build id and drops stale SW/cache automatically. -->
     <script src="/auth-shell.js"></script>
-    <!-- Safety net if cached auth-shell.js blocks React on OAuth return (Brave/mobile after cache clear). -->
-    <script>
-      (function () {
-        var q = location.search || '';
-        var h = location.hash || '';
-        if (/[?&]code=/.test(q) || /[?&]error=/.test(q)
-            || /access_token=/.test(h) || /type=recovery/.test(h)) {
-          window.__HALLAQI_AUTH_SHELL_PENDING = false;
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
+    <script src="/sw-register.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

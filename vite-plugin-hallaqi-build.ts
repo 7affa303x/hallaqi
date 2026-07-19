@@ -28,10 +28,19 @@ export function hallaqiBuildPlugin(buildId = resolveHallaqiBuildId()): Plugin {
           `<meta charset="UTF-8" />\n    <meta name="hallaqi-build" content="${buildId}" />`,
         );
 
-      return withMeta.replace(
-        /\/auth-shell\.js(\?v=[^"']*)?/,
-        `/auth-shell.js?v=${buildId}`,
-      );
+      return withMeta
+        .replace(
+          /\/auth-shell\.js(\?v=[^"']*)?/,
+          `/auth-shell.js?v=${buildId}`,
+        )
+        .replace(
+          /\/oauth-guard\.js(\?v=[^"']*)?/,
+          `/oauth-guard.js?v=${buildId}`,
+        )
+        .replace(
+          /\/sw-register\.js(\?v=[^"']*)?/,
+          `/sw-register.js?v=${buildId}`,
+        );
     },
     generateBundle() {
       this.emitFile({
