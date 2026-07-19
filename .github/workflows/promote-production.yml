@@ -1,11 +1,10 @@
 name: Promote Preview to Production
 
-# Instant alias move — does NOT rebuild (bypasses Vercel build rate limits).
 on:
   workflow_dispatch:
     inputs:
       deployment_url:
-        description: Preview deployment URL to promote to production
+        description: Preview deployment URL to alias to production
         required: true
         default: https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app
   push:
@@ -24,38 +23,43 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@41.7.8
 
-      - name: Debug token teams / projects
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          echo "whoami:"; vercel whoami --token "$VERCEL_TOKEN" || true
-          echo "teams:"; vercel teams ls --token "$VERCEL_TOKEN" || true
-          echo "projects (souf303x):"; vercel project ls --token "$VERCEL_TOKEN" --scope souf303x || true
-
-      - name: Promote preview to production
+      - name: Alias preview to hallaqi.app via REST API
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app' }}"
-          echo "Promoting: $URL"
-          # Try scoped promote first, then alias fallbacks.
-          if vercel promote "$URL" --token "$VERCEL_TOKEN" --scope souf303x --yes; then
-            echo "promote ok (scope souf303x)"
-          elif vercel promote "$URL" --token "$VERCEL_TOKEN" --yes; then
-            echo "promote ok (default scope)"
-          else
-            echo "promote failed — trying alias set"
-            vercel alias set "$URL" hallaqi.app --token "$VERCEL_TOKEN" --scope souf303x --yes
-            vercel alias set "$URL" www.hallaqi.app --token "$VERCEL_TOKEN" --scope souf303x --yes || true
+          HOST="${URL#https://}"
+          HOST="${HOST%%/*}"
+          echo "Resolving deployment for host: $HOST"
+
+          # Resolve deployment id
+          DEPLOY=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v13/deployments/$HOST?teamId=souf303x")
+          echo "$DEPLOY" | head -c 500; echo
+          DEPLOY_ID=$(echo "$DEPLOY" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or d.get("uid") or "")')
+          echo "DEPLOY_ID=$DEPLOY_ID"
+          if [ -z "$DEPLOY_ID" ]; then
+            echo "Failed to resolve deployment id"
+            echo "$DEPLOY"
+            exit 1
           fi
+
+          # Assign production aliases (does not create a new deployment)
+          for DOMAIN in hallaqi.app www.hallaqi.app; do
+            echo "Aliasing $DEPLOY_ID -> $DOMAIN"
+            RESP=$(curl -sS -X POST "https://api.vercel.com/v2/aliases?teamId=souf303x" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"alias\":\"$DOMAIN\",\"deploymentId\":\"$DEPLOY_ID\"}")
+            echo "$RESP" | head -c 800; echo
+          done
 
       - name: Verify auth-shell.js on production
         run: |
           set -euo pipefail
-          for i in 1 2 3 4 5 6 7 8; do
-            sleep 5
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            sleep 4
             CT=$(curl -sSI "https://hallaqi.app/auth-shell.js" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print tolower($2)}')
             echo "attempt $i content-type: $CT"
             if echo "$CT" | grep -q 'javascript'; then
@@ -64,6 +68,4 @@ jobs:
               exit 0
             fi
           done
-          echo "Production still serving non-JS for /auth-shell.js"
-          curl -sSI "https://hallaqi.app/auth-shell.js" | head -20
           exit 1
