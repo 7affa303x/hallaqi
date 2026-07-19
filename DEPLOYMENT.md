@@ -26,8 +26,13 @@ Buckets and policies are migration-managed. Public: `avatars`, `covers`,
 1. Go to Authentication → Settings
 2. Enable Email provider
 3. Enable Google OAuth
-4. Set Site URL to `https://www.hallaqi.app`
-5. Allow `https://hallaqi.app/**` and local development callback URLs
+4. Set **Site URL** to the canonical apex: `https://hallaqi.app` (must match `VITE_SITE_URL` / production redirects)
+5. Redirect URLs allow-list (all required):
+   - `https://hallaqi.app/**`
+   - `https://www.hallaqi.app/**` (if www still resolves — redirect www→apex at DNS/Vercel)
+   - `http://localhost:5173/**` (or your Vite port)
+   - `https://*.vercel.app/**` (preview testing only; tighten before hard launch if desired)
+6. Prefer a single apex host: configure Vercel domain redirect `www` → `hallaqi.app` so OAuth never bounces between hosts
 
 ## Step 2: Vercel
 

@@ -70,7 +70,12 @@ export function getImageModelId(): string {
   return configured;
 }
 
+/**
+ * Hairstyle image gen is opt-in (cost/quota). Requires explicit
+ * AI_IMAGE_GENERATION_ENABLED=true plus a Gemini key — matches client FEATURE_FLAGS.
+ */
 export function hasImageGeneration(): boolean {
+  if (process.env.AI_IMAGE_GENERATION_ENABLED !== 'true') return false;
   return isAiGenerationEnabled() && Boolean(getGeminiApiKey());
 }
 

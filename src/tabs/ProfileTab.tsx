@@ -21,7 +21,7 @@ import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
-import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
+import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, PAUSED_LABEL, COMING_SOON_LABEL, isCashOnlyPayments } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   createIdVerificationRequest,
@@ -1365,6 +1365,7 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
 
 function PaymentMethods({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
+  const cashOnly = isCashOnlyPayments();
   const ccpAccount = import.meta.env.VITE_CCP_ACCOUNT_NUMBER as string | undefined;
   const ccpCard = import.meta.env.VITE_CCP_CARD_NUMBER as string | undefined;
   const envReady = Boolean(ccpAccount && ccpCard);
@@ -1377,24 +1378,32 @@ function PaymentMethods({ onBack }: { onBack: () => void }) {
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>طرق الدفع</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
-        <div className="rounded-2xl border p-3 text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.warning}12`, borderColor: themeConfig.colors.border, color: themeConfig.colors.warning }}>
-          الدفع الإلكتروني والاشتراكات المدفوعة <strong>متوقفة</strong> عند الإطلاق الناعم. المتاح الآن: الدفع النقدي عند زيارة الصالون.
-        </div>
-        <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#EAB30815' }}><CreditCard size={24} style={{ color: '#EAB308' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>CCP - حساب بريد الجزائر</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر الحساب البريدي</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ccpLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{ccpLive ? 'متاح' : 'متوقف'}</span></div>
-          <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى اعتماد حساب التحصيل التجاري وتفعيل الميزة.</p>
-        </div>
-        <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#3B82F615' }}><Wallet size={24} style={{ color: '#3B82F6' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بريدي موب</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر تطبيق بريدي موب</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">متوقف</span></div>
-          <div className="p-4 rounded-xl text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>متوقف عند الإطلاق — سيُفعَّل مع التحصيل التجاري.</p></div>
-        </div>
-        <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#6366F115' }}><CreditCard size={24} style={{ color: '#6366F1' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بطاقة (Stripe)</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>دفع إلكتروني بالبطاقة</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${cardLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{cardLive ? 'متاح' : 'متوقف'}</span></div>
-          <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى ضبط مفاتيح Stripe الحية والـ webhook.</p>
-        </div>
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
           <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E15' }}><CreditCard size={24} style={{ color: '#22C55E' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الدفع النقدي</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع مباشرة عند الزيارة</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">متاح</span></div>
         </div>
+        {cashOnly ? (
+          <div className="rounded-2xl border p-3 text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.info}10`, borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>
+            البطاقة وCCP وبريدي موب غير معروضة حالياً — الإطلاق الناعم نقدي فقط. ستُفعَّل عند جاهزية التحصيل.
+          </div>
+        ) : (
+          <>
+            <div className="rounded-2xl border p-3 text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.warning}12`, borderColor: themeConfig.colors.border, color: themeConfig.colors.warning }}>
+              الدفع الإلكتروني والاشتراكات المدفوعة قد تكون محدودة حسب الإعدادات.
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#EAB30815' }}><CreditCard size={24} style={{ color: '#EAB308' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>CCP - حساب بريد الجزائر</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر الحساب البريدي</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ccpLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{ccpLive ? 'متاح' : 'متوقف'}</span></div>
+              <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى اعتماد حساب التحصيل التجاري وتفعيل الميزة.</p>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#3B82F615' }}><Wallet size={24} style={{ color: '#3B82F6' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بريدي موب</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر تطبيق بريدي موب</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">متوقف</span></div>
+              <div className="p-4 rounded-xl text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>متوقف عند الإطلاق — سيُفعَّل مع التحصيل التجاري.</p></div>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#6366F115' }}><CreditCard size={24} style={{ color: '#6366F1' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بطاقة (Stripe)</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>دفع إلكتروني بالبطاقة</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${cardLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{cardLive ? 'متاح' : 'متوقف'}</span></div>
+              <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى ضبط مفاتيح Stripe الحية والـ webhook.</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

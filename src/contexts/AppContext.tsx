@@ -24,6 +24,7 @@ import { themes } from '@/data/themes';
 import { mockCurrentUser, mockBarbers, mockBookings, mockForumPosts, mockNotifications } from '@/data/mockData';
 import { mapBookingRow, mapForumPost, mapNotificationRow } from '@/lib/mappers';
 import { requiresMfaChallenge } from '@/lib/mfa';
+import { sanitizeAuthRedirectIntent } from '@/lib/authRedirect';
 import type { Barber, Booking, Chat, ForumPost, AppNotification, TabName, ThemeName, AnimationStyle, AppSettings, ScreenName, ScreenParams, User } from '@/types';
 import type { Database } from '@/types/supabase';
 import type { Profile } from '@/types/supabase-aliases';
@@ -240,10 +241,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!serialized) return;
     sessionStorage.removeItem('hallaqi-auth-redirect');
     try {
-      const intent = JSON.parse(serialized) as { screen?: ScreenName; params?: ScreenParams };
-      if (intent.params?.redirectTab) setActiveTab(intent.params.redirectTab as TabName);
+      const intent = sanitizeAuthRedirectIntent(JSON.parse(serialized));
+      if (!intent) return;
+      if (intent.params?.redirectTab && typeof intent.params.redirectTab === 'string') {
+        setActiveTab(intent.params.redirectTab as TabName);
+      }
       if (intent.screen && intent.screen !== 'login' && intent.screen !== 'home') {
-        navigate(intent.screen, intent.params);
+        navigate(intent.screen, intent.params as ScreenParams);
       } else if (!intent.screen || intent.screen === 'home') {
         setActiveTab('booking');
       }
@@ -336,13 +340,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           setBookings([]);
         }
-      } catch (err) { console.warn('[AppContext] bookings fetch failed:', err); }
+      } catch (err) {
+        console.warn('[AppContext] bookings fetch failed:', err);
+        setDataError(prev => prev ?? 'تعذر تحميل المواعيد. اسحب للتحديث أو أعد المحاولة.');
+      }
       finally { setIsLoading(p => ({ ...p, bookings: false })); }
 
       try {
         const notifData = await getUserNotifications(appUser.id);
         setNotifications(notifData.map(mapNotificationRow));
-      } catch (err) { console.warn('[AppContext] notifications fetch failed:', err); }
+      } catch (err) {
+        console.warn('[AppContext] notifications fetch failed:', err);
+        setDataError(prev => prev ?? 'تعذر تحميل الإشعارات.');
+      }
       finally { setIsLoading(p => ({ ...p, notifications: false })); }
     } else {
       setBookings([]);
@@ -353,7 +363,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const postsData = await getForumPosts();
       const likedIds = appUser ? await getUserLikedPostIds(appUser.id) : new Set<string>();
       setForumPosts(postsData.map(post => mapForumPost(post, likedIds.has(post.id))));
-    } catch (err) { console.warn('[AppContext] forum fetch failed:', err); }
+    } catch (err) {
+      console.warn('[AppContext] forum fetch failed:', err);
+      setDataError(prev => prev ?? 'تعذر تحميل منشورات المنتدى.');
+    }
     finally { setIsLoading(p => ({ ...p, forumPosts: false })); }
   }, [appUser]);
 

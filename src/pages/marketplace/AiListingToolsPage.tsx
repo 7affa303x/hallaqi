@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Wand2, Loader2, Copy, Check, Lock } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
+import { supabase } from '@/supabase/client';
 import { canAccessAiListingTools } from '@/lib/marketplace/planAccess';
 import type { MarketplacePlanTier } from '@/types/marketplace';
 
@@ -40,15 +41,27 @@ export default function AiListingToolsPage() {
     setCopied(false);
     setUsedFallback(false);
     try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('auth required');
       const res = await fetch('/api/ai/listing-assist', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ tool, prompt: input.trim() }),
       });
+      if (res.status === 401) throw new Error('auth required');
+      if (res.status === 429) {
+        setOutput('وصلت للحد اليومي للمساعد. جرّب غداً أو استخدم الاقتراح المحلي.');
+        setUsedFallback(true);
+        return;
+      }
       if (!res.ok) throw new Error('ai unavailable');
-      const data = await res.json() as { text?: string; fallback?: boolean };
-      setOutput(data.text || localFallback(tool, input));
-      setUsedFallback(Boolean(data.fallback));
+      const payload = await res.json() as { text?: string; fallback?: boolean };
+      setOutput(payload.text || localFallback(tool, input));
+      setUsedFallback(Boolean(payload.fallback));
     } catch {
       setOutput(localFallback(tool, input));
       setUsedFallback(true);

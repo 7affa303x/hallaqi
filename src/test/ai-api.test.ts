@@ -1,11 +1,13 @@
 import { afterEach, vi } from 'vitest';
 import { POST as advicePost } from '../../api/ai/advice';
+import { POST as listingAssistPost } from '../../api/ai/listing-assist';
 import { GET as capabilitiesGet } from '../../api/ai/capabilities';
 
 describe('AI API contracts', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.AI_GENERATION_ENABLED;
+    delete process.env.AI_IMAGE_GENERATION_ENABLED;
     delete process.env.GROQ_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -46,8 +48,17 @@ describe('AI API contracts', () => {
       generativeAdvice: true,
       barberAssist: true,
       provider: 'gemini',
+      hairstyleImageGeneration: false,
       externalBlocker: null,
     }));
+  });
+
+  it('keeps image generation off unless AI_IMAGE_GENERATION_ENABLED=true', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.AI_IMAGE_GENERATION_ENABLED = 'true';
+    const body = await capabilitiesGet().json();
+    expect(body.hairstyleImageGeneration).toBe(true);
   });
 
   it('returns a typed external blocker after authenticating the user', async () => {
@@ -68,5 +79,15 @@ describe('AI API contracts', () => {
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       code: 'AI_NOT_CONFIGURED',
     }));
+  });
+
+  it('rejects unauthenticated listing-assist calls', async () => {
+    const response = await listingAssistPost(new Request('https://hallaqi.app/api/ai/listing-assist', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tool: 'title', prompt: 'زيت لحية' }),
+    }));
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ code: 'UNAUTHORIZED' });
   });
 });

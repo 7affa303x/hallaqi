@@ -310,7 +310,7 @@ function AppContent() {
         </div>
       )}
       {/* Full-bleed on phones; phone-column only from tablet/desktop up */}
-      <main id="main-content" className={`w-full max-w-none sm:max-w-lg sm:mx-auto min-h-screen min-h-[100dvh] ${showNav ? 'pb-16' : ''}`}>
+      <main id="main-content" className={`w-full max-w-none sm:max-w-lg sm:mx-auto min-h-screen min-h-[100dvh] ${showNav ? 'pb-[calc(4rem+env(safe-area-inset-bottom,0px))]' : ''}`}>
         {/* Developer Mode toggle — dev builds only; stripped from production. */}
         {import.meta.env.DEV && (
           <>

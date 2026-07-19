@@ -1,6 +1,7 @@
 /** Canonical auth redirect — avoid stale traps while allowing current preview testing. */
 
 import { absoluteUrl, getSiteUrl } from '@/lib/siteUrl';
+import type { ScreenName, TabName } from '@/types';
 
 function isLocalHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
@@ -8,6 +9,63 @@ function isLocalHost(hostname: string): boolean {
 
 function isVercelPreviewHost(hostname: string): boolean {
   return hostname.endsWith('.vercel.app');
+}
+
+/** Post-OAuth / post-login screens that may be restored from sessionStorage. */
+const SAFE_AUTH_REDIRECT_SCREENS = new Set<ScreenName>([
+  'home',
+  'barber-detail',
+  'booking-flow',
+  'post-detail',
+  'messages',
+  'notifications',
+  'ai-advisor',
+  'ai-hub-tool',
+  'ai-listing-tools',
+  'store-detail',
+  'product-detail',
+  'seller-dashboard',
+  'marketplace-analytics',
+  'payment-success',
+]);
+
+const SAFE_AUTH_REDIRECT_TABS = new Set<TabName>([
+  'booking',
+  'forum',
+  'ai-hub',
+  'marketplace',
+  'profile',
+  'appointments',
+  'camera',
+]);
+
+export function isSafeAuthRedirectScreen(screen: unknown): screen is ScreenName {
+  return typeof screen === 'string' && SAFE_AUTH_REDIRECT_SCREENS.has(screen as ScreenName);
+}
+
+export function isSafeAuthRedirectTab(tab: unknown): tab is TabName {
+  return typeof tab === 'string' && SAFE_AUTH_REDIRECT_TABS.has(tab as TabName);
+}
+
+export function sanitizeAuthRedirectIntent(raw: unknown): {
+  screen?: ScreenName;
+  params?: Record<string, unknown>;
+} | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const intent = raw as { screen?: unknown; params?: unknown };
+  const screen = isSafeAuthRedirectScreen(intent.screen) ? intent.screen : undefined;
+  const params =
+    intent.params && typeof intent.params === 'object' && !Array.isArray(intent.params)
+      ? { ...(intent.params as Record<string, unknown>) }
+      : undefined;
+  if (params && !isSafeAuthRedirectTab(params.redirectTab)) {
+    delete params.redirectTab;
+  }
+  if (params?.redirectScreen && !isSafeAuthRedirectScreen(params.redirectScreen)) {
+    delete params.redirectScreen;
+  }
+  if (!screen && !params) return null;
+  return { screen, params };
 }
 
 /**

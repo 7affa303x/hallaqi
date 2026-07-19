@@ -24,7 +24,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingStep3Schema } from '@/lib/validation';
 import type { BookingStep3FormData } from '@/lib/validation';
 import { preferredBookingHour, rankAvailableSlots } from '@/lib/scheduling';
-import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
+import { FEATURE_FLAGS, PAUSED_LABEL, isCashOnlyPayments } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { reportClientError } from '@/lib/error-reporting';
@@ -846,31 +846,49 @@ export default function BookingFlowPage() {
           {/* Payment method */}
           <div>
             <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>طريقة الدفع</p>
-            <div className="grid grid-cols-4 gap-2">
-              {([
-                { key: 'cash' as const, label: 'نقداً', icon: Banknote, disabled: false, badge: null as string | null },
-                { key: 'card' as const, label: 'بطاقة', icon: CreditCard, disabled: !cardEnabled, badge: cardEnabled ? null : PAUSED_LABEL },
-                { key: 'ccp' as const, label: 'CCP', icon: CreditCard, disabled: !ccpEnabled, badge: ccpEnabled ? null : PAUSED_LABEL },
-                { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet, disabled: !ccpEnabled, badge: ccpEnabled ? null : PAUSED_LABEL },
-              ]).map(pm => (
-                <button key={pm.key} type="button" disabled={pm.disabled} onClick={() => {
-                  registerStep3('paymentMethod').onChange({ target: { value: pm.key } });
-                  trackProductEvent('Payment Method Selected', { method: pm.key, barberId: barber.id });
-                }}
-                  className="relative flex flex-col items-center gap-1 p-3 rounded-xl border transition-all disabled:opacity-45"
-                  title={pm.disabled ? 'هذه الطريقة متوقفة حالياً' : undefined}
-                  style={{ backgroundColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
-                  {pm.badge && (
-                    <span className="absolute -top-1.5 left-1 text-[8px] font-black px-1 rounded bg-amber-100 text-amber-700">{pm.badge}</span>
-                  )}
-                  <pm.icon size={20} style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }} />
-                  <span className="text-[10px] font-bold" style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>{pm.label}</span>
+            {isCashOnlyPayments() ? (
+              <>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border"
+                  style={{ backgroundColor: themeConfig.colors.primary + '08', borderColor: themeConfig.colors.primary }}
+                >
+                  <Banknote size={20} style={{ color: themeConfig.colors.primary }} />
+                  <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>نقداً عند الزيارة</span>
                 </button>
-              ))}
-            </div>
-            <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-              عند الإطلاق: الدفع النقدي عند الزيارة متاح. البطاقة وCCP وبريدي موب <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</span> حتى تفعيل التحصيل.
-            </p>
+                <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+                  الدفع الإلكتروني (بطاقة / CCP / بريدي موب) متوقف عند الإطلاق الناعم — ادفع للحلاق مباشرة.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { key: 'cash' as const, label: 'نقداً', icon: Banknote, disabled: false, badge: null as string | null },
+                    { key: 'card' as const, label: 'بطاقة', icon: CreditCard, disabled: !cardEnabled, badge: cardEnabled ? null : PAUSED_LABEL },
+                    { key: 'ccp' as const, label: 'CCP', icon: CreditCard, disabled: !ccpEnabled, badge: ccpEnabled ? null : PAUSED_LABEL },
+                    { key: 'baridi-mob' as const, label: 'بريدي موب', icon: Wallet, disabled: !ccpEnabled, badge: ccpEnabled ? null : PAUSED_LABEL },
+                  ]).map(pm => (
+                    <button key={pm.key} type="button" disabled={pm.disabled} onClick={() => {
+                      registerStep3('paymentMethod').onChange({ target: { value: pm.key } });
+                      trackProductEvent('Payment Method Selected', { method: pm.key, barberId: barber.id });
+                    }}
+                      className="relative flex flex-col items-center gap-1 p-3 rounded-xl border transition-all disabled:opacity-45"
+                      title={pm.disabled ? 'هذه الطريقة متوقفة حالياً' : undefined}
+                      style={{ backgroundColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary + '08' : themeConfig.colors.surface, borderColor: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.border }}>
+                      {pm.badge && (
+                        <span className="absolute -top-1.5 left-1 text-[8px] font-black px-1 rounded bg-amber-100 text-amber-700">{pm.badge}</span>
+                      )}
+                      <pm.icon size={20} style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }} />
+                      <span className="text-[10px] font-bold" style={{ color: watchedPaymentMethod === pm.key ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>{pm.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+                  عند الإطلاق: الدفع النقدي عند الزيارة متاح. البطاقة وCCP وبريدي موب <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</span> حتى تفعيل التحصيل.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="rounded-xl border p-3" style={{ backgroundColor: `${themeConfig.colors.info}08`, borderColor: themeConfig.colors.border }}>

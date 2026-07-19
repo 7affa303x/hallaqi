@@ -10,6 +10,7 @@ import {
   getProfessionalServices,
 } from '@/supabase/database';
 import type { Service } from '@/types/supabase-aliases';
+import { isCashOnlyPayments } from '@/lib/featureFlags';
 
 type SheetMode = 'menu' | 'walkin' | 'block' | null;
 
@@ -182,11 +183,14 @@ export default function BarberQuickEntry({ proId, open, onClose, onDone }: Props
                   })}
                 </div>
                 <div className="flex gap-2">
-                  {[
-                    { id: 'cash', label: 'نقدي', icon: Wallet },
-                    { id: 'ccp', label: 'CCP', icon: Wallet },
-                    { id: 'baridi-mob', label: 'بريدي موب', icon: Wallet },
-                  ].map(item => (
+                  {(isCashOnlyPayments()
+                    ? [{ id: 'cash', label: 'نقدي', icon: Wallet }]
+                    : [
+                        { id: 'cash', label: 'نقدي', icon: Wallet },
+                        { id: 'ccp', label: 'CCP', icon: Wallet },
+                        { id: 'baridi-mob', label: 'بريدي موب', icon: Wallet },
+                      ]
+                  ).map(item => (
                     <button
                       key={item.id}
                       type="button"

@@ -1,5 +1,6 @@
 import { APICallError, generateText } from 'ai';
 import { z } from 'zod';
+import { authenticateSupabaseRequest, consumeAiQuota } from '../_lib/auth.js';
 import { HALLAQI_IDENTITY } from '../_lib/ai-identity.js';
 import {
   aiUnavailableMessage,
@@ -36,6 +37,9 @@ function fallbackText(tool: string, prompt: string): string {
 }
 
 export async function POST(request: Request) {
+  const user = await authenticateSupabaseRequest(request);
+  if (!user) return Response.json({ code: 'UNAUTHORIZED' }, { status: 401 });
+
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ code: 'INVALID_INPUT' }, { status: 400 });
@@ -48,6 +52,11 @@ export async function POST(request: Request) {
       fallback: true,
       message: aiUnavailableMessage(),
     });
+  }
+
+  // DB RPC allows advice | style-image | barber-assist — share advice bucket for listing tools.
+  if (!await consumeAiQuota(user, 'advice')) {
+    return Response.json({ code: 'AI_RATE_LIMITED' }, { status: 429 });
   }
 
   try {
@@ -67,6 +76,7 @@ export async function POST(request: Request) {
     return Response.json({ text: text.trim(), fallback: false });
   } catch (error) {
     console.error('AI listing assist failed', {
+      userId: user.id,
       statusCode: APICallError.isInstance(error) ? error.statusCode : undefined,
     });
     return Response.json({

@@ -129,7 +129,9 @@ export default function BookingTab() {
       if (selectedCountry !== 'DZ') persistCountry('DZ');
     }
     setSortBy('distance');
-    setNearbyOnly(true);
+    // Auto GPS only sets wilaya — enabling nearbyOnly on first paint often yields an empty home.
+    // Manual "locate me" still filters to nearby salons.
+    if (!auto) setNearbyOnly(true);
     setLocationMessage(tx('locationReady'));
   }, [persistCountry, persistWilaya, selectedCountry, tx]);
 

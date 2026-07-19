@@ -55,18 +55,13 @@ export default function CookieConsent({
     };
 
     const poll = window.setInterval(tryShow, 1000);
-    const fallback = window.setTimeout(() => {
-      if (!cancelled && !hasAnalyticsDecision() && !AUTH_SCREENS.has(screen)) {
-        setVisible(true);
-      }
-    }, 8000);
+    // No aggressive force-show — wait until onboarding is done so overlays don't stack.
 
     tryShow();
 
     return () => {
       cancelled = true;
       window.clearInterval(poll);
-      window.clearTimeout(fallback);
     };
   }, [screen]);
 
