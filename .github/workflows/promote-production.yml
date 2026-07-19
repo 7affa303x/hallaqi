@@ -8,6 +8,11 @@ on:
         description: Preview deployment URL to promote to production
         required: true
         default: https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app
+  # Auto-run when this workflow file is updated on main (used to unblock prod).
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/promote-production.yml'
 
 permissions:
   contents: read
@@ -29,17 +34,22 @@ jobs:
             echo "VERCEL_TOKEN secret is missing"
             exit 1
           fi
-          URL="${{ inputs.deployment_url }}"
+          URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app' }}"
           echo "Promoting: $URL"
-          # --yes skips confirmation prompts in CI
           vercel promote "$URL" --token "$VERCEL_TOKEN" --yes
 
       - name: Verify auth-shell.js on production
         run: |
           set -euo pipefail
-          sleep 5
-          CT=$(curl -sSI "https://hallaqi.app/auth-shell.js" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print tolower($2)}')
-          echo "content-type: $CT"
-          echo "$CT" | grep -q 'javascript'
-          curl -sS "https://hallaqi.app/" | grep -q 'auth-shell.js'
-          echo "Production auth-shell OK"
+          for i in 1 2 3 4 5 6; do
+            sleep 5
+            CT=$(curl -sSI "https://hallaqi.app/auth-shell.js" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print tolower($2)}')
+            echo "attempt $i content-type: $CT"
+            if echo "$CT" | grep -q 'javascript'; then
+              curl -sS "https://hallaqi.app/" | grep -q 'auth-shell.js'
+              echo "Production auth-shell OK"
+              exit 0
+            fi
+          done
+          echo "Production still serving non-JS for /auth-shell.js"
+          exit 1
