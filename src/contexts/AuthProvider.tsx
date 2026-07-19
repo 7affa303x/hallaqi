@@ -127,14 +127,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const code = url.searchParams.get('code');
 
         if (code) {
-          const { data: { session: existing } } = await supabase.auth.getSession();
-          if (existing?.user) {
-            await applySession(existing);
-            return;
-          }
+          const oauthTimeout = window.setTimeout(() => {
+            if (mounted) {
+              setState(s => (
+                s.isLoading
+                  ? {
+                      ...s,
+                      isLoading: false,
+                      isAuthenticated: false,
+                      error: 'تعذر إكمال تسجيل الدخول. حاول مرة أخرى أو سجّل بالبريد.',
+                    }
+                  : s
+              ));
+            }
+          }, 15000);
 
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
+          try {
+            const { data: { session: existing } } = await supabase.auth.getSession();
+            if (existing?.user) {
+              window.clearTimeout(oauthTimeout);
+              await applySession(existing);
+              return;
+            }
+
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            window.clearTimeout(oauthTimeout);
+            if (error) {
+              if (mounted) {
+                setState(s => ({
+                  ...s,
+                  isLoading: false,
+                  isAuthenticated: false,
+                  error: 'تعذر إكمال تسجيل الدخول. حاول مرة أخرى أو سجّل بالبريد.',
+                }));
+              }
+              return;
+            }
+            if (data.session) {
+              await applySession(data.session);
+              return;
+            }
+          } catch {
+            window.clearTimeout(oauthTimeout);
             if (mounted) {
               setState(s => ({
                 ...s,
@@ -143,10 +177,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 error: 'تعذر إكمال تسجيل الدخول. حاول مرة أخرى أو سجّل بالبريد.',
               }));
             }
-            return;
-          }
-          if (data.session) {
-            await applySession(data.session);
             return;
           }
         }

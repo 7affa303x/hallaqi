@@ -1,4 +1,41 @@
 /**
+ * Block stale SW registration during OAuth — must run before registerSW.js on legacy builds.
+ */
+(function () {
+  var q = location.search || '';
+  var h = location.hash || '';
+  var oauth = /[?&]code=/.test(q) || /[?&]error=/.test(q)
+    || /access_token=/.test(h) || /type=recovery/.test(h);
+  if (!oauth) return;
+
+  window.__HALLAQI_OAUTH_RETURN = true;
+  window.__HALLAQI_AUTH_SHELL_PENDING = false;
+  window.__HALLAQI_SKIP_SW_REGISTER = true;
+
+  try {
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register = function () {
+        return Promise.resolve({
+          scope: '/',
+          update: function () { return Promise.resolve(); },
+          unregister: function () { return Promise.resolve(true); },
+        });
+      };
+      if (navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) { return r.unregister(); }));
+        });
+      }
+    }
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+      });
+    }
+  } catch (e) { /* ignore */ }
+})();
+
+/**
  * Early shell guards — runs before React (CSP-safe external script).
  * 1) Apex redirect
  * 2) OAuth return (?code= / #access_token=) → NEVER block React or reload
