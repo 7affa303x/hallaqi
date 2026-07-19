@@ -82,8 +82,8 @@
       * { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; }
     </style>
-    <!-- External only — CSP forbids inline scripts on production. -->
-    <script src="/auth-shell.js"></script>
+    <!-- External only — CSP forbids inline scripts on production. Cache-bust query forces fresh fetch. -->
+    <script src="/auth-shell.js?v=2026-07-19-2"></script>
   </head>
   <body>
     <div id="root"></div>

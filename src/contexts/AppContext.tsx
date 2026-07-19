@@ -355,7 +355,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       finally { setIsLoading(p => ({ ...p, notifications: false })); }
     } else {
+      // Guest / logged-out: never keep prior-session notifications (badge "1" + login CTA).
       setBookings([]);
+      setNotifications([]);
       setIsLoading(p => ({ ...p, bookings: false, notifications: false }));
     }
 

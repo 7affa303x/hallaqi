@@ -184,8 +184,21 @@ export function transformToBarber(professional: RawProfessional): Barber {
 
 /** Drop obvious test/junk services that erode trust in the Algeria soft launch. */
 export function isPlausibleService(service: Pick<Service, 'name' | 'price' | 'duration'>): boolean {
-  if (!service.name || service.name.length < 2) return false;
-  if (service.price <= 0 || service.price > 25000) return false;
+  const name = (service.name || '').trim().toLowerCase();
+  if (!name || name.length < 2) return false;
+  if (
+    name === 'n/a'
+    || name === 'test'
+    || name === 'asdf'
+    || name.includes('unknown')
+    || name.includes('تجريب')
+  ) {
+    return false;
+  }
+  // Soft-launch Algeria: real salon prices cluster well below 15k DZD.
+  if (service.price <= 0 || service.price > 15000) return false;
+  // Repeated digit test prices (5555, 1111, 9999…) are almost never real menus.
+  if (/^(\d)\1{2,}$/.test(String(Math.trunc(service.price)))) return false;
   if (service.duration < 5 || service.duration > 240) return false;
   return true;
 }
@@ -194,16 +207,19 @@ export function isPlausibleService(service: Pick<Service, 'name' | 'price' | 'du
 export function isMissingLocation(value: string | undefined | null): boolean {
   const v = (value || '').trim().toLowerCase();
   if (!v) return true;
+  // Match exact junk AND composite strings like "Unknown Location, Unknown Wilaya".
   return (
     v === 'n/a'
     || v === 'na'
     || v === 'null'
     || v === 'undefined'
-    || v === 'unknown'
-    || v === 'unknown location'
-    || v === 'unknown wilaya'
+    || v === '—'
+    || v === '-'
+    || v.includes('unknown')
+    || v.includes('n/a')
     || v.includes('غير محدد')
     || v.includes('غير معر')
+    || v.includes('موقع غير')
   );
 }
 
@@ -217,8 +233,12 @@ export function formatBarberLocation(barber: Pick<Barber, 'location' | 'wilaya'>
 export function isDisplayableBarber(barber: Barber): boolean {
   if (!barber.isActive) return false;
   if (!barber.services.length) return false;
-  if (!barber.name || barber.name === 'حلاق') return false;
+  const name = (barber.name || '').trim();
+  if (!name || name === 'حلاق' || name.toLowerCase() === 'unknown' || name.toLowerCase() === 'n/a') {
+    return false;
+  }
   // Hide junk / incomplete profiles that erode trust (Unknown / N/A / empty city).
+  // Require at least one real location field — both missing OR both junk → hide.
   if (isMissingLocation(barber.wilaya) && isMissingLocation(barber.location)) return false;
   if (!barber.services.some(isPlausibleService)) return false;
   return true;

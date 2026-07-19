@@ -35,6 +35,7 @@ const base = (overrides: Partial<Barber> = {}): Barber => ({
 describe('isPlausibleService', () => {
   it('rejects junk prices and durations', () => {
     expect(isPlausibleService({ name: 'test', price: 5555, duration: 305 })).toBe(false);
+    expect(isPlausibleService({ name: 'قص', price: 5555, duration: 30 })).toBe(false);
     expect(isPlausibleService({ name: 'قص', price: 300, duration: 30 })).toBe(true);
     expect(isPlausibleService({ name: '', price: 300, duration: 30 })).toBe(false);
   });
@@ -52,6 +53,10 @@ describe('isDisplayableBarber', () => {
     expect(isDisplayableBarber(base({
       wilaya: 'N/A',
       location: 'Unknown Location',
+    }))).toBe(false);
+    expect(isDisplayableBarber(base({
+      wilaya: 'Unknown Wilaya',
+      location: 'Unknown Location, Unknown Wilaya',
     }))).toBe(false);
   });
 });

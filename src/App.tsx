@@ -19,11 +19,11 @@ import { reportClientError } from '@/lib/error-reporting';
 import { translate } from '@/lib/i18n';
 import { consumeAuthUrlError } from '@/lib/authRedirect';
 import BookingTab from '@/tabs/BookingTab';
+import ForumTab from '@/tabs/ForumTab';
 import './App.css';
 
 const AppointmentsTab = lazy(() => import('@/tabs/AppointmentsTab'));
 const CameraTab = lazy(() => import('@/tabs/CameraTab'));
-const ForumTab = lazy(() => import('@/tabs/ForumTab'));
 const ProfileTab = lazy(() => import('@/tabs/ProfileTab'));
 const MarketplaceTab = lazy(() => import('@/tabs/MarketplaceTab'));
 const BarberDetailPage = lazy(() => import('@/pages/BarberDetailPage'));
@@ -71,7 +71,7 @@ function TabContent({ tab }: { tab: string }) {
         <Suspense fallback={<LoadingFallback />}><AIAdvisorPage /></Suspense>
       </div>
       <div className={tab === 'forum' ? 'block' : 'hidden'} aria-hidden={tab !== 'forum'}>
-        <Suspense fallback={<LoadingFallback />}><ForumTab /></Suspense>
+        <ForumTab />
       </div>
       <div className={tab === 'marketplace' ? 'block' : 'hidden'} aria-hidden={tab !== 'marketplace'}>
         <Suspense fallback={<LoadingFallback />}><MarketplaceTab /></Suspense>

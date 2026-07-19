@@ -3,7 +3,7 @@
 const BUILD_KEY = 'hallaqi-app-build-v1';
 
 /** Bump when shipping shell/layout/SW fixes so phones drop old SW caches. */
-export const APP_SHELL_BUILD = '2026-07-19-csp-auth-shell-1';
+export const APP_SHELL_BUILD = '2026-07-19-prod-auth-discovery-2';
 
 async function clearServiceWorkerAndCaches(): Promise<boolean> {
   let clearedSomething = false;

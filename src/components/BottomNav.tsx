@@ -25,7 +25,7 @@ const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; spe
 
 export default function BottomNav() {
   const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings, screen } = useApp();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
 
   const openRadial = useCallback(() => setRadialOpen(true), []);
@@ -134,7 +134,7 @@ export default function BottomNav() {
                     }}
                     strokeWidth={isActive ? 2.5 : 1.5}
                   />
-                  {tab.key === 'profile' && unreadCount > 0 && (
+                  {tab.key === 'profile' && isAuthenticated && unreadCount > 0 && (
                     <span
                       className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white px-1"
                       style={{ backgroundColor: themeConfig.colors.error }}
@@ -142,14 +142,7 @@ export default function BottomNav() {
                       {unreadCount}
                     </span>
                   )}
-                  {tab.key === 'profile' && !authLoading && !isAuthenticated && (
-                    <span
-                      className="absolute -top-2 -right-2 w-3.5 h-3.5 flex items-center justify-center rounded-full text-[7px] font-bold text-white"
-                      style={{ backgroundColor: themeConfig.colors.warning }}
-                    >
-                      !
-                    </span>
-                  )}
+                  {/* No guest "!" badge — it looked like a real notification while Forum showed login. */}
                 </div>
 
                 <span
