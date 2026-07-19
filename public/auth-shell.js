@@ -43,12 +43,14 @@
   }
 
   function reloadWithRefresh(tag) {
+    if (isOAuthReturn()) return;
     var u = new URL(location.href);
     u.searchParams.set('hallaqi_refresh', String(tag || 'shell').slice(0, 24));
     location.replace(u.pathname + u.search + u.hash);
   }
 
   function maybeUpgradeShell(serverBuild) {
+    if (isOAuthReturn()) return Promise.resolve(false);
     if (!serverBuild) return Promise.resolve(false);
     var local = getStoredBuild();
     if (local === serverBuild) return Promise.resolve(false);
