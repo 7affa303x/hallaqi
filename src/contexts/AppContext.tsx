@@ -320,8 +320,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else {
         setBarbers(barbersData);
       }
+      setDataError(null);
     } catch (err) {
       console.warn('[AppContext] professionals fetch failed:', err);
+      // Keep any previously loaded list so the UI doesn't go empty on a transient failure.
       setDataError('تعذر تحميل قائمة الحلاقين.');
     }
     finally { setIsLoading(p => ({ ...p, barbers: false })); }

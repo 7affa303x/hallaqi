@@ -202,11 +202,17 @@ function AppContent() {
   const setIsOnline = useStore(s => s.setIsOnline);
   const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsConsent() === 'accepted');
   const [authUrlError, setAuthUrlError] = useState<string | null>(null);
+  const [dismissDataError, setDismissDataError] = useState(false);
 
   useEffect(() => {
     const msg = consumeAuthUrlError();
     if (msg) setAuthUrlError(msg);
   }, []);
+
+  useEffect(() => {
+    // Re-show banner when a new error arrives after dismiss
+    setDismissDataError(false);
+  }, [dataError]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -288,15 +294,18 @@ function AppContent() {
           </button>
         </div>
       )}
-      {dataError && (
+      {dataError && !dismissDataError && (
         <div
           role="alert"
           className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-lg rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
           style={{ backgroundColor: themeConfig.colors.error, color: '#fff' }}
         >
           <span className="text-xs flex-1">{dataError}</span>
-          <button type="button" onClick={() => void refreshData()} className="text-xs font-bold underline">
+          <button type="button" onClick={() => void refreshData()} className="text-xs font-bold underline shrink-0">
             {translate(settings.language, 'retry')}
+          </button>
+          <button type="button" onClick={() => setDismissDataError(true)} className="text-xs font-bold shrink-0" aria-label="إغلاق">
+            ✕
           </button>
         </div>
       )}

@@ -3,7 +3,7 @@
 const BUILD_KEY = 'hallaqi-app-build-v1';
 
 /** Bump when shipping shell/layout fixes so phones drop old SW caches. */
-export const APP_SHELL_BUILD = '2026-07-19-viewport-auth';
+export const APP_SHELL_BUILD = '2026-07-19-launch-hotfix';
 
 /** @returns true if a reload was triggered (caller must not mount React). */
 export async function ensureFreshAppShell(): Promise<boolean> {

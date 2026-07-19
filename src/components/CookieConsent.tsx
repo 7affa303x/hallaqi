@@ -1,59 +1,80 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
 import {
-  readAnalyticsConsent,
+  hasAnalyticsDecision,
   writeAnalyticsConsent,
   type AnalyticsConsent,
 } from '@/lib/analyticsConsent';
 
 const ONBOARDING_KEY = 'hallaqi-onboarding-v1-done';
 
+const AUTH_SCREENS = new Set([
+  'login',
+  'register',
+  'forgot-password',
+  'reset-password',
+  'mfa-challenge',
+]);
+
 /**
- * Soft privacy banner — enables Vercel Analytics only after accept.
- * Delayed until soft onboarding is done so first visit isn't stacked with overlays.
+ * Optional performance analytics banner.
+ * Hidden on auth screens; never reappears after accept/decline (localStorage + cookie).
  */
 export default function CookieConsent({
   onChange,
 }: {
   onChange?: (value: AnalyticsConsent) => void;
 }) {
-  const { themeConfig } = useApp();
+  const { themeConfig, screen, settings } = useApp();
   const [visible, setVisible] = useState(false);
   const titleId = useId();
-  const acceptRef = useRef<HTMLButtonElement>(null);
+  const declineRef = useRef<HTMLButtonElement>(null);
+  const lang = settings.language;
 
   useEffect(() => {
-    if (readAnalyticsConsent() !== null) return;
+    if (hasAnalyticsDecision()) {
+      setVisible(false);
+      return;
+    }
+    if (AUTH_SCREENS.has(screen)) {
+      setVisible(false);
+      return;
+    }
 
     let cancelled = false;
     const tryShow = () => {
-      if (cancelled) return;
+      if (cancelled || hasAnalyticsDecision()) return;
+      if (AUTH_SCREENS.has(screen)) return;
       try {
+        // Prefer waiting until soft onboarding is done, but don't block forever.
         if (localStorage.getItem(ONBOARDING_KEY) !== '1') return;
       } catch {
-        // ignore storage errors — still show after delay
+        /* show anyway */
       }
       setVisible(true);
     };
 
-    // Wait for onboarding skip/finish, then a short breath before the banner
-    const poll = window.setInterval(tryShow, 800);
+    const poll = window.setInterval(tryShow, 1000);
     const fallback = window.setTimeout(() => {
-      if (!cancelled && readAnalyticsConsent() === null) setVisible(true);
-    }, 12000);
+      if (!cancelled && !hasAnalyticsDecision() && !AUTH_SCREENS.has(screen)) {
+        setVisible(true);
+      }
+    }, 8000);
+
+    tryShow();
 
     return () => {
       cancelled = true;
       window.clearInterval(poll);
       window.clearTimeout(fallback);
     };
-  }, []);
+  }, [screen]);
 
   useEffect(() => {
-    if (visible) acceptRef.current?.focus();
+    if (visible) declineRef.current?.focus();
   }, [visible]);
 
-  if (!visible) return null;
+  if (!visible || hasAnalyticsDecision()) return null;
 
   const choose = (value: 'accepted' | 'declined') => {
     writeAnalyticsConsent(value);
@@ -61,37 +82,50 @@ export default function CookieConsent({
     onChange?.(value);
   };
 
+  const title =
+    lang === 'en' ? 'Performance analytics (optional)'
+      : lang === 'fr' ? 'Analytique de perf. (optionnel)'
+        : 'تحليلات الأداء (اختياري)';
+  const body =
+    lang === 'en'
+      ? 'We measure app performance as anonymously as possible. Decline anytime — booking works without it.'
+      : lang === 'fr'
+        ? 'Mesure anonyme des perfs. Vous pouvez refuser — la réservation fonctionne sans.'
+        : 'نقيس أداء التطبيق بشكل مجهّل قدر الإمكان. يمكنك الرفض والمتابعة عادي — الحجز يعمل بدونها.';
+  const declineLabel = lang === 'en' ? 'Decline' : lang === 'fr' ? 'Refuser' : 'رفض';
+  const acceptLabel = lang === 'en' ? 'Accept' : lang === 'fr' ? 'Accepter' : 'قبول';
+
   return (
     <div
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[110] w-[calc(100%-1.5rem)] max-w-md rounded-2xl border p-4 shadow-lg"
+      className="fixed bottom-20 inset-x-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-[110] sm:w-[calc(100%-1.5rem)] sm:max-w-md rounded-2xl border p-4 shadow-lg"
       style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
     >
       <p id={titleId} className="text-xs font-black" style={{ color: themeConfig.colors.text }}>
-        تحليلات الأداء (اختياري)
+        {title}
       </p>
       <p className="text-[11px] mt-1.5 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-        نقيس أداء التطبيق بشكل مجهّل قدر الإمكان. يمكنك الرفض والمتابعة عادي — الحجز يعمل بدونها.
+        {body}
       </p>
       <div className="flex gap-2 mt-3">
         <button
+          ref={declineRef}
           type="button"
           onClick={() => choose('declined')}
           className="flex-1 h-10 rounded-xl text-xs font-bold border"
           style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}
         >
-          رفض
+          {declineLabel}
         </button>
         <button
-          ref={acceptRef}
           type="button"
           onClick={() => choose('accepted')}
           className="flex-1 h-10 rounded-xl text-xs font-bold text-white"
           style={{ backgroundColor: themeConfig.colors.primary }}
         >
-          قبول
+          {acceptLabel}
         </button>
       </div>
     </div>

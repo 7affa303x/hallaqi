@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { useAuth } from '@/hooks/useAuth';
 import { translate } from '@/lib/i18n';
 import { X, CalendarDays, ShoppingBag, Sparkles } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const STORAGE_KEY = 'hallaqi-onboarding-v1-done';
  */
 export default function SoftOnboarding() {
   const { themeConfig, setActiveTab, navigate, settings } = useApp();
+  const { isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -21,11 +23,16 @@ export default function SoftOnboarding() {
   useEffect(() => {
     try {
       if (localStorage.getItem(STORAGE_KEY) === '1') return;
+      // Returning signed-in users: skip onboarding noise (they already know the app).
+      if (isAuthenticated) {
+        localStorage.setItem(STORAGE_KEY, '1');
+        return;
+      }
       setOpen(true);
     } catch {
       // ignore
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const finish = () => {
     try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* ignore */ }
