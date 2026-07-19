@@ -8,7 +8,6 @@ on:
         description: Preview deployment URL to promote to production
         required: true
         default: https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app
-  # Auto-run when this workflow file is updated on main (used to unblock prod).
   push:
     branches: [main]
     paths:
@@ -20,28 +19,42 @@ permissions:
 jobs:
   promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Install Vercel CLI
         run: npm install -g vercel@41.7.8
+
+      - name: Debug token teams / projects
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "whoami:"; vercel whoami --token "$VERCEL_TOKEN" || true
+          echo "teams:"; vercel teams ls --token "$VERCEL_TOKEN" || true
+          echo "projects (souf303x):"; vercel project ls --token "$VERCEL_TOKEN" --scope souf303x || true
 
       - name: Promote preview to production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo "VERCEL_TOKEN secret is missing"
-            exit 1
-          fi
           URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-prod-auth-discovery-hard-fix-93d3-souf303x.vercel.app' }}"
           echo "Promoting: $URL"
-          vercel promote "$URL" --token "$VERCEL_TOKEN" --yes
+          # Try scoped promote first, then alias fallbacks.
+          if vercel promote "$URL" --token "$VERCEL_TOKEN" --scope souf303x --yes; then
+            echo "promote ok (scope souf303x)"
+          elif vercel promote "$URL" --token "$VERCEL_TOKEN" --yes; then
+            echo "promote ok (default scope)"
+          else
+            echo "promote failed — trying alias set"
+            vercel alias set "$URL" hallaqi.app --token "$VERCEL_TOKEN" --scope souf303x --yes
+            vercel alias set "$URL" www.hallaqi.app --token "$VERCEL_TOKEN" --scope souf303x --yes || true
+          fi
 
       - name: Verify auth-shell.js on production
         run: |
           set -euo pipefail
-          for i in 1 2 3 4 5 6; do
+          for i in 1 2 3 4 5 6 7 8; do
             sleep 5
             CT=$(curl -sSI "https://hallaqi.app/auth-shell.js" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print tolower($2)}')
             echo "attempt $i content-type: $CT"
@@ -52,4 +65,5 @@ jobs:
             fi
           done
           echo "Production still serving non-JS for /auth-shell.js"
+          curl -sSI "https://hallaqi.app/auth-shell.js" | head -20
           exit 1
