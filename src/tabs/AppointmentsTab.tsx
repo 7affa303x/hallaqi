@@ -46,7 +46,7 @@ function openDirections(location: string) {
 
 export default function AppointmentsTab() {
   const { bookings, themeConfig, settings, cancelBooking, navigate, setActiveTab, isLoading, refreshData } = useApp();
-  const { isAuthenticated, appUser } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, appUser } = useAuth();
   const { money } = useI18n();
   const [activeFilter, setActiveFilter] = useState('upcoming');
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
@@ -56,6 +56,15 @@ export default function AppointmentsTab() {
   const [isReviewing, setIsReviewing] = useState(false);
 
   const isProfessional = appUser?.user_role === 'barber' || appUser?.user_role === 'specialist';
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: themeConfig.colors.primary }} />
+      </div>
+    );
+  }
+
   if (isAuthenticated && isProfessional && appUser) {
     return <BarberStudioHub proId={appUser.id} />;
   }

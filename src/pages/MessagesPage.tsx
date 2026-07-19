@@ -10,21 +10,33 @@ type ConversationSummary = Awaited<ReturnType<typeof getUserConversations>>[numb
 
 export default function MessagesPage() {
   const { themeConfig, navigate, goBack } = useApp();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       navigate('login', { redirectScreen: 'messages' });
       return;
     }
+    let cancelled = false;
+    setLoading(true);
     getUserConversations()
-      .then(setConversations)
-      .catch(err => setError(err instanceof Error ? err.message : 'تعذر تحميل المحادثات'))
-      .finally(() => setLoading(false));
-  }, [isAuthenticated, navigate]);
+      .then(rows => { if (!cancelled) setConversations(rows); })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'تعذر تحميل المحادثات'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [authLoading, isAuthenticated, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: themeConfig.colors.primary }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-8" style={{ backgroundColor: themeConfig.colors.background }}>

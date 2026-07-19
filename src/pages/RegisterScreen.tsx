@@ -35,7 +35,6 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
 export default function RegisterScreen() {
   const { themeConfig, navigate } = useApp();
   const { googleSignIn, register, error: authError } = useAuth();
-  const setAuthenticated = useStore(s => s.setAuthenticated);
   const isOnline = useStore(s => s.isOnline);
 
   const {
@@ -78,7 +77,6 @@ export default function RegisterScreen() {
         data.accountType
       );
       if (result.session) {
-        setAuthenticated(true);
         const sellerRoles = ['store', 'company', 'doctor'];
         if (sellerRoles.includes(data.accountType)) {
           navigate('seller-dashboard', { role: data.accountType, pendingApproval: '1' });
@@ -88,7 +86,6 @@ export default function RegisterScreen() {
           navigate('home', { redirectTab: 'booking' });
         }
       } else {
-        setAuthenticated(false);
         setVerificationEmail(data.email);
       }
     } catch (err) {
@@ -109,7 +106,6 @@ export default function RegisterScreen() {
     clearErrors();
     try {
       await googleSignIn();
-      setAuthenticated(true);
       navigate('home', { redirectTab: 'booking' });
     } catch {
       setLocalError('فشل التسجيل بـ Google. حاول مرة أخرى.');

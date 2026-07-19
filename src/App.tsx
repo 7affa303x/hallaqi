@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppProvider } from '@/contexts/AppContext';
 import { useApp } from '@/contexts/useApp';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, AuthProvider } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 import { isDeveloperMode } from '@/supabase/client';
 import { Analytics } from '@vercel/analytics/react';
@@ -70,10 +70,17 @@ function TabContent({ tab }: { tab: string }) {
 
 function ScreenRouter() {
   const { screen, screenParams, activeTab } = useApp();
-  const { isAuthenticated, appUser } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, appUser } = useAuth();
 
   const authRequiredScreens = ['booking-flow', 'chat-room', 'messages', 'create-post', 'admin-dashboard', 'seller-dashboard', 'seller-products', 'seller-placements', 'seller-profile-edit'];
-  const needsAuth = authRequiredScreens.includes(screen) && !isAuthenticated;
+  const requiresAuth = authRequiredScreens.includes(screen);
+
+  // Never treat "session still restoring" as logged-out — that flashed LoginScreen on every nav.
+  if (requiresAuth && authLoading) {
+    return <LoadingFallback />;
+  }
+
+  const needsAuth = requiresAuth && !isAuthenticated;
 
   if (needsAuth) {
     return (
@@ -347,9 +354,11 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

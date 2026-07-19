@@ -1,4 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { supabase, isDeveloperMode } from '@/supabase/client';
 import { signIn, signUp, signOut, resetPassword, fetchUserProfile } from '@/supabase/auth';
 import { getAuthRedirectUrl } from '@/lib/authRedirect';
@@ -32,6 +40,20 @@ export interface AuthState {
   session: Session | null;
 }
 
+export interface AuthContextValue extends AuthState {
+  login: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    accountType?: 'client' | 'barber' | 'store' | 'company' | 'doctor',
+  ) => Promise<{ user: User | null; session: Session | null }>;
+  googleSignIn: () => Promise<unknown>;
+  logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  clearError: () => void;
+}
+
 const INITIAL_STATE: AuthState = {
   user: null,
   appUser: null,
@@ -41,7 +63,6 @@ const INITIAL_STATE: AuthState = {
   session: null,
 };
 
-// Dev mode mock profile aligned with Live DB schema
 const DEV_PROFILE: Profile = {
   id: 'dev-user',
   username: null,
@@ -58,24 +79,29 @@ const DEV_PROFILE: Profile = {
   updated_at: new Date().toISOString(),
 };
 
-export function useAuth() {
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+/**
+ * Single shared auth state for the whole app.
+ * Previous useAuth() created a fresh isLoading/false session per component —
+ * that caused LoginScreen to flash on every navigation.
+ */
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
-  /* ---- Restore session on mount ---- */
   useEffect(() => {
     let mounted = true;
 
     if (isDeveloperMode) {
       if (mounted) {
-        setState(s => ({
-          ...s,
+        setState({
           user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User,
           appUser: DEV_PROFILE,
           isLoading: false,
           isAuthenticated: true,
           error: null,
           session: { user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User } as Session,
-        }));
+        });
       }
       return;
     }
@@ -90,8 +116,6 @@ export function useAuth() {
         return;
       }
       try {
-        // The database trigger creates profiles synchronously. A short retry
-        // handles replica/API propagation without duplicating profile writes.
         let profile: Profile | null = null;
         for (let attempt = 0; attempt < 3 && !profile; attempt += 1) {
           profile = await fetchUserProfile(session.user.id);
@@ -109,7 +133,17 @@ export function useAuth() {
           session,
         });
       } catch {
-        if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
+        // Keep session authenticated — a profile fetch blip must not flash LoginScreen.
+        if (mounted) {
+          setState({
+            user: session.user,
+            appUser: null,
+            isLoading: false,
+            isAuthenticated: true,
+            error: 'تعذر تحميل ملف الحساب. حاول تحديث الصفحة.',
+            session,
+          });
+        }
       }
     };
 
@@ -134,7 +168,6 @@ export function useAuth() {
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  /* ---- Sign In ---- */
   const login = useCallback(async (email: string, password: string) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
@@ -158,12 +191,11 @@ export function useAuth() {
     }
   }, []);
 
-  /* ---- Sign Up ---- */
   const register = useCallback(async (
     email: string,
     password: string,
     displayName: string,
-    accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client'
+    accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
   ) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
@@ -188,7 +220,6 @@ export function useAuth() {
     }
   }, []);
 
-  /* ---- Google Sign In ---- */
   const googleSignIn = useCallback(async () => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
@@ -209,7 +240,6 @@ export function useAuth() {
     }
   }, []);
 
-  /* ---- Sign Out ---- */
   const logout = useCallback(async () => {
     setState(s => ({ ...s, isLoading: true }));
     if (isDeveloperMode) {
@@ -227,7 +257,6 @@ export function useAuth() {
     }
   }, []);
 
-  /* ---- Password Reset ---- */
   const forgotPassword = useCallback(async (email: string) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
@@ -242,12 +271,11 @@ export function useAuth() {
     }
   }, []);
 
-  /* ---- Clear error ---- */
   const clearError = useCallback(() => {
     setState(s => ({ ...s, error: null }));
   }, []);
 
-  return {
+  const value = useMemo<AuthContextValue>(() => ({
     ...state,
     login,
     register,
@@ -255,5 +283,15 @@ export function useAuth() {
     logout,
     forgotPassword,
     clearError,
-  };
+  }), [state, login, register, googleSignIn, logout, forgotPassword, clearError]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return ctx;
 }

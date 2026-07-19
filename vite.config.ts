@@ -9,9 +9,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      /**
+       * Soft-launch: unregister every old service worker.
+       * Stale precached shells were remounting an "old app" after Google OAuth.
+       * Re-enable a careful NetworkOnly PWA after the stale fleet is cleared.
+       */
+      selfDestroying: true,
       registerType: "autoUpdate",
       injectRegister: "auto",
-      // Never install a SW in Vite dev — it traps local/auth testing on stale shells.
       devOptions: {
         enabled: false,
       },
@@ -21,49 +26,6 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        /**
-         * CRITICAL: navigateFallback MUST stay null.
-         * When set to "/index.html", Workbox registers NavigationRoute(precached HTML)
-         * BEFORE any NetworkFirst navigate rule — OAuth full-page returns then remount
-         * an old shell (the login → "old version" bug).
-         */
-        navigateFallback: null,
-        offlineGoogleAnalytics: false,
-        importScripts: ["/push-handler.js"],
-        globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
-        runtimeCaching: [
-          {
-            // Prefer network for every document navigation (login return, deep links).
-            urlPattern: ({ request }) => request.mode === "navigate",
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "hallaqi-navigations",
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 30 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\//,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "hallaqi-images",
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "StaleWhileRevalidate",
-            options: { cacheName: "google-fonts-stylesheets" },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-webfonts",
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-        ],
       },
     }),
   ],

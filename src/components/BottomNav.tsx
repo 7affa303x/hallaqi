@@ -25,7 +25,7 @@ const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; spe
 
 export default function BottomNav() {
   const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings, screen } = useApp();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
 
   const openRadial = useCallback(() => setRadialOpen(true), []);
@@ -142,7 +142,7 @@ export default function BottomNav() {
                       {unreadCount}
                     </span>
                   )}
-                  {tab.key === 'profile' && !isAuthenticated && (
+                  {tab.key === 'profile' && !authLoading && !isAuthenticated && (
                     <span
                       className="absolute -top-2 -right-2 w-3.5 h-3.5 flex items-center justify-center rounded-full text-[7px] font-bold text-white"
                       style={{ backgroundColor: themeConfig.colors.warning }}

@@ -12,7 +12,7 @@ const STORAGE_KEY = 'hallaqi-onboarding-v1-done';
  */
 export default function SoftOnboarding() {
   const { themeConfig, setActiveTab, navigate, settings } = useApp();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -21,6 +21,7 @@ export default function SoftOnboarding() {
   const t = (key: Parameters<typeof translate>[1]) => translate(settings.language, key);
 
   useEffect(() => {
+    if (authLoading) return;
     try {
       if (localStorage.getItem(STORAGE_KEY) === '1') return;
       // Returning signed-in users: skip onboarding noise (they already know the app).
@@ -32,7 +33,7 @@ export default function SoftOnboarding() {
     } catch {
       // ignore
     }
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated]);
 
   const finish = () => {
     try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* ignore */ }

@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
 import { ensureFreshAppShell } from '@/lib/appShell'
 
 declare global {
@@ -24,6 +23,10 @@ async function boot() {
       window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
     }
   } catch { /* ignore */ }
+
+  // Dynamic import AFTER shell checks so supabase detectSessionInUrl does not run
+  // on the first OAuth pass (when we are about to clear SW and reload).
+  const { default: App } = await import('./App.tsx')
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

@@ -82,17 +82,27 @@
       * { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; }
     </style>
-    <!-- Early OAuth shell bust: runs before the module bundle so a stale SW cannot remount an old login return. -->
+    <!-- Host + OAuth shell guards (before any module / SW-controlled app). -->
     <script>
       (function () {
         try {
+          // Force a single origin so OAuth / SW never split www vs apex.
+          if (location.hostname === 'www.hallaqi.app') {
+            location.replace('https://hallaqi.app' + location.pathname + location.search + location.hash);
+            return;
+          }
+
           var q = location.search || '';
           var h = location.hash || '';
           var auth = /[?&]code=/.test(q) || /[?&]error=/.test(q) || /access_token=/.test(h) || /type=recovery/.test(h);
           if (!auth) return;
-          if (sessionStorage.getItem('hallaqi-auth-shell-refreshed') === '1') return;
-          sessionStorage.setItem('hallaqi-auth-shell-refreshed', '1');
-          // Block React boot until caches are cleared and we reload with a fresh shell.
+
+          // Key the one-shot refresh to this OAuth code so later logins can bust again.
+          var codeMatch = q.match(/[?&]code=([^&]+)/);
+          var refreshKey = 'hallaqi-auth-shell-refreshed:' + (codeMatch ? codeMatch[1].slice(0, 24) : 'err');
+          if (sessionStorage.getItem(refreshKey) === '1') return;
+          sessionStorage.setItem(refreshKey, '1');
+
           window.__HALLAQI_AUTH_SHELL_PENDING = true;
           var reload = function () {
             var u = new URL(location.href);
