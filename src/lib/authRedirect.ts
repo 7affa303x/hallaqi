@@ -1,4 +1,4 @@
-/** Canonical auth redirect — never bounce users to stale Vercel previews. */
+/** Canonical auth redirect — avoid stale traps while allowing current preview testing. */
 
 import { absoluteUrl, getSiteUrl } from '@/lib/siteUrl';
 
@@ -6,22 +6,31 @@ function isLocalHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
 
+function isVercelPreviewHost(hostname: string): boolean {
+  return hostname.endsWith('.vercel.app');
+}
+
 /**
  * OAuth / magic-link / password-reset redirect target.
- * Localhost keeps the current origin; everything else uses the canonical site URL
- * so preview deployments cannot trap sessions on an old build.
+ * - localhost → current origin
+ * - *.vercel.app → current preview origin (so a fresh deploy can be tested end-to-end)
+ * - otherwise → canonical https://hallaqi.app
  */
 export function getAuthRedirectUrl(path = '/'): string {
-  if (typeof window !== 'undefined' && isLocalHost(window.location.hostname)) {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return `${window.location.origin}${normalized === '/' ? '/' : normalized}`;
+    if (isLocalHost(host) || isVercelPreviewHost(host)) {
+      return `${window.location.origin}${normalized === '/' ? '/' : normalized}`;
+    }
   }
   return absoluteUrl(path);
 }
 
 export function getCanonicalOrigin(): string {
-  if (typeof window !== 'undefined' && isLocalHost(window.location.hostname)) {
-    return window.location.origin;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (isLocalHost(host) || isVercelPreviewHost(host)) return window.location.origin;
   }
   return getSiteUrl();
 }
