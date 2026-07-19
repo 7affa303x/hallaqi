@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { translate } from '@/lib/i18n';
-import { X, CalendarDays, ShoppingBag, Sparkles } from 'lucide-react';
+import { X, CalendarDays, MapPin, UserPlus } from 'lucide-react';
 
-const STORAGE_KEY = 'hallaqi-onboarding-v1-done';
+const STORAGE_KEY = 'hallaqi-onboarding-v2-done';
 
 /**
- * First-visit soft onboarding — one composition, three short steps.
- * Skippable; never blocks the app. Focus trap + Escape for a11y.
+ * First-visit soft onboarding — booking cash + wilaya + account.
+ * Skippable; never blocks the app.
  */
 export default function SoftOnboarding() {
   const { themeConfig, setActiveTab, navigate, settings } = useApp();
@@ -24,7 +24,6 @@ export default function SoftOnboarding() {
     if (authLoading) return;
     try {
       if (localStorage.getItem(STORAGE_KEY) === '1') return;
-      // Returning signed-in users: skip onboarding noise (they already know the app).
       if (isAuthenticated) {
         localStorage.setItem(STORAGE_KEY, '1');
         return;
@@ -78,18 +77,18 @@ export default function SoftOnboarding() {
       action: () => setActiveTab('booking'),
     },
     {
-      icon: ShoppingBag,
-      title: t('onboardingMarketTitle'),
-      body: t('onboardingMarketBody'),
-      cta: t('marketplace'),
-      action: () => setActiveTab('marketplace'),
+      icon: MapPin,
+      title: t('onboardingWilayaTitle'),
+      body: t('onboardingWilayaBody'),
+      cta: t('onboardingWilayaCta'),
+      action: () => setActiveTab('booking'),
     },
     {
-      icon: Sparkles,
-      title: t('onboardingAiTitle'),
-      body: t('onboardingAiBody'),
-      cta: t('assistant'),
-      action: () => setActiveTab('ai-hub'),
+      icon: UserPlus,
+      title: t('onboardingAccountTitle'),
+      body: t('onboardingAccountBody'),
+      cta: t('onboardingAccountCta'),
+      action: () => navigate('register'),
     },
   ];
 
@@ -121,61 +120,75 @@ export default function SoftOnboarding() {
             ref={closeRef}
             type="button"
             onClick={finish}
-            aria-label="إغلاق"
+            aria-label={t('skip')}
             className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: themeConfig.colors.background }}
+            style={{ color: themeConfig.colors.textMuted }}
           >
-            <X size={16} style={{ color: themeConfig.colors.textMuted }} />
+            <X size={18} />
           </button>
         </div>
-        <p className="text-[10px] font-bold mt-3" style={{ color: themeConfig.colors.textMuted }}>
-          خطوة {step + 1} من {steps.length}
-        </p>
-        <h2 id="onboarding-title" className="text-lg font-black mt-1" style={{ color: themeConfig.colors.text }}>
+
+        <h2 id="onboarding-title" className="mt-4 text-lg font-bold" style={{ color: themeConfig.colors.text }}>
           {current.title}
         </h2>
-        <p className="text-sm mt-2 leading-6" style={{ color: themeConfig.colors.textMuted }}>
+        <p className="mt-2 text-sm leading-6" style={{ color: themeConfig.colors.textMuted }}>
           {current.body}
         </p>
-        <div className="flex gap-2 mt-5">
+
+        <div className="flex gap-1.5 mt-4" aria-hidden>
+          {steps.map((_, i) => (
+            <span
+              key={i}
+              className="h-1.5 flex-1 rounded-full"
+              style={{ backgroundColor: i === step ? themeConfig.colors.primary : themeConfig.colors.border }}
+            />
+          ))}
+        </div>
+
+        <div className="mt-5 flex gap-2">
           {step < steps.length - 1 ? (
             <>
               <button
                 type="button"
                 onClick={finish}
-                className="flex-1 h-11 rounded-xl text-xs font-bold border"
-                style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}
+                className="flex-1 h-11 rounded-xl text-sm font-bold"
+                style={{ color: themeConfig.colors.textMuted }}
               >
                 {t('skip')}
               </button>
               <button
                 type="button"
                 onClick={() => setStep(s => s + 1)}
-                className="flex-1 h-11 rounded-xl text-xs font-bold text-white"
+                className="flex-[1.4] h-11 rounded-xl text-sm font-bold text-white"
                 style={{ backgroundColor: themeConfig.colors.primary }}
               >
                 {t('next')}
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={() => { current.action(); finish(); }}
-              className="w-full h-11 rounded-xl text-xs font-bold text-white"
-              style={{ backgroundColor: themeConfig.colors.primary }}
-            >
-              {current.cta}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  finish();
+                  current.action();
+                }}
+                className="flex-1 h-11 rounded-xl text-sm font-bold text-white"
+                style={{ backgroundColor: themeConfig.colors.primary }}
+              >
+                {current.cta}
+              </button>
+              <button
+                type="button"
+                onClick={finish}
+                className="h-11 px-4 rounded-xl text-sm font-bold"
+                style={{ color: themeConfig.colors.textMuted }}
+              >
+                {t('skip')}
+              </button>
+            </>
           )}
         </div>
-        <button
-          type="button"
-          className="w-full mt-2 text-[10px] font-bold"
-          style={{ color: themeConfig.colors.textMuted }}
-          onClick={() => navigate('register')}
-        >
-          أو أنشئ حساباً كمتجر / حلاق / طبيب
-        </button>
       </div>
     </div>
   );

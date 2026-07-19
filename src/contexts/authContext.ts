@@ -18,6 +18,7 @@ export interface AuthContextValue extends AuthState {
     password: string,
     displayName: string,
     accountType?: 'client' | 'barber' | 'store' | 'company' | 'doctor',
+    phoneNumber?: string | null,
   ) => Promise<{ user: User | null; session: Session | null }>;
   googleSignIn: () => Promise<unknown>;
   logout: () => Promise<void>;

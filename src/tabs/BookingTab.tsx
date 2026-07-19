@@ -10,6 +10,7 @@ import { rankBarberRecommendations } from '@/lib/recommendations';
 import { useI18n } from '@/hooks/useI18n';
 import { isBarberOpenNow, isDisplayableBarber, formatBarberLocation } from '@/lib/utils';
 import { useAuthGate } from '@/hooks/useAuthGate';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { trackProductEvent } from '@/lib/product-analytics';
 import type { TranslationKey } from '@/lib/i18n';
 import { translate } from '@/lib/i18n';
@@ -453,7 +454,10 @@ export default function BookingTab() {
 
         {/* Country + wilaya summary row */}
         <div className="flex gap-2 mb-2 overflow-x-auto scrollbar-hide pb-0.5">
-          {DISCOVERY_COUNTRIES.map(c => (
+          {(FEATURE_FLAGS.algeriaOnlyDiscovery
+            ? DISCOVERY_COUNTRIES.filter(c => c.code === 'DZ')
+            : DISCOVERY_COUNTRIES
+          ).map(c => (
             <button
               key={c.code}
               type="button"

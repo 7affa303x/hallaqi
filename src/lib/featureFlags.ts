@@ -1,4 +1,4 @@
-/** Feature flags for launch-scope exclusions from the monetization brief. */
+/** Feature flags for soft-launch scope (Algeria cash booking MVP). */
 export const FEATURE_FLAGS = {
   loyaltyEnabled: false,
   marketplaceInAppCheckout: false,
@@ -36,21 +36,45 @@ export const FEATURE_FLAGS = {
    */
   dynamicOgEnabled: false,
   /**
-   * Full ar/fr/en string coverage for primary navigation and settings.
+   * Soft launch: keep Arabic primary. fr/en exist but are not marketed as complete.
    */
-  fullI18nEnabled: true,
+  fullI18nEnabled: false,
   /**
    * React Query data layer — paused; Zustand + Context remain.
    */
   reactQueryEnabled: false,
   /**
-   * WhatsApp support chat — paused until VITE_SUPPORT_WHATSAPP is set.
+   * WhatsApp support — on when VITE_SUPPORT_WHATSAPP is set.
    */
-  whatsappSupportEnabled: false,
+  whatsappSupportEnabled: true,
   /**
    * Gemini hairstyle image generation — paused (quota / cost).
    */
   aiImageGenerationEnabled: false,
+  /**
+   * Soft launch: Algeria only in discovery (hide TN/MA/LY chips).
+   */
+  algeriaOnlyDiscovery: true,
+  /**
+   * Soft launch: register as client or barber only (no store/company/doctor).
+   */
+  clientBarberRegistrationOnly: true,
+  /**
+   * Soft launch: hide subscription / paid placement / Baridi entry points.
+   */
+  hideMonetizationSurfaces: true,
+  /**
+   * Live queue for clients — not shipping in v1 (barber studio day board stays).
+   */
+  liveQueueEnabled: false,
+  /**
+   * Phone OTP auth — not shipping in v1 (collect phone number only).
+   */
+  phoneOtpAuthEnabled: false,
+  /**
+   * MFA (TOTP) — soft launch: admin/moderator only in UI.
+   */
+  mfaForPrivilegedOnly: true,
 } as const;
 
 /** User-facing label for deferred launch features. */
@@ -72,4 +96,11 @@ export function isWhatsAppSupportConfigured(): boolean {
   if (!FEATURE_FLAGS.whatsappSupportEnabled) return false;
   const n = import.meta.env.VITE_SUPPORT_WHATSAPP as string | undefined;
   return Boolean(n?.trim());
+}
+
+export function getSupportWhatsAppUrl(): string | null {
+  if (!isWhatsAppSupportConfigured()) return null;
+  const raw = String(import.meta.env.VITE_SUPPORT_WHATSAPP || '').replace(/\D/g, '');
+  if (!raw) return null;
+  return `https://wa.me/${raw}`;
 }

@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useApp } from '@/contexts/useApp';
-import { Clock, ArrowLeft, Bell, PauseCircle } from 'lucide-react';
+import { Clock, ArrowLeft, PauseCircle } from 'lucide-react';
 import { COMING_SOON_LABEL, PAUSED_LABEL } from '@/lib/featureFlags';
 
 interface ComingSoonProps {
@@ -13,7 +12,6 @@ interface ComingSoonProps {
 
 export default function ComingSoon({ title, description, eta, status = 'soon' }: ComingSoonProps) {
   const { themeConfig, goBack } = useApp();
-  const [notify, setNotify] = useState(false);
   const isPaused = status === 'paused';
   const badge = isPaused ? PAUSED_LABEL : COMING_SOON_LABEL;
   const Icon = isPaused ? PauseCircle : Clock;
@@ -51,17 +49,9 @@ export default function ComingSoon({ title, description, eta, status = 'soon' }:
         )}
 
         {!isPaused && (
-          <button
-            onClick={() => setNotify(!notify)}
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{
-              backgroundColor: notify ? themeConfig.colors.success + '15' : themeConfig.colors.primary,
-              color: notify ? themeConfig.colors.success : '#fff',
-            }}
-          >
-            <Bell size={16} />
-            {notify ? 'تم تفعيل التنبيه' : 'نبهني عند الإطلاق'}
-          </button>
+          <p className="mt-6 text-[11px] max-w-xs leading-5" style={{ color: themeConfig.colors.textMuted }}>
+            سنعلن عن التفعيل داخل التطبيق عند الجاهزية — لا حاجة لتسجيل تنبيه الآن.
+          </p>
         )}
         {isPaused && (
           <p className="mt-6 text-[11px] max-w-xs leading-5" style={{ color: themeConfig.colors.textMuted }}>

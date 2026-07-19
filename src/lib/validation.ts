@@ -9,11 +9,29 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'أدخل كلمة المرور').min(6, 'كلمة المرور قصيرة جداً'),
 });
 
+/** Normalize Algerian mobile to E.164 (+213…) for storage. */
+export function normalizeAlgerianPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+  let local = digits;
+  if (local.startsWith('00213')) local = local.slice(5);
+  else if (local.startsWith('213')) local = local.slice(3);
+  if (local.startsWith('0')) local = local.slice(1);
+  if (!/^([567]\d{8})$/.test(local)) return null;
+  return `+213${local}`;
+}
+
+export const algerianPhoneSchema = z
+  .string()
+  .min(1, 'أدخل رقم الهاتف')
+  .refine(v => normalizeAlgerianPhone(v) !== null, 'رقم جزائري غير صالح (مثال: 0555123456)');
+
 export const registerSchema = z.object({
   name: z.string().min(1, 'أدخل اسمك الكامل').min(2, 'الاسم قصير جداً'),
   email: z.string().min(1, 'أدخل البريد الإلكتروني').email('البريد الإلكتروني غير صالح'),
+  phone: algerianPhoneSchema,
   password: z.string().min(1, 'أدخل كلمة المرور').min(6, 'يجب أن تكون 6 أحرف على الأقل'),
   confirm: z.string().min(1, 'أكد كلمة المرور'),
+  /** Soft launch: client | barber only. Wider roles stay in type for admin/legacy. */
   accountType: z.enum(['client', 'barber', 'store', 'company', 'doctor']),
   acceptedTerms: z.boolean().refine(v => v === true, 'يجب قبول الشروط'),
 }).refine(data => data.password === data.confirm, {
@@ -40,12 +58,12 @@ export const resetPasswordSchema = z.object({
 export const editBarberProfileSchema = z.object({
   full_name: z.string().min(1, 'الاسم مطلوب'),
   bio: z.string().optional(),
-  phone_number: z.string().optional(),
-  business_name: z.string().optional(),
-  business_address: z.string().optional(),
-  business_phone: z.string().optional(),
-  business_email: z.string().email('البريد الإلكتروني غير صالح').optional(),
-  website_url: z.string().url('رابط غير صالح').optional(),
+  phone_number: algerianPhoneSchema,
+  business_name: z.string().min(2, 'اسم الصالون مطلوب'),
+  business_address: z.string().min(5, 'أدخل عنواناً واضحاً'),
+  business_phone: algerianPhoneSchema,
+  business_email: z.string().email('البريد الإلكتروني غير صالح').optional().or(z.literal('')),
+  website_url: z.string().url('رابط غير صالح').optional().or(z.literal('')),
 });
 
 export const serviceSchema = z.object({

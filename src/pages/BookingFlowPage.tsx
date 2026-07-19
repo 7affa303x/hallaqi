@@ -857,7 +857,7 @@ export default function BookingFlowPage() {
                   <span className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>نقداً عند الزيارة</span>
                 </button>
                 <p className="text-[10px] mt-2 leading-5" style={{ color: themeConfig.colors.textMuted }}>
-                  الدفع الإلكتروني (بطاقة / CCP / بريدي موب) متوقف عند الإطلاق الناعم — ادفع للحلاق مباشرة.
+                  لا تدفع الآن عبر التطبيق. عند الموعد ادفع للحلاق نقداً في الصالون أو عند الخدمة المنزلية. أحضر المبلغ أو اتفق معه مسبقاً.
                 </p>
               </>
             ) : (

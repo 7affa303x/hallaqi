@@ -7,12 +7,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   UserPlus, Mail, Lock, Eye, EyeOff, ArrowRight, User,
   Chrome, AlertCircle, WifiOff, ShieldCheck, Check, Scissors,
-  Store, Building2, Stethoscope,
+  Store, Building2, Stethoscope, Phone,
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { registerSchema } from '@/lib/validation';
+import { registerSchema, normalizeAlgerianPhone } from '@/lib/validation';
 import type { RegisterFormData } from '@/lib/validation';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' };
@@ -48,6 +49,7 @@ export default function RegisterScreen() {
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       password: '',
       confirm: '',
       accountType: 'client',
@@ -70,11 +72,13 @@ export default function RegisterScreen() {
   const onSubmit = async (data: RegisterFormData) => {
     clearErrors();
     try {
+      const phone = normalizeAlgerianPhone(data.phone);
       const result = await register(
         data.email,
         data.password,
         data.name.trim(),
-        data.accountType
+        data.accountType,
+        phone,
       );
       if (result.session) {
         const sellerRoles = ['store', 'company', 'doctor'];
@@ -300,6 +304,35 @@ export default function RegisterScreen() {
           <AnimatePresence>{renderFieldError('email')}</AnimatePresence>
         </div>
 
+        {/* Phone — required for Algeria soft launch (WhatsApp / call). OTP later. */}
+        <div>
+          <label className="block text-xs font-bold mb-2 px-0.5" style={{ color: themeConfig.colors.text }}>
+            رقم الهاتف
+          </label>
+          <div className="relative">
+            <Phone size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: formErrors.phone ? themeConfig.colors.error : themeConfig.colors.textMuted }} />
+            <input
+              type="tel"
+              {...registerField('phone')}
+              placeholder="0555123456"
+              dir="ltr"
+              autoComplete="tel"
+              inputMode="tel"
+              disabled={isSubmitting}
+              className="w-full h-[52px] pr-10 pl-4 text-sm rounded-2xl outline-none transition-all disabled:opacity-50"
+              style={{
+                backgroundColor: themeConfig.colors.surface,
+                color: themeConfig.colors.text,
+                border: `2px solid ${getFieldBorder('phone')}`,
+              }}
+            />
+          </div>
+          <p className="text-[10px] mt-1.5 px-0.5" style={{ color: themeConfig.colors.textMuted }}>
+            رقم جزائري (05/06/07) — للتواصل عند الحجز. التحقق بـ OTP لاحقاً.
+          </p>
+          <AnimatePresence>{renderFieldError('phone')}</AnimatePresence>
+        </div>
+
         {/* Password */}
         <div>
           <label className="block text-xs font-bold mb-2 px-0.5" style={{ color: themeConfig.colors.text }}>
@@ -397,13 +430,19 @@ export default function RegisterScreen() {
                 نوع الحساب
               </legend>
               <div className="grid grid-cols-2 gap-2">
-                {([
-                  { value: 'client', label: 'عميل', icon: User },
-                  { value: 'barber', label: 'حلاق', icon: Scissors },
-                  { value: 'store', label: 'متجر', icon: Store },
-                  { value: 'company', label: 'شركة', icon: Building2 },
-                  { value: 'doctor', label: 'طبيب', icon: Stethoscope },
-                ] as const).map(option => {
+                {(FEATURE_FLAGS.clientBarberRegistrationOnly
+                  ? ([
+                    { value: 'client', label: 'عميل', icon: User },
+                    { value: 'barber', label: 'حلاق', icon: Scissors },
+                  ] as const)
+                  : ([
+                    { value: 'client', label: 'عميل', icon: User },
+                    { value: 'barber', label: 'حلاق', icon: Scissors },
+                    { value: 'store', label: 'متجر', icon: Store },
+                    { value: 'company', label: 'شركة', icon: Building2 },
+                    { value: 'doctor', label: 'طبيب', icon: Stethoscope },
+                  ] as const)
+                ).map(option => {
                   const Icon = option.icon;
                   const selected = field.value === option.value;
                   return (
@@ -425,7 +464,9 @@ export default function RegisterScreen() {
                 })}
               </div>
               <p className="text-[10px] mt-2" style={{ color: themeConfig.colors.textMuted }}>
-                الأدوار منفصلة بالكامل — المتاجر والشركات والأطباء يحتاجون موافقة الأدمن.
+                {FEATURE_FLAGS.clientBarberRegistrationOnly
+                  ? 'الإطلاق الناعم: عميل أو حلاق. المتاجر والأطباء لاحقاً.'
+                  : 'الأدوار منفصلة بالكامل — المتاجر والشركات والأطباء يحتاجون موافقة الأدمن.'}
               </p>
             </fieldset>
           )}

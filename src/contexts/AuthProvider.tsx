@@ -176,14 +176,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string,
     accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
+    phoneNumber?: string | null,
   ) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
     if (isDeveloperMode) {
-      setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: { id: 'dev-user' } as User, appUser: { ...DEV_PROFILE, full_name: displayName } }));
+      setState(s => ({
+        ...s,
+        isLoading: false,
+        isAuthenticated: true,
+        user: { id: 'dev-user' } as User,
+        appUser: { ...DEV_PROFILE, full_name: displayName, phone_number: phoneNumber || null },
+      }));
       return { user: { id: 'dev-user' } as User, session: null };
     }
     try {
-      const { user, session } = await signUp(email, password, displayName, accountType);
+      const { user, session } = await signUp(email, password, displayName, accountType, phoneNumber);
       const profile = session?.user ? await fetchUserProfile(session.user.id) : null;
       setState(s => ({
         ...s,

@@ -22,7 +22,7 @@ import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
-import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, PAUSED_LABEL, COMING_SOON_LABEL, isCashOnlyPayments } from '@/lib/featureFlags';
+import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   createIdVerificationRequest,
@@ -370,7 +370,7 @@ export default function ProfileTab() {
                 {userRole === 'company' ? 'لوحة الشركة' : userRole === 'doctor' ? 'لوحة الطبيب' : 'لوحة المتجر'}
               </span>
               <span className="block text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
-                اشتراكات · مواضع إعلان · تحليلات · أدوات AI
+                منتجات وتحليلات{FEATURE_FLAGS.hideMonetizationSurfaces ? '' : ' · اشتراكات · مواضع إعلان'}
               </span>
             </span>
             <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
@@ -407,7 +407,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {FEATURE_FLAGS.loyaltyEnabled ? (
+      {FEATURE_FLAGS.loyaltyEnabled && (
         <div className="px-4 mt-4">
           <button
             type="button"
@@ -424,24 +424,6 @@ export default function ProfileTab() {
             </div>
             <ChevronLeft size={17} style={{ color: themeConfig.colors.textMuted }} />
           </button>
-        </div>
-      ) : (
-        <div className="px-4 mt-4">
-          <div
-            className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right opacity-80"
-            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-          >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '12' }}>
-              <Gift size={21} style={{ color: themeConfig.colors.textMuted }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>برنامج الولاء</p>
-              <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>نقاط ومكافآت للحجوزات</p>
-            </div>
-            <span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ backgroundColor: themeConfig.colors.warning + '22', color: themeConfig.colors.warning }}>
-              قريباً
-            </span>
-          </div>
         </div>
       )}
 
@@ -516,7 +498,11 @@ export default function ProfileTab() {
                     return;
                   }
                   if (item.id === 'changePassword') { navigate('forgot-password'); return; }
-                  if (item.id === 'contactUs') { window.location.href = 'mailto:support@hallaqi.app'; return; }
+                  if (item.id === 'contactUs') {
+                    const wa = getSupportWhatsAppUrl();
+                    window.location.href = wa || 'mailto:support@hallaqi.app';
+                    return;
+                  }
                   if (item.id === 'reportBug') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Bug%20Report'; return; }
                   if (item.id === 'featureRequest') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Feature%20Request'; return; }
                   const pageMap: Record<string, ProfileSubPage> = {
@@ -525,7 +511,7 @@ export default function ProfileTab() {
                     bookingReminders: 'notifications', promotions: 'notifications', forumReplies: 'notifications',
                     competitionUpdates: 'notifications', newFollowers: 'notifications',
                     profileVisible: 'privacy', showLocation: 'privacy', showBookings: 'privacy', allowMessages: 'privacy', blockList: 'privacy',
-                    editProfile: 'edit-profile', twoFactor: 'security', subscription: 'subscription', paymentMethods: 'payment', baridiMob: 'payment',
+                    editProfile: 'edit-profile', paymentMethods: 'payment',
                     idVerification: 'id-verification', linkedAccounts: 'linked-accounts', helpCenter: 'help', aboutApp: 'about',
                     services: 'services', privacyPolicy: 'privacy-policy', termsOfService: 'terms', licenses: 'licenses',
                   };
@@ -722,20 +708,20 @@ function LegalPage({ onBack, kind }: { onBack: () => void; kind: 'privacy' | 'te
     privacy: {
       title: 'سياسة الخصوصية',
       sections: [
-        ['البيانات التي نجمعها', 'بيانات الحساب (الاسم، البريد، الهاتف)، الحجوزات، الموقع الاختياري، صور الملف/المحفظة، إيصالات الدفع، وبيانات الاستخدام لتحسين الخدمة.'],
-        ['كيفية الاستخدام', 'نشغّل الحجز والدفع والتواصل ومنع الاحتيال، ونفعّل مساعد AI عبر مزودين مثل Groq/Google عند تفعيل الميزة، دون بيع بياناتك الشخصية.'],
-        ['المدفوعات والوثائق', 'إيصالات CCP/بريدي والبطاقات والمستندات خاصة — تظهر فقط لصاحب الحساب والأدمن/الحلاق المعني بالموافقة.'],
+        ['البيانات التي نجمعها', 'بيانات الحساب (الاسم، البريد، الهاتف)، الحجوزات، الموقع الاختياري، صور الملف/المحفظة، وبيانات الاستخدام لتحسين الخدمة.'],
+        ['كيفية الاستخدام', 'نشغّل الحجز والتواصل ومنع الاحتيال، ونفعّل مساعد AI عبر مزودين عند تفعيل الميزة، دون بيع بياناتك الشخصية.'],
+        ['المدفوعات', 'الإطلاق الناعم نقدي عند الزيارة فقط. لا نخزّن بيانات بطاقة. الدفع الإلكتروني (CCP/بطاقة) غير مفعّل حالياً.'],
         ['السوق الخارجي', 'عند زيارة متجر خارجي (Visit Store) تغادر Hallaqi؛ سياسة ذلك الموقع منفصلة عنّا.'],
-        ['حقوقك', 'يمكنك طلب تصدير بياناتك أو حذف حسابك من الإعدادات. للاستفسار: عبر الدعم داخل التطبيق.'],
+        ['حقوقك', 'يمكنك طلب تصدير بياناتك أو حذف حسابك من الإعدادات. للاستفسار: عبر الدعم داخل التطبيق أو واتساب إن وُجد.'],
         ['ملفات الارتباط والتحليلات', 'قد نستخدم أدوات تحليل (مثل Vercel Analytics) لقياس الأداء دون تحديد هوية شخصية قدر الإمكان.'],
       ],
     },
     terms: {
       title: 'شروط الاستخدام',
       sections: [
-        ['الحسابات والأدوار', 'يختار المستخدم دوره (عميل، حلاق، متجر، شركة، طبيب). حسابات السوق قد تبقى معلّقة حتى موافقة الإدارة.'],
+        ['الحسابات والأدوار', 'في الإطلاق الناعم: عميل أو حلاق. أدوار السوق (متجر/شركة/طبيب) لاحقاً بعد موافقة الإدارة.'],
         ['الحجوزات', 'يلتزم العميل بمعلومات صحيحة، ويلتزم الحلاق بتحديث التوفر والخدمات والأسعار. الإلغاء يخضع لسياسة الحلاق الظاهرة عند الحجز.'],
-        ['المدفوعات', 'الدفع الإلكتروني أو اليدوي (CCP) يخضع للتحقق. لا يُعد الإيصال قبولاً نهائياً حتى اعتماده. الحجوزات غير المدفوعة بالبطاقة قد تُلغى.'],
+        ['المدفوعات', 'الدفع نقداً عند الزيارة للحلاق. لا يُطلب دفع إلكتروني مسبقاً في هذه المرحلة.'],
         ['السوق', 'الشراء داخل التطبيق للمنتجات غير مفعّل عند الإطلاق؛ الروابط الخارجية على مسؤولية البائع والمشتري.'],
         ['المساعد الذكي', 'محتوى AI استرشادي فقط وليس تشخيصاً طبياً. للمشاكل الجلدية أو تساقط غير مفسَّر راجع مختصاً.'],
         ['السلوك', 'يُمنع الاحتيال والتحرش والمحتوى المضلل، ويحق للإدارة تعليق الحساب عند المخالفة.'],
@@ -870,14 +856,16 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
           <>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الحجوزات</h3>
-              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع النقدي متاح؛ البطاقة وCCP متوقفان عند الإطلاق. {CANCEL_POLICY.summaryAr}</p>
+              <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>اختر الحلاق والخدمة والموعد، ثم تابع من تبويب المواعيد. الدفع نقداً عند الزيارة فقط. {CANCEL_POLICY.summaryAr}</p>
             </div>
             <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>الدعم والتواصل</h3>
               <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
                 راسلنا على <a href="mailto:support@hallaqi.app" className="font-bold underline" style={{ color: themeConfig.colors.primary }}>support@hallaqi.app</a>.
-                {!isWhatsAppSupportConfigured() && (
-                  <> واتساب الدعم <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{COMING_SOON_LABEL}</span>.</>
+                {isWhatsAppSupportConfigured() ? (
+                  <>{' '}أو عبر <a href={getSupportWhatsAppUrl() || '#'} className="font-bold underline" style={{ color: themeConfig.colors.primary }}>واتساب الدعم</a>.</>
+                ) : (
+                  <> واتساب الدعم <span className="font-bold" style={{ color: themeConfig.colors.warning }}>{COMING_SOON_LABEL}</span> حتى ضبط الرقم.</>
                 )}
                 {' '}لا ترسل كلمة المرور أبداً.
               </p>
@@ -1143,10 +1131,10 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
     }
   };
   const items = [
-    { key: 'pushEnabled', label: 'الإشعارات الفورية', icon: Bell }, { key: 'emailEnabled', label: 'إشعارات البريد', icon: Mail },
-    { key: 'smsEnabled', label: 'إشعارات الرسائل', icon: MessageSquare }, { key: 'bookingReminders', label: 'تذكير المواعيد', icon: Calendar },
-    { key: 'promotions', label: 'العروض والتخفيضات', icon: Star }, { key: 'forumReplies', label: 'ردود المنتدى', icon: MessageSquare },
-    { key: 'competitionUpdates', label: 'تحديثات المسابقات', icon: Trophy }, { key: 'newFollowers', label: 'متابعين جدد', icon: UserPlus },
+    { key: 'emailEnabled', label: 'إشعارات البريد', icon: Mail },
+    { key: 'bookingReminders', label: 'تذكير المواعيد', icon: Calendar },
+    { key: 'forumReplies', label: 'ردود المنتدى', icon: MessageSquare },
+    ...(pushReady ? [{ key: 'pushEnabled' as const, label: 'الإشعارات الفورية', icon: Bell }] : []),
   ];
   return (
     <div className="pb-20">
@@ -1366,45 +1354,30 @@ function SubscriptionPage({ onBack }: { onBack: () => void }) {
 
 function PaymentMethods({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();
-  const cashOnly = isCashOnlyPayments();
-  const ccpAccount = import.meta.env.VITE_CCP_ACCOUNT_NUMBER as string | undefined;
-  const ccpCard = import.meta.env.VITE_CCP_CARD_NUMBER as string | undefined;
-  const envReady = Boolean(ccpAccount && ccpCard);
-  const ccpLive = FEATURE_FLAGS.ccpPaymentsEnabled && envReady;
-  const cardLive = FEATURE_FLAGS.cardPaymentsEnabled;
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
         <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>طرق الدفع</h2>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>الدفع</h2>
       </div>
       <div className="px-4 mt-4 space-y-3">
         <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-          <div className="flex items-center gap-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E15' }}><CreditCard size={24} style={{ color: '#22C55E' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>الدفع النقدي</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع مباشرة عند الزيارة</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">متاح</span></div>
-        </div>
-        {cashOnly ? (
-          <div className="rounded-2xl border p-3 text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.info}10`, borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>
-            البطاقة وCCP وبريدي موب غير معروضة حالياً — الإطلاق الناعم نقدي فقط. ستُفعَّل عند جاهزية التحصيل.
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#22C55E15' }}>
+              <CreditCard size={24} style={{ color: '#22C55E' }} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>نقداً عند الزيارة</h3>
+              <p className="text-xs mt-1 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+                ادفع للحلاق مباشرة عند الموعد. لا حجز مدفوع مسبقاً في الإطلاق الناعم.
+              </p>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-600 font-bold">متاح</span>
           </div>
-        ) : (
-          <>
-            <div className="rounded-2xl border p-3 text-[11px] leading-5" style={{ backgroundColor: `${themeConfig.colors.warning}12`, borderColor: themeConfig.colors.border, color: themeConfig.colors.warning }}>
-              الدفع الإلكتروني والاشتراكات المدفوعة قد تكون محدودة حسب الإعدادات.
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#EAB30815' }}><CreditCard size={24} style={{ color: '#EAB308' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>CCP - حساب بريد الجزائر</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر الحساب البريدي</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ccpLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{ccpLive ? 'متاح' : 'متوقف'}</span></div>
-              <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى اعتماد حساب التحصيل التجاري وتفعيل الميزة.</p>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#3B82F615' }}><Wallet size={24} style={{ color: '#3B82F6' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بريدي موب</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>الدفع عبر تطبيق بريدي موب</p></div><span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">متوقف</span></div>
-              <div className="p-4 rounded-xl text-center" style={{ backgroundColor: themeConfig.colors.background }}><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>متوقف عند الإطلاق — سيُفعَّل مع التحصيل التجاري.</p></div>
-            </div>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <div className="flex items-center gap-3 mb-3"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#6366F115' }}><CreditCard size={24} style={{ color: '#6366F1' }} /></div><div className="flex-1"><h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>بطاقة (Stripe)</h3><p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>دفع إلكتروني بالبطاقة</p></div><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${cardLive ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700'}`}>{cardLive ? 'متاح' : 'متوقف'}</span></div>
-              <p className="p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.warning + '10', color: themeConfig.colors.warning }}>متوقف حتى ضبط مفاتيح Stripe الحية والـ webhook.</p>
-            </div>
-          </>
-        )}
+        </div>
+        <p className="text-[11px] leading-5 px-1" style={{ color: themeConfig.colors.textMuted }}>
+          البطاقة وCCP وبريدي موب غير مفعّلة بعد. الاشتراكات المدفوعة مخفية حتى الإطلاق الكامل.
+        </p>
       </div>
     </div>
   );

@@ -32,14 +32,21 @@ export async function signUp(
   email: string,
   password: string,
   fullName: string,
-  accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client'
+  accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
+  phoneNumber?: string | null,
 ) {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, account_type: accountType } },
+    options: {
+      data: {
+        full_name: fullName,
+        account_type: accountType,
+        phone_number: phoneNumber || undefined,
+      },
+    },
   });
   if (error) throw new Error(getAuthErrorMessage(error));
 
@@ -51,6 +58,7 @@ export async function signUp(
   if (data.user) {
     void supabase.from('profiles').update({
       full_name: fullName,
+      phone_number: phoneNumber || null,
       updated_at: new Date().toISOString(),
     }).eq('id', data.user.id).then(() => {}, () => {});
   }

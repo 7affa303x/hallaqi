@@ -436,12 +436,8 @@ export const settingsSections = [
     items: [
       { id: 'pushNotifications', label: 'الإشعارات الفورية', icon: 'Bell', description: 'تلقي إشعارات فورية', type: 'toggle' },
       { id: 'emailNotifications', label: 'إشعارات البريد', icon: 'Mail', description: 'تلقي إشعارات عبر البريد', type: 'toggle' },
-      { id: 'smsNotifications', label: 'إشعارات الرسائل', icon: 'MessageSquare', description: 'تلقي إشعارات عبر SMS', type: 'toggle' },
       { id: 'bookingReminders', label: 'تذكير المواعيد', icon: 'Calendar', description: 'تذكير قبل الموعد بساعة', type: 'toggle' },
-      { id: 'promotions', label: 'العروض والتخفيضات', icon: 'Percent', description: 'تلقي العروض الخاصة', type: 'toggle' },
       { id: 'forumReplies', label: 'ردود المنتدى', icon: 'MessageCircle', description: 'إشعار عند الرد على منشوراتك', type: 'toggle' },
-      { id: 'competitionUpdates', label: 'تحديثات المسابقات', icon: 'Trophy', description: 'إشعارات المسابقات والنتائج', type: 'toggle' },
-      { id: 'newFollowers', label: 'متابعين جدد', icon: 'UserPlus', description: 'إشعار عند متابعة جديدة', type: 'toggle' },
     ],
   },
   {
@@ -461,11 +457,8 @@ export const settingsSections = [
       { id: 'services', label: 'إدارة الخدمات', icon: 'Scissors', description: 'إضافة وتعديل الخدمات', type: 'link' },
       { id: 'idVerification', label: 'توثيق الهوية', icon: 'Shield', description: 'التحقق من هويتك بالبطاقة', type: 'link' },
       { id: 'changePassword', label: 'تغيير كلمة المرور', icon: 'Lock', description: 'تحديث كلمة المرور', type: 'link' },
-      { id: 'twoFactor', label: 'المصادقة الثنائية', icon: 'Smartphone', description: 'تفعيل 2FA', type: 'toggle' },
       { id: 'linkedAccounts', label: 'الحسابات المرتبطة', icon: 'Link', description: 'ربط بحسابات التواصل', type: 'link' },
-      { id: 'subscription', label: 'الاشتراك', icon: 'Crown', description: 'متوقف عند الإطلاق — خطط مدفوعة لاحقاً', type: 'link' },
-      { id: 'paymentMethods', label: 'طرق الدفع', icon: 'CreditCard', description: 'نقدي متاح · بطاقة/CCP متوقف', type: 'link' },
-      { id: 'baridiMob', label: 'ربط بريدي موب', icon: 'Wallet', description: 'متوقف', type: 'link' },
+      { id: 'paymentMethods', label: 'الدفع', icon: 'Banknote', description: 'نقداً عند الزيارة فقط', type: 'link' },
     ],
   },
   {
