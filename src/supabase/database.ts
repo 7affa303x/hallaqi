@@ -742,7 +742,7 @@ export async function getUserSettings(userId: string): Promise<Partial<AppSettin
   guard();
   const { data, error } = await supabase
     .from('user_settings')
-    .select('notification_preferences, privacy_preferences, accessibility_preferences')
+    .select('notification_preferences, privacy_preferences, accessibility_preferences, language, country_code, currency_code')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -751,6 +751,11 @@ export async function getUserSettings(userId: string): Promise<Partial<AppSettin
     notifications: data.notification_preferences as unknown as AppSettings['notifications'],
     privacy: data.privacy_preferences as unknown as AppSettings['privacy'],
     accessibility: data.accessibility_preferences as unknown as AppSettings['accessibility'],
+    language: (data.language === 'fr' || data.language === 'en' || data.language === 'ar')
+      ? data.language
+      : undefined,
+    countryCode: data.country_code || undefined,
+    currencyCode: data.currency_code || undefined,
   };
 }
 
@@ -761,6 +766,9 @@ export async function upsertUserSettings(userId: string, settings: AppSettings) 
     notification_preferences: settings.notifications as unknown as Json,
     privacy_preferences: settings.privacy as unknown as Json,
     accessibility_preferences: settings.accessibility as unknown as Json,
+    language: settings.language,
+    country_code: settings.countryCode,
+    currency_code: settings.currencyCode,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' });
   if (error) throw new Error(error.message);

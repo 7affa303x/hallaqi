@@ -14,6 +14,7 @@ import {
   getProfessionalBookings,
   getProfessionalMetrics,
   updateBookingStatus,
+  updateProfessionalProfile,
   sendNotification,
   getOrCreateConversation,
   sendMessage,
@@ -61,6 +62,8 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
   const [templateFor, setTemplateFor] = useState<StudioBooking | null>(null);
   const [metrics, setMetrics] = useState({ average_response_minutes: 0, acceptance_rate: 0, completed_bookings: 0 });
   const [toast, setToast] = useState('');
+  const [acceptingBookings, setAcceptingBookings] = useState(true);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -170,6 +173,21 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
     setAssistOpen(true);
   };
 
+  const toggleAccepting = async () => {
+    if (availabilityBusy) return;
+    setAvailabilityBusy(true);
+    const next = !acceptingBookings;
+    try {
+      await updateProfessionalProfile(proId, { is_active: next });
+      setAcceptingBookings(next);
+      setToast(next ? 'أنت متاح للحجوزات الجديدة' : 'تم إيقاف الحجوزات الجديدة مؤقتاً');
+    } catch {
+      setToast('تعذر تحديث التوفر');
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  };
+
   return (
     <div className="pb-28 relative">
       <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
@@ -179,6 +197,20 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
             <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>استوديو العمل</h1>
             <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{formatDayLabel()} · إدارة سلسة ليومك</p>
           </div>
+          <button
+            type="button"
+            onClick={() => void toggleAccepting()}
+            disabled={availabilityBusy}
+            className="h-10 px-3 rounded-xl text-[10px] font-bold border disabled:opacity-50"
+            style={{
+              backgroundColor: acceptingBookings ? themeConfig.colors.success + '18' : themeConfig.colors.error + '12',
+              borderColor: acceptingBookings ? themeConfig.colors.success + '40' : themeConfig.colors.error + '40',
+              color: acceptingBookings ? themeConfig.colors.success : themeConfig.colors.error,
+            }}
+            aria-pressed={acceptingBookings}
+          >
+            {acceptingBookings ? 'متاح' : 'مشغول'}
+          </button>
           <button
             type="button"
             onClick={() => openAssist()}

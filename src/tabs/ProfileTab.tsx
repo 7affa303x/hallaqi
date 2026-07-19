@@ -137,6 +137,14 @@ export default function ProfileTab() {
             </button>
           </div>
           <p className="text-[10px] mt-4" style={{ color: themeConfig.colors.textMuted }}>بالتسجيل، أنت توافق على شروط الاستخدام وسياسة الخصوصية</p>
+          <div className="mt-6 space-y-2 text-right">
+            <button type="button" onClick={() => setSubPage('help')} className="w-full text-xs font-medium py-2" style={{ color: themeConfig.colors.primary }}>
+              مركز المساعدة
+            </button>
+            <button type="button" onClick={() => setSubPage('about')} className="w-full text-xs font-medium py-2" style={{ color: themeConfig.colors.textMuted }}>
+              عن حلاقي
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1158,8 +1166,11 @@ function NotificationsSettings({ onBack }: { onBack: () => void }) {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.primary + '08' }}><Icon size={16} style={{ color: themeConfig.colors.primary }} /></div>
             <div className="flex-1"><p className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{item.label}</p>
               {item.key === 'pushEnabled' && !pushReady && <p className="text-[9px] font-bold" style={{ color: themeConfig.colors.warning }}>{PAUSED_LABEL}</p>}
+              {item.key === 'smsEnabled' && !FEATURE_FLAGS.smsNotificationsEnabled && (
+                <p className="text-[9px] font-bold" style={{ color: themeConfig.colors.warning }}>{COMING_SOON_LABEL}</p>
+              )}
             </div>
-            <button role="switch" aria-checked={isEnabled} disabled={(pushBusy && item.key === 'pushEnabled') || (item.key === 'pushEnabled' && !pushReady)} onClick={() => void toggleNotification(item.key as keyof typeof settings.notifications, isEnabled)} className="w-12 h-7 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50" style={{ backgroundColor: isEnabled ? themeConfig.colors.primary : themeConfig.colors.border }}>
+            <button role="switch" aria-checked={isEnabled} disabled={(pushBusy && item.key === 'pushEnabled') || (item.key === 'pushEnabled' && !pushReady) || (item.key === 'smsEnabled' && !FEATURE_FLAGS.smsNotificationsEnabled)} onClick={() => void toggleNotification(item.key as keyof typeof settings.notifications, isEnabled)} className="w-12 h-7 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50" style={{ backgroundColor: isEnabled ? themeConfig.colors.primary : themeConfig.colors.border }}>
               <div className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-all" style={{ right: isEnabled ? '2px' : 'auto', left: isEnabled ? 'auto' : '2px' }} />
             </button>
           </div>

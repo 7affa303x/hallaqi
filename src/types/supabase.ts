@@ -1643,6 +1643,9 @@ export type Database = {
       user_settings: {
         Row: {
           accessibility_preferences: Json
+          country_code: string
+          currency_code: string
+          language: string
           notification_preferences: Json
           privacy_preferences: Json
           updated_at: string
@@ -1650,6 +1653,9 @@ export type Database = {
         }
         Insert: {
           accessibility_preferences?: Json
+          country_code?: string
+          currency_code?: string
+          language?: string
           notification_preferences?: Json
           privacy_preferences?: Json
           updated_at?: string
@@ -1657,6 +1663,9 @@ export type Database = {
         }
         Update: {
           accessibility_preferences?: Json
+          country_code?: string
+          currency_code?: string
+          language?: string
           notification_preferences?: Json
           privacy_preferences?: Json
           updated_at?: string
