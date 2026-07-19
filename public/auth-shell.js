@@ -75,6 +75,7 @@
   }
 
   function isOAuthReturn() {
+    if (window.__HALLAQI_OAUTH_RETURN) return true;
     var q = location.search || '';
     var h = location.hash || '';
     return /[?&]code=/.test(q) || /[?&]error=/.test(q)
@@ -105,7 +106,9 @@
 
     // Supabase must read ?code= / #access_token= on first paint — never reload or block React.
     if (isOAuthReturn()) {
+      window.__HALLAQI_OAUTH_RETURN = true;
       window.__HALLAQI_AUTH_SHELL_PENDING = false;
+      window.__HALLAQI_SKIP_SW_REGISTER = true;
       return;
     }
 

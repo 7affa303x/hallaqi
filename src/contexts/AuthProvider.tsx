@@ -66,20 +66,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    if (isDeveloperMode) {
-      if (mounted) {
-        setState({
-          user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User,
-          appUser: DEV_PROFILE,
-          isLoading: false,
-          isAuthenticated: true,
-          error: null,
-          session: { user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User } as Session,
-        });
-      }
-      return;
-    }
-
     const applySession = async (session: Session | null) => {
       if (!mounted) return;
       if (!session?.user) {
@@ -89,7 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
-      // Session is persisted — remove OAuth tokens/codes from the visible URL.
       stripOAuthCallbackFromUrl();
       try {
         let profile: Profile | null = null;
@@ -109,7 +94,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           session,
         });
       } catch {
-        // Keep session authenticated — a profile fetch blip must not flash LoginScreen.
         if (mounted) {
           setState({
             user: session.user,
@@ -123,22 +107,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
+    if (isDeveloperMode) {
+      if (mounted) {
+        setState({
+          user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User,
+          appUser: DEV_PROFILE,
+          isLoading: false,
+          isAuthenticated: true,
+          error: null,
+          session: { user: { id: 'dev-user', email: 'developer@example.com', aud: 'authenticated', role: 'authenticated' } as User } as Session,
+        });
+      }
+      return;
+    }
+
+    const initAuth = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+
+        if (code) {
+          const { data: { session: existing } } = await supabase.auth.getSession();
+          if (existing?.user) {
+            await applySession(existing);
+            return;
+          }
+
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            if (mounted) {
+              setState(s => ({
+                ...s,
+                isLoading: false,
+                isAuthenticated: false,
+                error: 'تعذر إكمال تسجيل الدخول. حاول مرة أخرى أو سجّل بالبريد.',
+              }));
+            }
+            return;
+          }
+          if (data.session) {
+            await applySession(data.session);
+            return;
+          }
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           clearStaleAuthStorage();
-          return applySession(null);
+          await applySession(null);
+          return;
         }
-        return applySession(session);
-      })
-      .catch(() => {
+        await applySession(session);
+      } catch {
         clearStaleAuthStorage();
         if (mounted) setState(s => ({ ...s, isLoading: false, isAuthenticated: false }));
-      });
+      }
+    };
+
+    void initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      // getSession already applied the initial session — avoid a second paint that can flash Login UI.
       if (event === 'INITIAL_SESSION') return;
       if (event === 'SIGNED_OUT' || !session) {
         void applySession(null);

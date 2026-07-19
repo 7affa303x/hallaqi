@@ -18,12 +18,12 @@ export default defineConfig({
        */
       selfDestroying: true,
       registerType: "autoUpdate",
-      injectRegister: "auto",
+      injectRegister: null,
       devOptions: {
         enabled: false,
       },
       manifest: false,
-      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt", "auth-shell.js"],
+      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt", "auth-shell.js", "oauth-guard.js", "sw-register.js"],
       workbox: {
         cleanupOutdatedCaches: true,
         clientsClaim: true,
