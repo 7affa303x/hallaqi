@@ -49,10 +49,11 @@ export const editBarberProfileSchema = z.object({
 });
 
 export const serviceSchema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
+  id: z.string().optional(),
+  name: z.string().min(2, 'الاسم قصير جداً'),
   description: z.string().optional(),
-  price: z.number().positive('يجب أن يكون السعر موجباً'),
-  duration: z.number().positive('يجب أن تكون المدة موجبة').int(),
+  price: z.number().min(1, 'السعر يجب أن يكون موجباً').max(25000, 'السعر غير منطقي'),
+  duration: z.number().min(5, 'المدة قصيرة جداً').max(240, 'المدة طويلة جداً').int(),
   category: z.enum(['haircut', 'beard', 'shave', 'hair_treatment', 'facial', 'coloring', 'styling', 'package']),
 });
 

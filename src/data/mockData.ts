@@ -472,7 +472,7 @@ export const settingsSections = [
       { id: 'helpCenter', label: 'مركز المساعدة', icon: 'HelpCircle', description: 'أسئلة شائعة ودليل الاستخدام', type: 'link' },
       { id: 'contactUs', label: 'اتصل بنا', icon: 'Phone', description: 'التواصل مع فريق الدعم', type: 'link' },
       { id: 'reportBug', label: 'الإبلاغ عن مشكلة', icon: 'Bug', description: 'أبلغنا عن أي خطأ', type: 'link' },
-      { id: 'featureRequest', label: 'تقرير 200 اقتراح', icon: 'Lightbulb', description: 'خارطة طريق التطوير داخل التطبيق', type: 'link' },
+      { id: 'featureRequest', label: 'اقتراح ميزة', icon: 'Lightbulb', description: 'شاركنا أفكارك', type: 'link' },
     ],
   },
   {

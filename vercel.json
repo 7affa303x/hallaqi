@@ -43,6 +43,7 @@
   "rewrites": [
     { "source": "/icon.png", "destination": "/logo-icon.png" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/status", "destination": "/api/status" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

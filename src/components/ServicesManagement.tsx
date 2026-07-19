@@ -30,6 +30,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
   const [success, setSuccess] = useState(false);
 
   const {
+    register,
     control,
     handleSubmit: handleFormSubmit,
     formState: { errors: formErrors },
@@ -51,11 +52,12 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
     getProfessionalServices(appUser.id)
       .then(data => {
         const mapped = data.map(s => ({
+          id: s.id,
           name: s.name,
           description: s.description || '',
           price: Number(s.price),
           duration: s.duration_minutes,
-          category: (s.category as unknown as AppService["category"]) || "haircut",
+          category: (s.category as unknown as AppService['category']) || 'haircut',
         }));
         setValue('services', mapped);
       })
@@ -64,13 +66,11 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
   }, [appUser?.id, setValue]);
 
   const addService = () => {
-    append({ name: '', description: '', price: 0, duration: 30, category: 'haircut' });
+    append({ name: '', description: '', price: 500, duration: 30, category: 'haircut' });
     setSuccess(false);
   };
 
-  const handleRemove = async (index: number) => {
-    // Remove from the form array. The DB deletion for existing
-    // services is handled in the save logic by comparing with existing services.
+  const handleRemove = (index: number) => {
     remove(index);
     setSuccess(false);
   };
@@ -82,37 +82,35 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
     try {
       const proId = appUser.id;
       const existingServices = await getProfessionalServices(proId);
-      const existingMap = new Map(existingServices.map(s => [s.name, s]));
+      const existingById = new Map(existingServices.map(s => [s.id, s]));
+      const keptIds = new Set<string>();
 
       for (const svc of data.services) {
-        const existing = existingMap.get(svc.name.trim());
-        if (!existing) {
-          await createService({
-            professional_id: proId,
-            name: svc.name.trim(),
-            description: (svc.description || "").trim() || null,
-            price: svc.price,
-            duration_minutes: svc.duration,
-            category: svc.category as unknown as Database["public"]["Enums"]["service_category"],
-            is_active: true,
-          });
+        const payload = {
+          name: svc.name.trim(),
+          description: (svc.description || '').trim() || null,
+          price: svc.price,
+          duration_minutes: svc.duration,
+          category: svc.category as unknown as Database['public']['Enums']['service_category'],
+          is_active: true,
+        };
+
+        if (svc.id && existingById.has(svc.id)) {
+          await updateService(svc.id, payload);
+          keptIds.add(svc.id);
         } else {
-          await updateService(existing.id, {
-            name: svc.name.trim(),
-            description: (svc.description || "").trim() || null,
-            price: svc.price,
-            duration_minutes: svc.duration,
-            category: svc.category as unknown as Database["public"]["Enums"]["service_category"],
-            is_active: true,
+          const created = await createService({
+            professional_id: proId,
+            ...payload,
           });
-          existingMap.delete(svc.name.trim());
+          if (created?.id) keptIds.add(created.id);
         }
       }
 
-      // Delete services that are no longer in the form
-      for (const [, remaining] of existingMap) {
+      for (const existing of existingServices) {
+        if (keptIds.has(existing.id)) continue;
         try {
-          await deleteService(remaining.id);
+          await deleteService(existing.id);
         } catch (err) {
           console.error('Failed to delete service:', err);
         }
@@ -133,7 +131,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
   return (
     <div className="pb-20 min-h-screen" style={{ backgroundColor: themeConfig.colors.background }}>
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <button type="button" onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
         <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>إدارة الخدمات</h2>
       </div>
 
@@ -159,6 +157,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
 
             return (
               <div key={field.id} className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: nameError ? themeConfig.colors.error : themeConfig.colors.border }}>
+                <input type="hidden" {...register(`services.${index}.id` as const)} />
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>الخدمة {index + 1}</h4>
                   <button type="button" onClick={() => handleRemove(index)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
@@ -170,7 +169,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                   <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>الاسم</label>
                   <input
                     type="text"
-                    {...control.register(`services.${index}.name` as const)}
+                    {...register(`services.${index}.name` as const)}
                     placeholder="مثال: قص شعر كلاسيك"
                     className="w-full px-3 py-2 rounded-lg text-xs border"
                     style={{
@@ -186,7 +185,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                   <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>الوصف</label>
                   <input
                     type="text"
-                    {...control.register(`services.${index}.description` as const)}
+                    {...register(`services.${index}.description` as const)}
                     placeholder="وصف قصير"
                     className="w-full px-3 py-2 rounded-lg text-xs border"
                     style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
@@ -198,8 +197,9 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                     <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>السعر (دج)</label>
                     <input
                       type="number"
-                      {...control.register(`services.${index}.price` as const, { valueAsNumber: true })}
-                      min={0}
+                      {...register(`services.${index}.price` as const, { valueAsNumber: true })}
+                      min={1}
+                      max={25000}
                       className="w-full px-3 py-2 rounded-lg text-xs border"
                       style={{
                         backgroundColor: themeConfig.colors.background,
@@ -213,8 +213,9 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                     <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>المدة (دقيقة)</label>
                     <input
                       type="number"
-                      {...control.register(`services.${index}.duration` as const, { valueAsNumber: true })}
+                      {...register(`services.${index}.duration` as const, { valueAsNumber: true })}
                       min={5}
+                      max={240}
                       step={5}
                       className="w-full px-3 py-2 rounded-lg text-xs border"
                       style={{
@@ -228,7 +229,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                   <div>
                     <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>الفئة</label>
                     <select
-                      {...control.register(`services.${index}.category` as const)}
+                      {...register(`services.${index}.category` as const)}
                       className="w-full px-3 py-2 rounded-lg text-xs border"
                       style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
                     >

@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import type { BarberTag, ServiceCategory } from '@/types';
 import { rankBarberRecommendations } from '@/lib/recommendations';
 import { useI18n } from '@/hooks/useI18n';
-import { isDisplayableBarber } from '@/lib/utils';
+import { isBarberOpenNow, isDisplayableBarber } from '@/lib/utils';
 import { trackProductEvent } from '@/lib/product-analytics';
 import type { TranslationKey } from '@/lib/i18n';
 import { translate } from '@/lib/i18n';
@@ -58,7 +58,9 @@ export default function BookingTab() {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [selectedWilaya, setSelectedWilaya] = useState(() => localStorage.getItem('hallaqi-discovery-wilaya') || '');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price' | 'newest'>('rating');
+  const [sortBy, setSortBy] = useState<'smart' | 'rating' | 'distance' | 'price' | 'newest'>('smart');
+  const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [mobileOnly, setMobileOnly] = useState(false);
   const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [locationMessage, setLocationMessage] = useState('');
   const userLocation = currentUser as { city?: string; wilaya?: string } | null;
@@ -68,6 +70,27 @@ export default function BookingTab() {
     () => [...new Set(barbers.filter(isDisplayableBarber).map(barber => barber.wilaya).filter(Boolean))].sort(),
     [barbers]
   );
+
+  const popularServiceNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const barber of barbers.filter(isDisplayableBarber)) {
+      for (const service of barber.services) {
+        const name = service.name.trim();
+        if (!name) continue;
+        counts.set(name, (counts.get(name) || 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ar'))
+      .slice(0, 6)
+      .map(([name]) => name);
+  }, [barbers]);
+
+  const persistWilaya = (wilaya: string) => {
+    setSelectedWilaya(wilaya);
+    if (wilaya) localStorage.setItem('hallaqi-discovery-wilaya', wilaya);
+    else localStorage.removeItem('hallaqi-discovery-wilaya');
+  };
 
   const distances = useMemo(() => new Map(
     barbers.map(barber => [
@@ -117,7 +140,27 @@ export default function BookingTab() {
     if (onlyFavorites) {
       filtered = filtered.filter(barber => barber.isFollowing);
     }
+    if (openNowOnly) {
+      filtered = filtered.filter(barber => isBarberOpenNow(barber.workingHours));
+    }
+    if (mobileOnly) {
+      filtered = filtered.filter(barber => barber.isMobile);
+    }
     switch (sortBy) {
+      case 'smart':
+        filtered.sort((a, b) => {
+          const distA = distances.get(a.id);
+          const distB = distances.get(b.id);
+          const knownA = distA != null;
+          const knownB = distB != null;
+          if (knownA && knownB && distA !== distB) return distA - distB;
+          if (knownA !== knownB) return knownA ? -1 : 1;
+          if (b.rating !== a.rating) return b.rating - a.rating;
+          const openA = isBarberOpenNow(a.workingHours) ? 1 : 0;
+          const openB = isBarberOpenNow(b.workingHours) ? 1 : 0;
+          return openB - openA;
+        });
+        break;
       case 'rating': filtered.sort((a, b) => b.rating - a.rating); break;
       case 'distance': filtered.sort((a, b) => (distances.get(a.id) ?? Number.POSITIVE_INFINITY) - (distances.get(b.id) ?? Number.POSITIVE_INFINITY)); break;
       case 'price':
@@ -130,7 +173,7 @@ export default function BookingTab() {
       case 'newest': filtered.sort((a, b) => (b.tags.includes('new') ? 1 : 0) - (a.tags.includes('new') ? 1 : 0)); break;
     }
     return filtered;
-  }, [barbers, distances, onlyFavorites, searchQuery, selectedTags, selectedCategory, selectedWilaya, sortBy]);
+  }, [barbers, distances, mobileOnly, onlyFavorites, openNowOnly, searchQuery, selectedTags, selectedCategory, selectedWilaya, sortBy]);
 
   const recommendations = useMemo(() => {
     return rankBarberRecommendations(barbers.filter(isDisplayableBarber), {
@@ -226,6 +269,26 @@ export default function BookingTab() {
           )}
         </div>
 
+        {popularServiceNames.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-1 scrollbar-hide">
+            {popularServiceNames.map(name => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setSearchQuery(name)}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all"
+                style={{
+                  backgroundColor: searchQuery === name ? themeConfig.colors.primary + '18' : themeConfig.colors.surface,
+                  color: searchQuery === name ? themeConfig.colors.primary : themeConfig.colors.textMuted,
+                  border: `1px solid ${searchQuery === name ? themeConfig.colors.primary : themeConfig.colors.border}`,
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Appointments — large entry point (moved out of bottom nav) */}
         <button
           type="button"
@@ -265,6 +328,30 @@ export default function BookingTab() {
             }
             setOnlyFavorites(value => !value);
           }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all" style={{ backgroundColor: onlyFavorites ? '#EF444420' : themeConfig.colors.surface, color: onlyFavorites ? '#EF4444' : themeConfig.colors.textMuted, border: `1.5px solid ${onlyFavorites ? '#EF4444' : themeConfig.colors.border}` }}><Heart size={12} className={onlyFavorites ? 'fill-current' : ''} />المفضلة</button>
+          <button
+            type="button"
+            onClick={() => setOpenNowOnly(value => !value)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all"
+            style={{
+              backgroundColor: openNowOnly ? themeConfig.colors.success + '20' : themeConfig.colors.surface,
+              color: openNowOnly ? themeConfig.colors.success : themeConfig.colors.textMuted,
+              border: `1.5px solid ${openNowOnly ? themeConfig.colors.success : themeConfig.colors.border}`,
+            }}
+          >
+            <Clock size={12} /> مفتوح الآن
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileOnly(value => !value)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all"
+            style={{
+              backgroundColor: mobileOnly ? '#3B82F620' : themeConfig.colors.surface,
+              color: mobileOnly ? '#3B82F6' : themeConfig.colors.textMuted,
+              border: `1.5px solid ${mobileOnly ? '#3B82F6' : themeConfig.colors.border}`,
+            }}
+          >
+            <Car size={12} /> متنقل فقط
+          </button>
           {barberTags.slice(0, 6).map(tag => {
             const isSelected = selectedTags.includes(tag.key as BarberTag);
             const Icon = tagIcons[tag.key] || Zap;
@@ -292,9 +379,9 @@ export default function BookingTab() {
             <div className="mb-3">
               <p className="text-xs font-medium mb-2" style={{ color: themeConfig.colors.textMuted }}>الولاية</p>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                <button type="button" onClick={() => { setSelectedWilaya(''); localStorage.removeItem('hallaqi-discovery-wilaya'); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: !selectedWilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: !selectedWilaya ? '#fff' : themeConfig.colors.textMuted }}>{t('allWilayas')}</button>
+                <button type="button" onClick={() => persistWilaya('')} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: !selectedWilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: !selectedWilaya ? '#fff' : themeConfig.colors.textMuted }}>{t('allWilayas')}</button>
                 {availableWilayas.map(wilaya => (
-                  <button key={wilaya} type="button" onClick={() => { setSelectedWilaya(wilaya); localStorage.setItem('hallaqi-discovery-wilaya', wilaya); }} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: selectedWilaya === wilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: selectedWilaya === wilaya ? '#fff' : themeConfig.colors.textMuted }}>{wilaya}</button>
+                  <button key={wilaya} type="button" onClick={() => persistWilaya(wilaya)} className="px-3 py-1.5 rounded-lg text-xs whitespace-nowrap" style={{ backgroundColor: selectedWilaya === wilaya ? themeConfig.colors.primary : themeConfig.colors.background, color: selectedWilaya === wilaya ? '#fff' : themeConfig.colors.textMuted }}>{wilaya}</button>
                 ))}
               </div>
             </div>
@@ -319,8 +406,9 @@ export default function BookingTab() {
             </div>
             <div>
               <p className="text-xs font-medium mb-2" style={{ color: themeConfig.colors.textMuted }}>الترتيب حسب</p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {[
+                  { key: 'smart' as const, label: 'ذكي', icon: Sparkles },
                   { key: 'rating' as const, label: 'التقييم', icon: Star },
                   { key: 'distance' as const, label: 'المسافة', icon: MapPin },
                   { key: 'price' as const, label: 'السعر', icon: Filter },
@@ -330,7 +418,7 @@ export default function BookingTab() {
                     key={opt.key}
                     onClick={() => {
                       setSortBy(opt.key);
-                      if (opt.key === 'distance' && !userCoordinates) requestLocation();
+                      if ((opt.key === 'distance' || opt.key === 'smart') && !userCoordinates) requestLocation();
                     }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
@@ -391,6 +479,11 @@ export default function BookingTab() {
 
       {/* === BARBERS LIST === */}
       <div className="px-4 space-y-3 mt-2">
+        {!showSkeletons && filteredBarbers.length > 0 && (
+          <p className="text-xs font-medium pt-1" style={{ color: themeConfig.colors.textMuted }}>
+            {filteredBarbers.length} حلاقاً
+          </p>
+        )}
         {showSkeletons ? (
           <>
             <SkeletonBarberCard />
@@ -398,7 +491,17 @@ export default function BookingTab() {
             <SkeletonBarberCard />
           </>
         ) : (
-          filteredBarbers.map((barber, index) => (
+          filteredBarbers.map((barber, index) => {
+            const openNow = isBarberOpenNow(barber.workingHours);
+            const servicePrices = barber.services.map(s => s.price).filter(p => p > 0);
+            const minPrice = servicePrices.length ? Math.min(...servicePrices) : null;
+            const maxPrice = servicePrices.length ? Math.max(...servicePrices) : null;
+            const priceLabel = minPrice == null
+              ? '—'
+              : minPrice === maxPrice
+                ? money(minPrice)
+                : `${money(minPrice)} – ${money(maxPrice!)}`;
+            return (
             <motion.div
               key={barber.id}
               initial={{ opacity: 0, y: 16 }}
@@ -411,12 +514,13 @@ export default function BookingTab() {
               <div className="relative h-32 overflow-hidden">
                 <img src={barber.coverImage} alt={barber.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute top-2 left-2 flex gap-1">
-                  {barber.isActive && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-green-500">
-                      <Zap size={10} /> متصل
-                    </span>
-                  )}
+                <div className="absolute top-2 left-2 flex gap-1 flex-wrap justify-end">
+                  <span
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+                    style={{ backgroundColor: openNow ? themeConfig.colors.success : '#6B7280' }}
+                  >
+                    <Clock size={10} /> {openNow ? 'مفتوح الآن' : 'مغلق'}
+                  </span>
                   {barber.isMobile && (
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-blue-500">
                       <Car size={10} /> متنقل
@@ -430,7 +534,7 @@ export default function BookingTab() {
                 </div>
                 <div className="absolute bottom-2 right-2">
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>
-                    {barber.priceRange}
+                    {priceLabel}
                   </span>
                 </div>
               </div>
@@ -551,7 +655,8 @@ export default function BookingTab() {
                 </div>
               </div>
             </motion.div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -562,7 +667,16 @@ export default function BookingTab() {
           title="لا توجد نتائج مطابقة"
           description="جرب تغيير كلمات البحث أو الفلاتر"
           actionLabel="إعادة تعيين الفلاتر"
-          onAction={() => { setSearchQuery(''); setSelectedTags([]); setSelectedCategory(null); setSelectedWilaya(''); setOnlyFavorites(false); localStorage.removeItem('hallaqi-discovery-wilaya'); }}
+          onAction={() => {
+            setSearchQuery('');
+            setSelectedTags([]);
+            setSelectedCategory(null);
+            persistWilaya('');
+            setOnlyFavorites(false);
+            setOpenNowOnly(false);
+            setMobileOnly(false);
+            setSortBy('smart');
+          }}
           themeConfig={themeConfig}
         />
       )}

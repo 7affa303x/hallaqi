@@ -1,10 +1,13 @@
 /** Static Hallaqi identity + site knowledge for AI system prompts (server-safe). */
 
+import { getSiteUrl } from './site-url.js';
+
 export const HALLAQI_IDENTITY = {
   nameAr: 'حلاقي',
   nameEn: 'Hallaqi',
   version: '12.1.0',
-  siteUrl: 'https://hallaqi.app',
+  /** Canonical site URL — from SITE_URL / VITE_SITE_URL or hallaqi.app */
+  siteUrl: getSiteUrl(),
   supportEmail: 'support@hallaqi.app',
   country: 'الجزائر',
   taglineAr:
