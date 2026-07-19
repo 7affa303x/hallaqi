@@ -26,8 +26,10 @@ describe('featureFlags', () => {
     expect(isWebPushConfigured()).toBe(true);
   });
 
-  it('requires both flag and WhatsApp number', () => {
-    vi.stubEnv('VITE_SUPPORT_WHATSAPP', '213555000000');
+  it('requires WhatsApp number when support flag is on', () => {
+    vi.stubEnv('VITE_SUPPORT_WHATSAPP', '');
     expect(isWhatsAppSupportConfigured()).toBe(false);
+    vi.stubEnv('VITE_SUPPORT_WHATSAPP', '213555000000');
+    expect(isWhatsAppSupportConfigured()).toBe(FEATURE_FLAGS.whatsappSupportEnabled);
   });
 });
