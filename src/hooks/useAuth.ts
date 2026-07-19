@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isDeveloperMode } from '@/supabase/client';
 import { signIn, signUp, signOut, resetPassword, fetchUserProfile } from '@/supabase/auth';
+import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import type { Profile } from '@/types/supabase-aliases';
 import type { Session, User } from '@supabase/supabase-js';
 
@@ -197,7 +198,7 @@ export function useAuth() {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.href },
+        options: { redirectTo: getAuthRedirectUrl('/') },
       });
       if (error) throw error;
       setState(s => ({ ...s, isLoading: true }));

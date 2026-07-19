@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../../contexts/useApp';
 import { supabase } from '../../supabase/client';
+import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -34,7 +35,7 @@ const ForgotPassword = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: getAuthRedirectUrl('/reset-password'),
       });
 
       if (error) {

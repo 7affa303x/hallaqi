@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './client';
 import type { Profile } from '@/types/supabase-aliases';
+import { getAuthRedirectUrl } from '@/lib/authRedirect';
 
 function getAuthErrorMessage(err: { message?: string; code?: string; status?: number }): string {
   const msg = (err.message || '').toLowerCase();
@@ -85,7 +86,7 @@ export async function resetPassword(email: string) {
   if (!isSupabaseConfigured()) throw new Error('Supabase غير مُعد');
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: getAuthRedirectUrl('/reset-password'),
   });
   if (error) throw new Error(getAuthErrorMessage(error));
 }
