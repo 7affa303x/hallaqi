@@ -2,22 +2,10 @@
 
 const BUILD_KEY = 'hallaqi-app-build-v1';
 
-/** Bump when shipping shell/layout fixes so phones drop old SW caches. */
-export const APP_SHELL_BUILD = '2026-07-19-prod-harden-1';
+/** Bump when shipping shell/layout/SW fixes so phones drop old SW caches. */
+export const APP_SHELL_BUILD = '2026-07-19-auth-shell-fix-1';
 
-/** @returns true if a reload was triggered (caller must not mount React). */
-export async function ensureFreshAppShell(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
-
-  let previous: string | null = null;
-  try {
-    previous = localStorage.getItem(BUILD_KEY);
-  } catch {
-    /* ignore */
-  }
-
-  if (previous === APP_SHELL_BUILD) return false;
-
+async function clearServiceWorkerAndCaches(): Promise<boolean> {
   let clearedSomething = false;
   try {
     if ('caches' in window) {
@@ -37,6 +25,28 @@ export async function ensureFreshAppShell(): Promise<boolean> {
   } catch {
     /* best-effort */
   }
+  return clearedSomething;
+}
+
+/**
+ * @returns true if a reload was triggered (caller must not mount React).
+ *
+ * OAuth returns are handled by the inline script in index.html (clears SW before
+ * React can consume ?code=). This function only upgrades when APP_SHELL_BUILD changes.
+ */
+export async function ensureFreshAppShell(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+
+  let previous: string | null = null;
+  try {
+    previous = localStorage.getItem(BUILD_KEY);
+  } catch {
+    /* ignore */
+  }
+
+  if (previous === APP_SHELL_BUILD) return false;
+
+  const clearedSomething = await clearServiceWorkerAndCaches();
 
   try {
     localStorage.setItem(BUILD_KEY, APP_SHELL_BUILD);

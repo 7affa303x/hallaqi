@@ -29,7 +29,24 @@ describe('authRedirect', () => {
     expect(getCanonicalOrigin()).toBe('https://hallaqi.app');
   });
 
-  it('keeps the current vercel preview origin for end-to-end login tests', () => {
+  it('canonicalizes www to apex so OAuth does not split hosts/SW', () => {
+    vi.stubGlobal('window', {
+      ...window,
+      location: {
+        ...window.location,
+        hostname: 'www.hallaqi.app',
+        origin: 'https://www.hallaqi.app',
+        href: 'https://www.hallaqi.app/',
+        pathname: '/',
+        search: '',
+        hash: '',
+      },
+    });
+    expect(getAuthRedirectUrl('/')).toBe('https://hallaqi.app/');
+    expect(getCanonicalOrigin()).toBe('https://hallaqi.app');
+  });
+
+  it('keeps ephemeral vercel deployment preview for end-to-end login tests', () => {
     vi.stubGlobal('window', {
       ...window,
       location: {
@@ -45,6 +62,41 @@ describe('authRedirect', () => {
     });
     expect(getAuthRedirectUrl('/')).toBe('https://hallaqi-8yj9ildjr-souf303x.vercel.app/');
     expect(getCanonicalOrigin()).toBe('https://hallaqi-8yj9ildjr-souf303x.vercel.app');
+  });
+
+  it('keeps git-branch vercel preview origin', () => {
+    vi.stubGlobal('window', {
+      ...window,
+      location: {
+        ...window.location,
+        hostname: 'hallaqi-git-cursor-launch-hotfix-prod-93d3-souf303x.vercel.app',
+        origin: 'https://hallaqi-git-cursor-launch-hotfix-prod-93d3-souf303x.vercel.app',
+        href: 'https://hallaqi-git-cursor-launch-hotfix-prod-93d3-souf303x.vercel.app/',
+        pathname: '/',
+        search: '',
+        hash: '',
+      },
+    });
+    expect(getAuthRedirectUrl('/')).toBe(
+      'https://hallaqi-git-cursor-launch-hotfix-prod-93d3-souf303x.vercel.app/',
+    );
+  });
+
+  it('does not trap OAuth on production vercel.app aliases', () => {
+    vi.stubGlobal('window', {
+      ...window,
+      location: {
+        ...window.location,
+        hostname: 'hallaqi.vercel.app',
+        origin: 'https://hallaqi.vercel.app',
+        href: 'https://hallaqi.vercel.app/',
+        pathname: '/',
+        search: '',
+        hash: '',
+      },
+    });
+    expect(getAuthRedirectUrl('/')).toBe('https://hallaqi.app/');
+    expect(getCanonicalOrigin()).toBe('https://hallaqi.app');
   });
 
   it('clears oauth error query params', () => {

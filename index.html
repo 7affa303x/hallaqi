@@ -82,6 +82,39 @@
       * { -webkit-tap-highlight-color: transparent; }
       body { overscroll-behavior-y: none; font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; }
     </style>
+    <!-- Early OAuth shell bust: runs before the module bundle so a stale SW cannot remount an old login return. -->
+    <script>
+      (function () {
+        try {
+          var q = location.search || '';
+          var h = location.hash || '';
+          var auth = /[?&]code=/.test(q) || /[?&]error=/.test(q) || /access_token=/.test(h) || /type=recovery/.test(h);
+          if (!auth) return;
+          if (sessionStorage.getItem('hallaqi-auth-shell-refreshed') === '1') return;
+          sessionStorage.setItem('hallaqi-auth-shell-refreshed', '1');
+          // Block React boot until caches are cleared and we reload with a fresh shell.
+          window.__HALLAQI_AUTH_SHELL_PENDING = true;
+          var reload = function () {
+            var u = new URL(location.href);
+            u.searchParams.set('hallaqi_refresh', 'oauth');
+            location.replace(u.pathname + u.search + u.hash);
+          };
+          var tasks = [];
+          if (window.caches) {
+            tasks.push(caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }));
+          }
+          if (navigator.serviceWorker) {
+            tasks.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }));
+          }
+          if (tasks.length) Promise.all(tasks).then(reload, reload);
+          else reload();
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

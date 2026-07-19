@@ -11,9 +11,9 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
+      // Never install a SW in Vite dev — it traps local/auth testing on stale shells.
       devOptions: {
-        enabled: true,
-        type: "module",
+        enabled: false,
       },
       manifest: false,
       includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt"],
@@ -21,20 +21,25 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        /**
+         * CRITICAL: navigateFallback MUST stay null.
+         * When set to "/index.html", Workbox registers NavigationRoute(precached HTML)
+         * BEFORE any NetworkFirst navigate rule — OAuth full-page returns then remount
+         * an old shell (the login → "old version" bug).
+         */
+        navigateFallback: null,
         offlineGoogleAnalytics: false,
         importScripts: ["/push-handler.js"],
         globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
         runtimeCaching: [
           {
-            // Always prefer network for the app shell so phones don't stick on an old build.
-            urlPattern: ({ request }) => request.mode === 'navigate',
+            // Prefer network for every document navigation (login return, deep links).
+            urlPattern: ({ request }) => request.mode === "navigate",
             handler: "NetworkFirst",
             options: {
               cacheName: "hallaqi-navigations",
-              networkTimeoutSeconds: 4,
-              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 },
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 30 },
             },
           },
           {

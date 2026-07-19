@@ -4,7 +4,16 @@ import './index.css'
 import App from './App.tsx'
 import { ensureFreshAppShell } from '@/lib/appShell'
 
+declare global {
+  interface Window {
+    __HALLAQI_AUTH_SHELL_PENDING?: boolean
+  }
+}
+
 async function boot() {
+  // Inline index.html script owns the first OAuth return — do not mount or consume ?code=.
+  if (window.__HALLAQI_AUTH_SHELL_PENDING) return
+
   const reloading = await ensureFreshAppShell()
   if (reloading) return
 
