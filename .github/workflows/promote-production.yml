@@ -6,7 +6,7 @@ on:
       deployment_url:
         description: Preview deployment URL to alias to production
         required: true
-        default: https://hallaqi-git-cursor-oauth-white-screen-hotfix-93d3-souf303x.vercel.app
+        default: https://hallaqi-git-cursor-fix-pkce-white-screen-93d3-souf303x.vercel.app
   push:
     branches: [main]
     paths:
@@ -25,7 +25,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-oauth-white-screen-hotfix-93d3-souf303x.vercel.app' }}"
+          URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-fix-pkce-white-screen-93d3-souf303x.vercel.app' }}"
           HOST="${URL#https://}"; HOST="${HOST%%/*}"
 
           TEAM=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
