@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
 
       - name: Install Vercel CLI
+        # 41.x rejects project Node 24.x; pin CLI that matches runners + force project to 22.x below.
         run: npm install -g vercel@41.7.8
 
       - name: Link project + pull production env
@@ -37,11 +38,20 @@ jobs:
             "https://api.vercel.com/v2/teams?slug=souf303x")
           TEAM_ID=$(echo "$TEAM" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or (d.get("teams") or [{}])[0].get("id") or "")')
           test -n "$TEAM_ID"
+          echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
 
           PROJ=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/hallaqi?teamId=$TEAM_ID")
           PROJECT_ID=$(echo "$PROJ" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("id") or "")')
           test -n "$PROJECT_ID"
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+
+          # vercel@41 cannot build with project Node 24.x — pin to 22 for this upload.
+          curl -sS -X PATCH \
+            "https://api.vercel.com/v9/projects/$PROJECT_ID?teamId=$TEAM_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"nodeVersion":"22.x"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); print("nodeVersion=", d.get("nodeVersion"))'
 
           mkdir -p .vercel
           printf '{"orgId":"%s","projectId":"%s"}\n' "$TEAM_ID" "$PROJECT_ID" > .vercel/project.json
@@ -71,5 +81,3 @@ jobs:
           done
           echo "$BODY" | head -c 800
           exit 1
-
-# trigger: oauth hash fix deploy
