@@ -469,11 +469,21 @@ export default function ProfileTab() {
                   setActionMessage('');
                   if (item.id === 'logout') { handleLogout(); return; }
                   if (item.id === 'clearCache') {
-                    if ('caches' in window) {
-                      const keys = await caches.keys();
-                      await Promise.all(keys.map(key => caches.delete(key)));
+                    try {
+                      if ('caches' in window) {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(key => caches.delete(key)));
+                      }
+                      if ('serviceWorker' in navigator) {
+                        const regs = await navigator.serviceWorker.getRegistrations();
+                        await Promise.all(regs.map(reg => reg.unregister()));
+                      }
+                      try { localStorage.removeItem('hallaqi-app-build-v1'); } catch { /* ignore */ }
+                      setActionMessage('تم مسح الذاكرة — جاري التحديث…');
+                      window.setTimeout(() => window.location.reload(), 600);
+                    } catch {
+                      setActionMessage('تعذر مسح الذاكرة المؤقتة');
                     }
-                    setActionMessage('تم مسح الذاكرة المؤقتة بنجاح');
                     return;
                   }
                   if (item.id === 'exportData' && appUser) {

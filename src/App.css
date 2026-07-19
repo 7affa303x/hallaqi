@@ -203,7 +203,14 @@ button, nav, .no-select {
   filter: brightness(0.9);
 }
 
-/* ====== RESPONSIVE ====== */
+/* ====== RESPONSIVE SHELL ====== */
+/* Phones: full bleed. sm+: centered phone column for desktop browsing. */
+@media (min-width: 640px) {
+  #main-content {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent);
+  }
+}
+
 @media (max-width: 380px) {
   .text-xs {
     font-size: 0.7rem;

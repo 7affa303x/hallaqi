@@ -16,6 +16,7 @@ import CookieConsent from '@/components/CookieConsent';
 import { readAnalyticsConsent } from '@/lib/analyticsConsent';
 import { reportClientError } from '@/lib/error-reporting';
 import { translate } from '@/lib/i18n';
+import { consumeAuthUrlError } from '@/lib/authRedirect';
 import BookingTab from '@/tabs/BookingTab';
 import './App.css';
 
@@ -200,6 +201,12 @@ function AppContent() {
   const showNav = screen === 'home' || screen === 'ai-advisor';
   const setIsOnline = useStore(s => s.setIsOnline);
   const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsConsent() === 'accepted');
+  const [authUrlError, setAuthUrlError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const msg = consumeAuthUrlError();
+    if (msg) setAuthUrlError(msg);
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -269,10 +276,22 @@ function AppContent() {
         {translate(settings.language, 'skipToContent')}
       </a>
       <NetworkStatusBar />
+      {authUrlError && (
+        <div
+          role="alert"
+          className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-lg rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
+          style={{ backgroundColor: themeConfig.colors.error, color: '#fff' }}
+        >
+          <span className="text-xs flex-1">{authUrlError}</span>
+          <button type="button" onClick={() => setAuthUrlError(null)} className="text-xs font-bold underline">
+            حسناً
+          </button>
+        </div>
+      )}
       {dataError && (
         <div
           role="alert"
-          className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-md rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
+          className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-lg rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
           style={{ backgroundColor: themeConfig.colors.error, color: '#fff' }}
         >
           <span className="text-xs flex-1">{dataError}</span>
@@ -281,7 +300,8 @@ function AppContent() {
           </button>
         </div>
       )}
-      <main id="main-content" className={`max-w-lg mx-auto min-h-screen ${showNav ? 'pb-16' : ''}`}>
+      {/* Full-bleed on phones; phone-column only from tablet/desktop up */}
+      <main id="main-content" className={`w-full max-w-none sm:max-w-lg sm:mx-auto min-h-screen min-h-[100dvh] ${showNav ? 'pb-16' : ''}`}>
         {/* Developer Mode toggle — dev builds only; stripped from production. */}
         {import.meta.env.DEV && (
           <>

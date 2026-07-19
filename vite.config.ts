@@ -4,7 +4,8 @@ import { defineConfig } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
 
 export default defineConfig({
-  base: './',
+  // Absolute base — relative `./` broke asset/SW resolution on mobile & preview URLs.
+  base: '/',
   plugins: [
     react(),
     VitePWA({
@@ -17,12 +18,25 @@ export default defineConfig({
       manifest: false,
       includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt"],
       workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         offlineGoogleAnalytics: false,
         importScripts: ["/push-handler.js"],
         globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
         runtimeCaching: [
+          {
+            // Always prefer network for the app shell so phones don't stick on an old build.
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "hallaqi-navigations",
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
           {
             urlPattern: /^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\//,
             handler: "CacheFirst",
