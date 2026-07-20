@@ -121,8 +121,14 @@ function ScreenRouter() {
     case 'create-post':
       return <Suspense fallback={<LoadingFallback />}><CreateForumPostPage /></Suspense>;
     case 'login':
+      if (isAuthenticated) {
+        return <LoadingFallback />;
+      }
       return <Suspense fallback={<LoadingFallback />}><LoginScreen redirectScreen={screenParams?.redirectScreen} redirectParams={screenParams} /></Suspense>;
     case 'register':
+      if (isAuthenticated) {
+        return <LoadingFallback />;
+      }
       return <Suspense fallback={<LoadingFallback />}><RegisterScreen /></Suspense>;
     case 'forgot-password':
       return <Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>;
@@ -225,6 +231,17 @@ function AppContent() {
   const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsConsent() === 'accepted');
   const [authUrlError, setAuthUrlError] = useState<string | null>(null);
   const [dismissDataError, setDismissDataError] = useState(false);
+  // Hard stop: never leave users on a blank loading shell forever.
+  const [authGateTimedOut, setAuthGateTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading) {
+      setAuthGateTimedOut(false);
+      return;
+    }
+    const t = window.setTimeout(() => setAuthGateTimedOut(true), 14000);
+    return () => window.clearTimeout(t);
+  }, [authLoading]);
 
   useEffect(() => {
     const msg = consumeAuthUrlError();
@@ -283,7 +300,7 @@ function AppContent() {
     ...(themeConfig.colors.gradient ? { '--gradient': themeConfig.colors.gradient } : {}),
   } as React.CSSProperties;
 
-  if (authLoading) {
+  if (authLoading && !authGateTimedOut) {
     return (
       <div className="min-h-screen anim-modern flex items-center justify-center" style={{ ...cssVars, backgroundColor: themeConfig.colors.background }}>
         <div className="flex flex-col items-center gap-4">

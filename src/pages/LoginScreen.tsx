@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema } from '@/lib/validation';
 import type { LoginFormData } from '@/lib/validation';
 import { isSafeAuthRedirectScreen, isSafeAuthRedirectTab } from '@/lib/authRedirect';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 
@@ -25,7 +25,7 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ redirectScreen, redirectParams }: LoginScreenProps) {
   const { themeConfig, navigate, setActiveTab } = useApp();
-  const { googleSignIn, login, error: authError } = useAuth();
+  const { googleSignIn, login, error: authError, isAuthenticated, isLoading: authLoading } = useAuth();
   const isOnline = useStore(s => s.isOnline);
 
   const {
@@ -46,7 +46,7 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
 
   const error = localError || authError || '';
 
-  const completeRedirect = () => {
+  const completeRedirect = useCallback(() => {
     const redirectTab = redirectParams?.redirectTab;
     const safeTab = isSafeAuthRedirectTab(redirectTab) ? redirectTab : undefined;
     if (redirectScreen && isSafeAuthRedirectScreen(redirectScreen) && redirectScreen !== 'home') {
@@ -54,8 +54,16 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
       navigate(redirectScreen, redirectParams as ScreenParams);
       return;
     }
-    setActiveTab(safeTab || 'booking');
-  };
+    // Always leave the login screen — setActiveTab resets to home tabs.
+    navigate('home', { redirectTab: safeTab || 'booking' });
+  }, [navigate, redirectParams, redirectScreen, setActiveTab]);
+
+  // OAuth / session restore can land on ?screen=login while already signed in.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      completeRedirect();
+    }
+  }, [authLoading, isAuthenticated, completeRedirect]);
 
   const clearError = useCallback(() => {
     setLocalError('');

@@ -15,9 +15,11 @@ export async function requiresMfaChallenge(): Promise<boolean> {
   const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
   if (factorsError) {
     console.error('[mfa] listFactors failed', factorsError);
-    // Both probes failed — do not silently skip MFA for possibly enrolled accounts.
-    return true;
+    // Fail-open: trapping every login behind MFA on a transient API error
+    // left users on a blank/stuck challenge screen after Google/email login.
+    return false;
   }
+  // Only force challenge when we positively know a verified TOTP exists.
   return factors.totp.some(item => item.status === 'verified');
 }
 

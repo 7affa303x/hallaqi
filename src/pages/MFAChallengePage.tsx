@@ -26,7 +26,8 @@ export default function MFAChallengePage() {
         setCheckingFactor(false);
       })
       .catch(() => {
-        if (!cancelled) setCheckingFactor(false);
+        // Probe failed — send user home rather than a stuck blank challenge UI.
+        if (!cancelled) navigate('home');
       });
     return () => { cancelled = true; };
   }, [navigate]);

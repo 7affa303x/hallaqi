@@ -1,12 +1,14 @@
 name: Promote Preview to Production
 
+# Aliases an EXISTING Vercel deployment to hallaqi.app — does not create a new
+# deployment, so it bypasses the free-tier api-deployments-free-per-day limit.
 on:
   workflow_dispatch:
     inputs:
       deployment_url:
-        description: Preview deployment URL to alias to production
+        description: Preview deployment URL to alias to production (must include oauth-guard.js)
         required: true
-        default: https://hallaqi-git-cursor-fix-pkce-white-screen-93d3-souf303x.vercel.app
+        default: https://hallaqi-kbkv7iacy-souf303x.vercel.app
   push:
     branches: [main]
     paths:
@@ -25,8 +27,16 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-git-cursor-fix-pkce-white-screen-93d3-souf303x.vercel.app' }}"
+          URL="${{ github.event.inputs.deployment_url || 'https://hallaqi-kbkv7iacy-souf303x.vercel.app' }}"
           HOST="${URL#https://}"; HOST="${HOST%%/*}"
+
+          echo "Promoting host: $HOST"
+          HTML=$(curl -sS "https://$HOST/")
+          if ! echo "$HTML" | grep -q 'oauth-guard.js'; then
+            echo "Refusing to promote: $HOST is missing oauth-guard.js"
+            echo "$HTML" | head -c 500
+            exit 1
+          fi
 
           TEAM=$(curl -sS -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v2/teams?slug=souf303x")
@@ -43,41 +53,40 @@ jobs:
 
           for DOMAIN in hallaqi.app www.hallaqi.app; do
             echo "==== alias $DOMAIN ===="
-            # Prefer deployment aliases endpoint
             RESP=$(curl -sS -X POST \
               "https://api.vercel.com/v2/deployments/$DEPLOY_ID/aliases?teamId=$TEAM_ID" \
               -H "Authorization: Bearer $VERCEL_TOKEN" \
               -H "Content-Type: application/json" \
               -d "{\"alias\":\"$DOMAIN\"}")
-            echo "$RESP" | head -c 1000; echo
+            echo "$RESP" | head -c 1200; echo
 
-            # Fallback: projects domain assign / aliases collection
             if echo "$RESP" | grep -qi '"error"'; then
               RESP2=$(curl -sS -X POST \
                 "https://api.vercel.com/v2/aliases?teamId=$TEAM_ID" \
                 -H "Authorization: Bearer $VERCEL_TOKEN" \
                 -H "Content-Type: application/json" \
                 -d "{\"alias\":\"$DOMAIN\",\"deploymentId\":\"$DEPLOY_ID\",\"redirect\":null}")
-              echo "fallback: $RESP2" | head -c 1000; echo
+              echo "fallback: $RESP2" | head -c 1200; echo
             fi
           done
 
       - name: Verify OAuth fix on production
         run: |
           set -euo pipefail
-          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
             sleep 5
-            BODY=$(curl -sS "https://hallaqi.app/auth-shell.js")
             HTML=$(curl -sS "https://hallaqi.app/")
-            echo "attempt $i"
-            if echo "$BODY" | grep -q 'isOAuthReturn'; then
-              echo "Production auth-shell skips OAuth reload"
-              exit 0
-            fi
-            if echo "$HTML" | grep -q 'oauth-guard.js'; then
-              echo "Production index.html loads CSP-safe oauth-guard"
+            GUARD=$(curl -sS -o /tmp/oauth-guard.js -w "%{http_code}" "https://hallaqi.app/oauth-guard.js")
+            BODY=$(curl -sS "https://hallaqi.app/auth-shell.js")
+            echo "attempt $i html_guard=$(echo "$HTML" | grep -c oauth-guard.js || true) guard_http=$GUARD"
+            if echo "$HTML" | grep -q 'oauth-guard.js' \
+              && test "$GUARD" = "200" \
+              && echo "$BODY" | grep -q 'SKIP_SW\|serviceWorker.register = function\|isOAuthReturn'; then
+              echo "Production has oauth-guard + OAuth-safe auth-shell"
               exit 0
             fi
           done
+          echo "$HTML" | head -c 600
+          echo
           echo "$BODY" | head -c 400
           exit 1

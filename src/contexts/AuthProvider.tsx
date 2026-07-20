@@ -30,6 +30,20 @@ function clearStaleAuthStorage() {
   }
 }
 
+/** Never let profile RPC hang the auth gate (auth-lock / slow PostgREST). */
+async function fetchProfileWithTimeout(userId: string, ms = 4000): Promise<Profile | null> {
+  try {
+    return await Promise.race([
+      fetchUserProfile(userId),
+      new Promise<null>(resolve => {
+        window.setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
 const INITIAL_STATE: AuthState = {
   user: null,
   appUser: null,
@@ -79,12 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         let profile: Profile | null = null;
         for (let attempt = 0; attempt < 3 && !profile; attempt += 1) {
-          profile = await fetchUserProfile(session.user.id);
+          profile = await fetchProfileWithTimeout(session.user.id, 3500);
           if (!profile && attempt < 2) {
             await new Promise(resolve => window.setTimeout(resolve, 150 * (attempt + 1)));
           }
         }
         if (!mounted) return;
+        // Always leave the loading gate once we have a session — a missing
+        // profile must not leave the user on a blank "جاري التحميل" screen.
         setState({
           user: session.user,
           appUser: profile,
@@ -140,19 +156,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   : s
               ));
             }
-          }, 15000);
+          }, 12000);
 
           try {
-            const { data: { session: existing } } = await supabase.auth.getSession();
-            if (existing?.user) {
-              window.clearTimeout(oauthTimeout);
-              await applySession(existing);
-              return;
+            // detectSessionInUrl may already be exchanging — poll before a second exchange.
+            for (let i = 0; i < 8; i += 1) {
+              const { data: { session: existing } } = await supabase.auth.getSession();
+              if (existing?.user) {
+                window.clearTimeout(oauthTimeout);
+                await applySession(existing);
+                return;
+              }
+              await new Promise(resolve => window.setTimeout(resolve, 200));
             }
 
             const { data, error } = await supabase.auth.exchangeCodeForSession(code);
             window.clearTimeout(oauthTimeout);
             if (error) {
+              // Code may already be consumed by detectSessionInUrl — try session once more.
+              const { data: { session: raced } } = await supabase.auth.getSession();
+              if (raced?.user) {
+                await applySession(raced);
+                return;
+              }
               if (mounted) {
                 setState(s => ({
                   ...s,
@@ -169,6 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } catch {
             window.clearTimeout(oauthTimeout);
+            const { data: { session: raced } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+            if (raced?.user) {
+              await applySession(raced);
+              return;
+            }
             if (mounted) {
               setState(s => ({
                 ...s,
@@ -198,7 +229,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      if (event === 'INITIAL_SESSION') return;
+      // INITIAL_SESSION is handled by initAuth; ignore only when it adds nothing new.
+      if (event === 'INITIAL_SESSION') {
+        if (session?.user) void applySession(session);
+        return;
+      }
       if (event === 'SIGNED_OUT' || !session) {
         void applySession(null);
         return;
@@ -217,13 +252,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const { session } = await signIn(email, password);
-      const appUser = session?.user ? await fetchUserProfile(session.user.id) : null;
+      // Do not await a hanging profile RPC after signIn (browser auth lock).
+      const appUser = session?.user ? await fetchProfileWithTimeout(session.user.id) : null;
       setState({
         user: session?.user || null,
         appUser,
         isLoading: false,
-        isAuthenticated: true,
-        error: null,
+        isAuthenticated: !!session,
+        error: session && !appUser ? 'تعذر تحميل ملف الحساب. حاول تحديث الصفحة.' : null,
         session,
       });
     } catch (err) {
@@ -252,7 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const { user, session } = await signUp(email, password, displayName, accountType, phoneNumber);
-      const profile = session?.user ? await fetchUserProfile(session.user.id) : null;
+      const profile = session?.user ? await fetchProfileWithTimeout(session.user.id) : null;
       setState(s => ({
         ...s,
         user: session?.user || null,
