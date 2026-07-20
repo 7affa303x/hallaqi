@@ -17,6 +17,7 @@ import {
   Scissors, Clock, TrendingUp, Award, Zap, Crown as CrownIcon,
   ArrowLeft, LogIn, UserPlus as UserPlusIcon, Gift,
   Store, Building2, Stethoscope, CalendarDays, ShoppingBag, Bookmark,
+  Pencil,
 } from 'lucide-react';
 import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
@@ -93,6 +94,7 @@ export default function ProfileTab() {
     if (screenParams?.openLegal === 'about') return 'about';
     return 'main';
   });
+  const [editSection, setEditSection] = useState<'photos' | 'personal' | 'business' | 'portfolio' | 'calendar' | undefined>();
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [loyaltySummary, setLoyaltySummary] = useState<{ points: number; tier: string }>({ points: 0, tier: 'bronze' });
@@ -180,7 +182,7 @@ export default function ProfileTab() {
   if (subPage === 'security') return <SecuritySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'saves') return <SavedItemsPage onBack={() => setSubPage('main')} />;
   if (subPage === 'account-type') return <AccountTypeSwitcher onBack={() => setSubPage('main')} currentRole={userRole} />;
-  if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
+  if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} initialSection={editSection} />;
   if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
 
   const storedStats = (appUser as unknown as { stats?: UserStats })?.stats;
@@ -198,7 +200,23 @@ export default function ProfileTab() {
   const openOnboardingStep = (stepId: OnboardingStepId) => {
     if (stepId === 'services') setSubPage('services');
     else if (stepId === 'verification') setSubPage('id-verification');
-    else setSubPage('edit-profile');
+    else if (stepId === 'portfolio') {
+      setEditSection('portfolio');
+      setSubPage('edit-profile');
+    } else if (stepId === 'cover') {
+      setEditSection('photos');
+      setSubPage('edit-profile');
+    } else if (stepId === 'info') {
+      setEditSection('business');
+      setSubPage('edit-profile');
+    } else {
+      setEditSection('personal');
+      setSubPage('edit-profile');
+    }
+  };
+
+  const scrollToSettings = () => {
+    document.getElementById('profile-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -227,7 +245,22 @@ export default function ProfileTab() {
               )}
             </button>
             <button onClick={handleLogout} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10" title="تسجيل الخروج"><LogOut size={16} className="text-white" /></button>
-            <button onClick={() => setSubPage('edit-profile')} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><Settings size={16} className="text-white" /></button>
+            <button
+              type="button"
+              onClick={scrollToSettings}
+              aria-label="الإعدادات"
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+            >
+              <Settings size={16} className="text-white" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditSection('photos'); setSubPage('edit-profile'); }}
+              aria-label="تعديل البروفايل"
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+            >
+              <Pencil size={16} className="text-white" />
+            </button>
           </div>
         </div>
 
@@ -480,11 +513,11 @@ export default function ProfileTab() {
             <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
           </button>
         )}
-        {settingsSections.map(section => {
+        {settingsSections.map((section, sectionIndex) => {
           const visibleItems = section.items.filter(item => isSettingsItemVisible(item.id, userRole));
           if (visibleItems.length === 0) return null;
           return (
-          <div key={section.title}>
+          <div key={section.title} id={sectionIndex === 0 ? 'profile-settings' : undefined}>
             <h3 className="text-xs font-bold mb-2 px-1" style={{ color: themeConfig.colors.textMuted }}>{section.title}</h3>
             <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
               {visibleItems.map((item, index) => {
@@ -546,13 +579,18 @@ export default function ProfileTab() {
                   }
                   if (item.id === 'reportBug') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Bug%20Report'; return; }
                   if (item.id === 'featureRequest') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Feature%20Request'; return; }
+                  if (item.id === 'editProfile') {
+                    setEditSection('photos');
+                    setSubPage('edit-profile');
+                    return;
+                  }
                   const pageMap: Record<string, ProfileSubPage> = {
                     theme: 'theme', animation: 'animation', language: 'language', country: 'country', currency: 'currency', fontSize: 'accessibility',
                     pushNotifications: 'notifications', emailNotifications: 'notifications', smsNotifications: 'notifications',
                     bookingReminders: 'notifications', promotions: 'notifications', forumReplies: 'notifications',
                     competitionUpdates: 'notifications', newFollowers: 'notifications',
                     profileVisible: 'privacy', showLocation: 'privacy', showBookings: 'privacy', allowMessages: 'privacy', blockList: 'privacy',
-                    editProfile: 'edit-profile', paymentMethods: 'payment',
+                    paymentMethods: 'payment',
                     idVerification: 'id-verification', linkedAccounts: 'linked-accounts', helpCenter: 'help', aboutApp: 'about',
                     services: 'services', privacyPolicy: 'privacy-policy', termsOfService: 'terms', licenses: 'licenses',
                   };

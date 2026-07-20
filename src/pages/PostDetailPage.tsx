@@ -10,6 +10,8 @@ import {
   ArrowLeft, Heart, MessageSquare, Eye, Share2,
   Bookmark, BadgeCheck, Send, ThumbsUp, Flag
 } from 'lucide-react';
+import { findBlockedContent } from '@/lib/contentFilter';
+import { canCreateForumComment, recordForumComment } from '@/lib/forumRateLimit';
 
 const roleLabels: Record<string, string> = { admin: 'إدارة', expert: 'خبير', barber: 'حلاق', user: 'مستخدم' };
 const roleColors: Record<string, string> = { admin: '#EF4444', expert: '#8B5CF6', barber: '#3B82F6', user: '#6B7280' };
@@ -56,6 +58,16 @@ export default function PostDetailPage() {
       navigate('login', { redirectScreen: 'post-detail', postId: post?.id });
       return;
     }
+    const rate = canCreateForumComment(appUser.id);
+    if (!rate.ok) {
+      setError(rate.message || 'حد الردود اليومي');
+      return;
+    }
+    const blocked = findBlockedContent(commentText);
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     setIsSending(true);
     setError('');
     try {
@@ -65,6 +77,7 @@ export default function PostDetailPage() {
         content: commentText.trim(),
         parent_id: replyTo,
       });
+      recordForumComment(appUser.id);
       setCommentText('');
       setReplyTo(null);
       await loadComments();

@@ -132,11 +132,19 @@ export default function ForumTab() {
                 <Plus size={16} />
               </button>
             )}
-            <button onClick={() => { setSortMode('trending'); setShowSort(false); }} aria-label="المنشورات الرائجة" className="w-9 h-9 rounded-xl flex items-center justify-center border" style={{ backgroundColor: sortMode === 'trending' ? themeConfig.colors.primary + '15' : themeConfig.colors.surface, borderColor: sortMode === 'trending' ? themeConfig.colors.primary : themeConfig.colors.border, color: sortMode === 'trending' ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>
-              <TrendingUp size={16} />
-            </button>
-            <button onClick={() => setShowSort(value => !value)} aria-label="ترتيب المنشورات" className="w-9 h-9 rounded-xl flex items-center justify-center border" style={{ backgroundColor: showSort ? themeConfig.colors.primary + '15' : themeConfig.colors.surface, borderColor: showSort ? themeConfig.colors.primary : themeConfig.colors.border, color: showSort ? themeConfig.colors.primary : themeConfig.colors.textMuted }}>
-              <Filter size={16} />
+            <button
+              onClick={() => setShowSort(value => !value)}
+              aria-label="ترتيب المنشورات"
+              aria-expanded={showSort}
+              className="h-9 px-2.5 rounded-xl flex items-center gap-1.5 border text-[11px] font-bold"
+              style={{
+                backgroundColor: showSort || sortMode !== 'newest' ? themeConfig.colors.primary + '15' : themeConfig.colors.surface,
+                borderColor: showSort || sortMode !== 'newest' ? themeConfig.colors.primary : themeConfig.colors.border,
+                color: showSort || sortMode !== 'newest' ? themeConfig.colors.primary : themeConfig.colors.textMuted,
+              }}
+            >
+              {sortMode === 'trending' ? <TrendingUp size={14} /> : <Filter size={14} />}
+              {sortMode === 'newest' ? 'ترتيب' : sortMode === 'trending' ? 'رائج' : sortMode === 'liked' ? 'إعجاب' : 'نقاش'}
             </button>
           </div>
         </div>

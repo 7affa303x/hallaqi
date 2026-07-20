@@ -1037,8 +1037,8 @@ function MarketplaceAdminPanel() {
 
 const DEFAULT_SECTIONS_SAFE: MarketplaceSectionConfig = {
   showProductOfTheDay: true,
-  showFeaturedStrip: true,
-  showBanners: true,
+  showFeaturedStrip: false,
+  showBanners: false,
   showBarberExtras: false,
   showCompanies: true,
   showDoctors: true,

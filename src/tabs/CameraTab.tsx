@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '@/contexts/useApp';
+import { useAuth } from '@/hooks/useAuth';
 import { motion } from 'framer-motion';
 import {
   Camera, QrCode, Scan, X, Flashlight, FlipHorizontal,
@@ -13,14 +14,20 @@ type CameraMode = 'scanner' | 'generator' | 'camera';
 interface CameraTabProps {
   /** When false, camera/scanner streams are released immediately. */
   isActive?: boolean;
+  /** Open directly in camera / scanner / generator (from AI hub tools). */
+  initialMode?: CameraMode;
+  /** Fit under a parent header without forcing a full-screen scroll. */
+  compact?: boolean;
 }
 
-export default function CameraTab({ isActive = true }: CameraTabProps) {
+export default function CameraTab({ isActive = true, initialMode = 'scanner', compact = false }: CameraTabProps) {
   const { themeConfig, navigate, barbers } = useApp();
-  const [mode, setMode] = useState<CameraMode>('generator');
+  const { appUser } = useAuth();
+  const [mode, setMode] = useState<CameraMode>(initialMode);
   const [scannedResult, setScannedResult] = useState('');
   const [scannedBarberId, setScannedBarberId] = useState('');
-  const [selectedBarberId, setSelectedBarberId] = useState(barbers[0]?.id || '');
+  const ownBarber = barbers.find(b => b.id === appUser?.id);
+  const [selectedBarberId, setSelectedBarberId] = useState(ownBarber?.id || '');
   const [flashOn, setFlashOn] = useState(false);
   const [frontCamera, setFrontCamera] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,14 +38,18 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
   /** User must explicitly tap to start — never auto-start on mount. */
   const [userRequested, setUserRequested] = useState(false);
 
-  const selectedBarber = barbers.find(b => b.id === selectedBarberId);
+  const selectedBarber = ownBarber || barbers.find(b => b.id === selectedBarberId);
   const canonicalBarberUrl = selectedBarber
     ? `https://www.hallaqi.app/barber/${selectedBarber.id}`
     : '';
 
   useEffect(() => {
-    if (!selectedBarberId && barbers[0]) setSelectedBarberId(barbers[0].id);
-  }, [barbers, selectedBarberId]);
+    setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (ownBarber?.id) setSelectedBarberId(ownBarber.id);
+  }, [ownBarber?.id]);
 
   const releaseCamera = useCallback(() => {
     scannerControlsRef.current?.stop();
@@ -237,9 +248,13 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
     }
   };
 
+  const shellClass = compact
+    ? 'h-[calc(100dvh-3.75rem)] max-h-[calc(100dvh-3.75rem)] flex flex-col overflow-hidden'
+    : 'h-[100dvh] flex flex-col overflow-hidden';
+
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#000' }}>
-      <div className="relative flex-1 bg-black overflow-hidden">
+    <div className={shellClass} style={{ backgroundColor: '#000' }}>
+      <div className="relative flex-1 min-h-0 bg-black overflow-hidden">
         {(mode === 'scanner' || mode === 'camera') && (
           <video
             ref={videoRef}
@@ -251,64 +266,61 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
         )}
 
         {mode === 'generator' && selectedBarber && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6"
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-4 py-3"
             style={{ backgroundColor: themeConfig.colors.background }}
           >
-            <div className="flex items-center gap-2 mb-6">
-              <img src="/logo-symbol.png" alt="Hallaqi" className="w-8 h-8" />
-              <span className="text-lg font-bold" style={{ color: themeConfig.colors.primary }}>HALLAQI</span>
+            <div className="flex items-center gap-2 mb-3">
+              <img src="/logo-symbol.png" alt="Hallaqi" className="w-7 h-7" />
+              <span className="text-base font-bold" style={{ color: themeConfig.colors.primary }}>HALLAQI</span>
             </div>
 
-            <div className="relative p-4 rounded-3xl bg-white shadow-xl">
+            <div className="relative p-3 rounded-2xl bg-white shadow-xl">
               <QRCodeSVG
                 id="hallaqi-profile-qr"
                 value={qrData}
-                size={220}
+                size={compact ? 168 : 200}
                 bgColor="#FFFFFF"
                 fgColor={themeConfig.colors.primary}
                 level="H"
                 imageSettings={{
                   src: '/logo-symbol.png',
-                  height: 40,
-                  width: 40,
+                  height: 32,
+                  width: 32,
                   excavate: true,
                 }}
               />
-              <div className="absolute inset-0 rounded-3xl border-2 pointer-events-none"
-                style={{ borderColor: themeConfig.colors.primary + '20' }}
-              />
             </div>
 
-            <h3 className="text-lg font-bold mt-4" style={{ color: themeConfig.colors.text }}>
+            <h3 className="text-sm font-bold mt-3" style={{ color: themeConfig.colors.text }}>
               {selectedBarber.name}
             </h3>
-            <p className="text-xs mt-1" style={{ color: themeConfig.colors.textMuted }}>
-              امسح QR Code لزيارة البروفايل
+            <p className="text-[11px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>
+              QR بروفايلك فقط — امسحه لزيارة الصفحة
             </p>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 mt-3">
               <button
                 onClick={() => copyToClipboard(canonicalBarberUrl)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
                 style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}
               >
-                <Copy size={16} />
+                <Copy size={14} />
                 نسخ
               </button>
               <button
                 onClick={() => void shareQr()}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
                 style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}
               >
-                <Share2 size={16} />
+                <Share2 size={14} />
                 مشاركة
               </button>
               <button
                 onClick={downloadQr}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
                 style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.primary }}
               >
-                <Download size={16} />
+                <Download size={14} />
                 حفظ
               </button>
             </div>
@@ -319,8 +331,8 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6"
             style={{ backgroundColor: themeConfig.colors.background }}
           >
-            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>لا يوجد حلاق لإنشاء QR</p>
-            <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>استخدم مسح QR أو الكاميرا من الأزرار أدناه</p>
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>إنشاء QR متاح لحساب الحلاق فقط</p>
+            <p className="text-xs mt-2 text-center" style={{ color: themeConfig.colors.textMuted }}>سجّل كحلاق أو استخدم مسح QR / الكاميرا من الأزرار أدناه</p>
           </div>
         )}
 
@@ -387,23 +399,23 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
         )}
       </div>
 
-      <div className="flex-shrink-0 pb-8 pt-4 px-4" style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)' }}>
-        <div className="flex items-center justify-center gap-2 mb-6">
+      <div className="flex-shrink-0 pb-4 pt-3 px-4" style={{ backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(20px)' }}>
+        <div className="flex items-center justify-center gap-1 mb-3">
           {[
-            { key: 'scanner' as CameraMode, icon: Scan, label: 'مسح QR' },
+            { key: 'scanner' as CameraMode, icon: Scan, label: 'مسح' },
             { key: 'camera' as CameraMode, icon: Camera, label: 'كاميرا' },
-            { key: 'generator' as CameraMode, icon: QrCode, label: 'إنشاء QR' },
+            { key: 'generator' as CameraMode, icon: QrCode, label: 'إنشاء' },
           ].map(m => (
             <motion.button
               key={m.key}
               whileTap={{ scale: 0.92 }}
               onClick={() => switchMode(m.key)}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all relative"
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all"
               style={{
                 backgroundColor: mode === m.key ? 'rgba(255,255,255,0.15)' : 'transparent',
               }}
             >
-              <m.icon size={20} style={{ color: mode === m.key ? '#F59E0B' : 'rgba(255,255,255,0.5)' }} />
+              <m.icon size={18} style={{ color: mode === m.key ? '#F59E0B' : 'rgba(255,255,255,0.5)' }} />
               <span className="text-[10px] font-medium" style={{ color: mode === m.key ? '#F59E0B' : 'rgba(255,255,255,0.5)' }}>
                 {m.label}
               </span>
@@ -411,69 +423,46 @@ export default function CameraTab({ isActive = true }: CameraTabProps) {
           ))}
         </div>
 
-        {mode !== 'generator' && <div className="flex items-center justify-center gap-8">
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => void toggleFlash()}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: flashOn ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)' }}
-          >
-            <Flashlight size={22} style={{ color: flashOn ? '#F59E0B' : '#fff' }} />
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={mode === 'camera'
-              ? capturePhoto
-              : () => { setUserRequested(true); void startScanner(); }}
-            className="w-18 h-18 rounded-full flex items-center justify-center p-1"
-            style={{
-              border: mode === 'scanner' ? '3px solid #F59E0B' : '3px solid #fff',
-            }}
-          >
-            <div className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: mode === 'scanner' ? '#F59E0B' : '#fff' }}
+        {mode !== 'generator' && (
+          <div className="flex items-center justify-center gap-8">
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => void toggleFlash()}
+              className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: flashOn ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)' }}
             >
-              {mode === 'scanner' ? (
-                <Scan size={24} className="text-black" />
-              ) : (
-                <Aperture size={24} className="text-black" />
-              )}
-            </div>
-          </motion.button>
+              <Flashlight size={20} style={{ color: flashOn ? '#F59E0B' : '#fff' }} />
+            </motion.button>
 
-          <motion.button
-            whileTap={{ scale: 0.85 }}
-            onClick={() => {
-              setFrontCamera(prev => !prev);
-              if (userRequested && (mode === 'scanner' || mode === 'camera')) {
-                // effect will restart with new facingMode when frontCamera changes
-              }
-            }}
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-          >
-            <FlipHorizontal size={22} className="text-white" />
-          </motion.button>
-        </div>}
-
-        {mode === 'generator' && (
-          <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide px-2">
-            {barbers.map(barber => (
-              <motion.button
-                key={barber.id}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedBarberId(barber.id)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl border flex-shrink-0 transition-all"
-                style={{
-                  backgroundColor: selectedBarberId === barber.id ? themeConfig.colors.primary + '15' : themeConfig.colors.surface,
-                  borderColor: selectedBarberId === barber.id ? themeConfig.colors.primary : themeConfig.colors.border,
-                }}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={mode === 'camera'
+                ? capturePhoto
+                : () => { setUserRequested(true); void startScanner(); }}
+              className="rounded-full flex items-center justify-center p-1"
+              style={{
+                border: mode === 'scanner' ? '3px solid #F59E0B' : '3px solid #fff',
+              }}
+            >
+              <div className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: mode === 'scanner' ? '#F59E0B' : '#fff' }}
               >
-                <img src={barber.avatar} alt={barber.name} className="w-8 h-8 rounded-lg object-cover" />
-                <span className="text-xs font-bold whitespace-nowrap" style={{ color: themeConfig.colors.text }}>{barber.name}</span>
-              </motion.button>
-            ))}
+                {mode === 'scanner' ? (
+                  <Scan size={22} className="text-black" />
+                ) : (
+                  <Aperture size={22} className="text-black" />
+                )}
+              </div>
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => setFrontCamera(prev => !prev)}
+              className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+            >
+              <FlipHorizontal size={20} className="text-white" />
+            </motion.button>
           </div>
         )}
       </div>

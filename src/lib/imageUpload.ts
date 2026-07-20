@@ -52,6 +52,11 @@ export const UPLOAD_LIMITS = {
   forumImageMaxBytes: 2_000_000,
   idCardMaxBytes: 3_000_000,
   receiptMaxBytes: 3_000_000,
+  /** Soft launch: whole portfolio budget per professional (2–5 MB). */
+  portfolioTotalMaxBytes: 5_000_000,
+  portfolioSingleMaxBytes: 2_000_000,
+  /** Assumed size for already-uploaded remote items when summing the budget. */
+  portfolioRemoteEstimateBytes: 400_000,
 } as const;
 
 export function assertFileWithinLimit(file: File, maxBytes: number): string | null {

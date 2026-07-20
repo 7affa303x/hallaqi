@@ -13,12 +13,14 @@ import { getMarketplaceProductById } from '@/supabase/marketplace';
 import { formatDzd } from '@/lib/marketplace/filters';
 import type { MarketplaceProduct } from '@/types/marketplace';
 
+type SavedTab = 'products' | 'forum';
+
 /**
- * Device-only saved products + forum bookmarks list.
- * Server sync remains paused via FEATURE_FLAGS.serverBookmarksEnabled.
+ * Device-only saved products + forum bookmarks — top select tabs (not a multi-section landing).
  */
 export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
   const { themeConfig, navigate, setActiveTab, forumPosts } = useApp();
+  const [tab, setTab] = useState<SavedTab>('products');
   const [products, setProducts] = useState<MarketplaceProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const bookmarkIds = getForumBookmarkIds();
@@ -39,14 +41,41 @@ export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="pb-20 min-h-screen" style={{ backgroundColor: themeConfig.colors.background }}>
-      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-        <button type="button" onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center">
-          <ArrowLeft size={20} style={{ color: themeConfig.colors.text }} />
-        </button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>محفوظاتي</h2>
+      <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button type="button" onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center">
+            <ArrowLeft size={20} style={{ color: themeConfig.colors.text }} />
+          </button>
+          <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>محفوظاتي</h2>
+        </div>
+        <div className="flex gap-1 px-4 pb-3">
+          {([
+            { key: 'products' as const, label: 'منتجات', icon: ShoppingBag, count: products.length },
+            { key: 'forum' as const, label: 'منتدى', icon: MessageCircle, count: bookmarkedPosts.length },
+          ]).map(item => {
+            const Icon = item.icon;
+            const on = tab === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setTab(item.key)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold"
+                style={{
+                  backgroundColor: on ? themeConfig.colors.primary : themeConfig.colors.background,
+                  color: on ? '#fff' : themeConfig.colors.textMuted,
+                }}
+              >
+                <Icon size={14} />
+                {item.label}
+                <span className="text-[10px] opacity-80">({item.count})</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-3">
         {!FEATURE_FLAGS.serverBookmarksEnabled && (
           <PausedFeatureBanner
             title="مزامنة السحابة"
@@ -56,11 +85,8 @@ export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
           />
         )}
 
-        <section>
-          <h3 className="text-xs font-black mb-2 flex items-center gap-1.5" style={{ color: themeConfig.colors.text }}>
-            <ShoppingBag size={14} /> منتجات محفوظة
-          </h3>
-          {loading ? (
+        {tab === 'products' && (
+          loading ? (
             <p className="text-xs" style={{ color: themeConfig.colors.textMuted }}>جاري التحميل...</p>
           ) : products.length === 0 ? (
             <EmptyState
@@ -96,14 +122,11 @@ export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
                 </button>
               ))}
             </div>
-          )}
-        </section>
+          )
+        )}
 
-        <section>
-          <h3 className="text-xs font-black mb-2 flex items-center gap-1.5" style={{ color: themeConfig.colors.text }}>
-            <MessageCircle size={14} /> إشارات المنتدى
-          </h3>
-          {bookmarkedPosts.length === 0 ? (
+        {tab === 'forum' && (
+          bookmarkedPosts.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
               title="لا إشارات بعد"
@@ -128,8 +151,8 @@ export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
                 </button>
               ))}
             </div>
-          )}
-        </section>
+          )
+        )}
       </div>
     </div>
   );

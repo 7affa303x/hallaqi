@@ -4,8 +4,8 @@ const KEY = 'hallaqi-marketplace-section-config';
 
 export const DEFAULT_MARKETPLACE_SECTIONS: MarketplaceSectionConfig = {
   showProductOfTheDay: true,
-  showFeaturedStrip: true,
-  showBanners: true,
+  showFeaturedStrip: false,
+  showBanners: false,
   /** Soft-launch: hide barber extras in marketplace — booking services stay in profile. */
   showBarberExtras: false,
   showCompanies: true,

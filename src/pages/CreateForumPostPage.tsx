@@ -12,6 +12,8 @@ import type { ForumCategory as DatabaseForumCategory } from '@/types/supabase-al
 import { trackProductEvent } from '@/lib/product-analytics';
 import { assertFileWithinLimit, compressImageFile, UPLOAD_LIMITS } from '@/lib/imageUpload';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
+import { findBlockedContent } from '@/lib/contentFilter';
+import { canCreateForumPost, recordForumPost } from '@/lib/forumRateLimit';
 
 export default function CreateForumPostPage() {
   const { themeConfig, goBack, refreshData, screenParams } = useApp();
@@ -64,6 +66,16 @@ export default function CreateForumPostPage() {
       setError('يجب تسجيل الدخول للنشر');
       return;
     }
+    const rate = canCreateForumPost(appUser.id);
+    if (!rate.ok) {
+      setError(rate.message || 'حد النشر اليومي');
+      return;
+    }
+    const blocked = findBlockedContent(`${data.title}\n${data.content}`);
+    if (blocked) {
+      setError(blocked);
+      return;
+    }
     setError('');
     try {
       const imageUrl = image ? await uploadForumImage(appUser.id, image) : null;
@@ -77,6 +89,7 @@ export default function CreateForumPostPage() {
         is_pinned: false,
         is_locked: false,
       });
+      recordForumPost(appUser.id);
       if (competitionId && post?.id) {
         try {
           await linkCompetitionEntryPost(competitionId, appUser.id, post.id);
@@ -110,7 +123,7 @@ export default function CreateForumPostPage() {
             {competitionId ? 'منشور المسابقة' : 'منشور جديد'}
           </h1>
           <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
-            {competitionId ? 'ارفع عملك للمشاركة في المسابقة' : 'شارك سؤالاً أو تجربة مع المجتمع'}
+            {competitionId ? 'ارفع عملك للمشاركة في المسابقة' : 'منشور واحد يومياً · بدون ألفاظ مسيئة'}
           </p>
         </div>
       </header>

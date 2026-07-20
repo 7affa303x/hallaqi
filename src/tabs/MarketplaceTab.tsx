@@ -202,12 +202,11 @@ export default function MarketplaceTab() {
               className="h-44 bg-cover bg-center"
               style={{ backgroundImage: `linear-gradient(120deg, rgba(0,0,0,.65), rgba(0,0,0,.2)), url(${potd.imageUrls[0] || ''})` }}
             />
-            <div className="absolute inset-0 p-4 flex flex-col justify-between text-white">
+              <div className="absolute inset-0 p-4 flex flex-col justify-between text-white">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-amber-400 text-black">
                   <Sparkles size={12} /> منتج اليوم
                 </span>
-                <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-full">موضع إعلاني مدفوع</span>
               </div>
               <div>
                 <h2 className="text-xl font-black">{potd.title}</h2>
@@ -340,14 +339,13 @@ export default function MarketplaceTab() {
         </div>
       </section>
 
-      {/* Quick filter chips */}
+      {/* Quick filter chips — stores / companies / doctors (paid featured/premium hidden at soft launch) */}
       <section className="px-4 mt-3 flex gap-2 overflow-x-auto no-scrollbar">
         {[
-          { key: 'featured', label: 'مميز', on: !!filters.featuredOnly, toggle: () => setFilters(f => ({ ...f, featuredOnly: !f.featuredOnly })) },
-          { key: 'premium', label: 'بريميوم', on: !!filters.premiumOnly, toggle: () => setFilters(f => ({ ...f, premiumOnly: !f.premiumOnly })) },
-          { key: 'potd', label: 'منتج اليوم', on: !!filters.productOfTheDayOnly, toggle: () => setFilters(f => ({ ...f, productOfTheDayOnly: !f.productOfTheDayOnly })) },
-          { key: 'store', label: 'متاجر', on: filters.sellerType === 'store', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'store' ? null : 'store' })) },
-          { key: 'company', label: 'شركات', on: filters.sellerType === 'company', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'company' ? null : 'company' })) },
+          { key: 'potd', label: 'منتج اليوم', on: !!filters.productOfTheDayOnly, toggle: () => setFilters(f => ({ ...f, productOfTheDayOnly: !f.productOfTheDayOnly, sellerType: null })) },
+          { key: 'store', label: 'متاجر', on: filters.sellerType === 'store', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'store' ? null : 'store', productOfTheDayOnly: false })) },
+          { key: 'company', label: 'شركات', on: filters.sellerType === 'company', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'company' ? null : 'company', productOfTheDayOnly: false })) },
+          { key: 'doctor', label: 'أطباء', on: filters.sellerType === 'doctor', toggle: () => setFilters(f => ({ ...f, sellerType: f.sellerType === 'doctor' ? null : 'doctor', productOfTheDayOnly: false })) },
         ].map(chip => (
           <button
             key={chip.key}
@@ -470,7 +468,6 @@ export default function MarketplaceTab() {
                 <option value="popularity">الأكثر شعبية</option>
                 <option value="newest">الأحدث</option>
                 <option value="rating">التقييم</option>
-                <option value="featured">المميز أولاً</option>
                 <option value="price_asc">السعر ↑</option>
                 <option value="price_desc">السعر ↓</option>
               </select>
@@ -487,7 +484,7 @@ export default function MarketplaceTab() {
         </section>
       )}
 
-      {/* Featured strip */}
+      {/* Featured strip — hidden at soft launch (paid placement) */}
       {sections.showFeaturedStrip && featured.length > 0 && (
         <section className="mt-5 px-4">
           <h3 className="text-sm font-black mb-2 flex items-center gap-1" style={{ color: themeConfig.colors.text }}>
@@ -501,8 +498,8 @@ export default function MarketplaceTab() {
         </section>
       )}
 
-      {/* Premium strip */}
-      {premium.length > 0 && (
+      {/* Premium strip — same soft-launch gate as featured */}
+      {sections.showFeaturedStrip && premium.length > 0 && (
         <section className="mt-4 px-4">
           <h3 className="text-sm font-black mb-2 flex items-center gap-1" style={{ color: themeConfig.colors.text }}>
             <Sparkles size={14} style={{ color: themeConfig.colors.primary }} /> ظهور بريميوم
@@ -515,16 +512,19 @@ export default function MarketplaceTab() {
         </section>
       )}
 
-      {/* Featured sellers */}
+      {/* Sellers by type */}
       <section className="mt-4 px-4">
-        <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>متاجر وشركات</h3>
+        <h3 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>
+          {filters.sellerType === 'doctor' ? 'أطباء' : filters.sellerType === 'company' ? 'شركات' : filters.sellerType === 'store' ? 'متاجر' : 'متاجر وشركات وأطباء'}
+        </h3>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           {sellers
-            .filter(s =>
-              (s.sellerType === 'store')
-              || (s.sellerType === 'company' && sections.showCompanies)
-              || (s.sellerType === 'doctor' && sections.showDoctors)
-            )
+            .filter(s => {
+              if (filters.sellerType) return s.sellerType === filters.sellerType;
+              if (s.sellerType === 'company' && !sections.showCompanies) return false;
+              if (s.sellerType === 'doctor' && !sections.showDoctors) return false;
+              return s.sellerType === 'store' || s.sellerType === 'company' || s.sellerType === 'doctor';
+            })
             .slice(0, 8)
             .map(seller => (
             <button
@@ -633,12 +633,6 @@ function ProductCard({
         <div className="absolute top-1.5 right-1.5 flex flex-col gap-1">
           {product.isProductOfTheDay && (
             <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-black">اليوم</span>
-          )}
-          {product.isPremiumVisibility && (
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: themeConfig.colors.primary }}>بريميوم</span>
-          )}
-          {product.isFeatured && !product.isProductOfTheDay && (
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: themeConfig.colors.accent }}>مميز</span>
           )}
         </div>
         {pct != null && (

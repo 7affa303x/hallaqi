@@ -3,7 +3,7 @@ import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { updateProfile, updateProfessionalProfile, addPortfolioItem, deletePortfolioItem, updatePortfolioItem, getPortfolioItems, getProfessionalById } from '@/supabase/database';
 import { uploadAvatar, uploadCover, uploadPortfolioItemWithMeta, deletePortfolioFile } from '@/supabase/storage';
-import { ArrowLeft, Save, AlertCircle, CheckCircle, Plus, Trash2, Upload, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, CheckCircle, Plus, Trash2, Upload, Image as ImageIcon, Video, Loader2, User, Briefcase, Calendar, Images } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { editBarberProfileSchema } from '@/lib/validation';
@@ -11,29 +11,49 @@ import type { PortfolioItem } from '@/types/supabase-aliases';
 import type { EditBarberProfileFormData } from '@/lib/validation';
 import WorkingHoursEditor from './WorkingHoursEditor';
 import AvailabilityExceptions from './AvailabilityExceptions';
+import { UPLOAD_LIMITS } from '@/lib/imageUpload';
 
 interface EditBarberProfileProps {
   onBack: () => void;
   userRole: string;
+  /** Jump to a section (e.g. portfolio from onboarding). */
+  initialSection?: 'photos' | 'personal' | 'business' | 'portfolio' | 'calendar';
 }
 
 interface PortfolioItemWithPreview extends PortfolioItem {
   previewUrl?: string;
   file?: File;
+  fileSize?: number;
   isNew?: boolean;
   isDeleted?: boolean;
 }
 
+type EditSection = NonNullable<EditBarberProfileProps['initialSection']>;
+
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const MAX_PORTFOLIO_ITEMS = 10;
+const MAX_FILE_SIZE = UPLOAD_LIMITS.portfolioSingleMaxBytes;
+const MAX_PORTFOLIO_ITEMS = 12;
+const MAX_PORTFOLIO_TOTAL = UPLOAD_LIMITS.portfolioTotalMaxBytes;
 
-export default function EditBarberProfile({ onBack, userRole }: EditBarberProfileProps) {
+export default function EditBarberProfile({ onBack, userRole, initialSection }: EditBarberProfileProps) {
   const { themeConfig } = useApp();
   const { appUser } = useAuth();
   const isBarber = userRole === 'barber' || userRole === 'specialist';
+  const isSeller = userRole === 'store' || userRole === 'company' || userRole === 'doctor';
+
+  const sections: { key: EditSection; label: string; icon: typeof User; show: boolean }[] = [
+    { key: 'photos', label: 'الصور', icon: Images, show: true },
+    { key: 'personal', label: 'شخصي', icon: User, show: true },
+    { key: 'business', label: 'العمل', icon: Briefcase, show: isBarber || isSeller },
+    { key: 'portfolio', label: 'معرض', icon: ImageIcon, show: isBarber },
+    { key: 'calendar', label: 'الجدول', icon: Calendar, show: isBarber },
+  ].filter(s => s.show);
+
+  const [activeSection, setActiveSection] = useState<EditSection>(
+    initialSection && sections.some(s => s.key === initialSection) ? initialSection : 'photos'
+  );
 
   const {
     register,
@@ -131,10 +151,15 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       return 'نوع الملف غير مدعوم. يرجى اختيار صورة أو فيديو.';
     }
     if (file.size > MAX_FILE_SIZE) {
-      return 'حجم الملف يجب أن يكون أقل من 10 ميجابايت.';
+      return `حجم الملف يجب أن يكون أقل من ${(MAX_FILE_SIZE / (1024 * 1024)).toFixed(0)} ميجابايت.`;
     }
     return null;
   };
+
+  const estimatePortfolioBytes = (items: PortfolioItemWithPreview[]) =>
+    items
+      .filter(p => !p.isDeleted)
+      .reduce((sum, p) => sum + (p.fileSize ?? p.file?.size ?? UPLOAD_LIMITS.portfolioRemoteEstimateBytes), 0);
 
   const handlePortfolioChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -153,6 +178,13 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       }
     }
 
+    const incomingBytes = files.reduce((s, f) => s + f.size, 0);
+    const currentBytes = estimatePortfolioBytes(portfolioItems);
+    if (currentBytes + incomingBytes > MAX_PORTFOLIO_TOTAL) {
+      setServerError(`حد معرض الأعمال ${(MAX_PORTFOLIO_TOTAL / (1024 * 1024)).toFixed(0)} ميجا إجمالاً. احذف عناصر أو اختر صوراً أصغر.`);
+      return;
+    }
+
     const newItems: PortfolioItemWithPreview[] = files.map(file => ({
       id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       professional_id: appUser?.id || '',
@@ -164,6 +196,7 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       thumbnail_url: null,
       previewUrl: URL.createObjectURL(file),
       file,
+      fileSize: file.size,
       isNew: true,
     }));
 
@@ -288,6 +321,10 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
     }
   };
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' as ScrollBehavior : 'auto' });
+  }, [activeSection]);
+
   if (isFetching) {
     return (
       <div className="pb-20 min-h-screen flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
@@ -297,6 +334,7 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
   }
 
   const activeItems = portfolioItems.filter(p => !p.isDeleted);
+  const portfolioBytes = estimatePortfolioBytes(portfolioItems);
   const isUploading = Object.values(uploadProgress).some(v => v === true);
 
   const getFieldStyle = (fieldName: keyof EditBarberProfileFormData) => {
@@ -310,9 +348,33 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
 
   return (
     <div className="pb-20 min-h-screen overflow-x-hidden max-w-full" style={{ backgroundColor: themeConfig.colors.background }}>
-      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold truncate" style={{ color: themeConfig.colors.text }}>تعديل البروفايل</h2>
+      <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border, backdropFilter: 'blur(12px)' }}>
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button type="button" onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+          <h2 className="text-base font-bold truncate" style={{ color: themeConfig.colors.text }}>تعديل البروفايل</h2>
+        </div>
+        <div className="flex gap-1 px-3 pb-3 overflow-x-auto no-scrollbar">
+          {sections.map(sec => {
+            const Icon = sec.icon;
+            const on = activeSection === sec.key;
+            return (
+              <button
+                key={sec.key}
+                type="button"
+                onClick={() => setActiveSection(sec.key)}
+                className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-xl text-[11px] font-bold"
+                style={{
+                  backgroundColor: on ? themeConfig.colors.primary : themeConfig.colors.surface,
+                  color: on ? '#fff' : themeConfig.colors.textMuted,
+                  border: `1px solid ${on ? themeConfig.colors.primary : themeConfig.colors.border}`,
+                }}
+              >
+                <Icon size={13} />
+                {sec.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <form onSubmit={handleFormSubmit(onSubmit)} className="px-4 mt-4 space-y-4 max-w-full overflow-x-hidden">
@@ -331,222 +393,174 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
           </div>
         )}
 
-        {/* Avatar */}
-        <div>
-          <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>صورة الملف الشخصي</h3>
-          <div className="rounded-2xl border p-4 flex flex-col items-center justify-center space-y-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            {avatarPreviewUrl ? (
-              <div className="relative w-24 h-24 rounded-full overflow-hidden">
-                <img src={avatarPreviewUrl} alt="Avatar" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => { setAvatarFile(null); setAvatarPreviewUrl(null); }} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"><Trash2 size={16} /></button>
-              </div>
-            ) : (
-              <div className="w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}><Upload size={32} /></div>
-            )}
-            <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleAvatarChange(e)} className="hidden" />
-            <label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>{avatarFile ? 'تغيير الصورة' : 'رفع صورة'}</label>
-          </div>
-        </div>
-
-        {isBarber && (
-          <div>
-            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>صورة الغلاف</h3>
-            <div className="rounded-2xl border p-3 space-y-3 overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <div className="relative w-full h-32 rounded-xl overflow-hidden" style={{ backgroundColor: themeConfig.colors.background }}>
-                {coverPreviewUrl ? (
-                  <img src={coverPreviewUrl} alt="غلاف" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center" style={{ color: themeConfig.colors.textMuted }}>
-                    <ImageIcon size={28} />
-                  </div>
-                )}
-              </div>
-              <input type="file" id="cover-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleCoverChange(e)} className="hidden" />
-              <label htmlFor="cover-upload" className="cursor-pointer inline-flex px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>
-                {coverFile ? 'تغيير الغلاف' : 'رفع غلاف'}
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Basic Info */}
-        <div>
-          <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>المعلومات الأساسية</h3>
-          <div className="space-y-3 rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>الاسم الكامل *</label>
-              <input
-                type="text"
-                {...register('full_name')}
-                placeholder="أدخل اسمك"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('full_name')}
-              />
-              {formErrors.full_name && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.full_name.message}</p>}
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>النبذة الشخصية</label>
-              <textarea
-                {...register('bio')}
-                placeholder="أخبرنا عن نفسك"
-                rows={3}
-                className="w-full px-3 py-2.5 rounded-lg text-sm border resize-none"
-                style={getFieldStyle('bio')}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>رقم الهاتف</label>
-              <input
-                type="tel"
-                {...register('phone_number')}
-                placeholder="+213 XXX XXX XXX"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('phone_number')}
-              />
-            </div>
-          </div>
-        </div>
-
-        {isBarber && (
+        {activeSection === 'photos' && (
           <>
-        {/* Business Info */}
-        <div>
-          <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>معلومات العمل</h3>
-          <div className="space-y-3 rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
             <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>اسم الصالون</label>
-              <input
-                type="text"
-                {...register('business_name')}
-                placeholder="اسم الصالون"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('business_name')}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>عنوان العمل</label>
-              <input
-                type="text"
-                {...register('business_address')}
-                placeholder="عنوان الصالون"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('business_address')}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>هاتف العمل</label>
-              <input
-                type="tel"
-                {...register('business_phone')}
-                placeholder="هاتف الصالون"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('business_phone')}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>بريد العمل</label>
-              <input
-                type="email"
-                {...register('business_email')}
-                placeholder="email@salon.com"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('business_email')}
-              />
-              {formErrors.business_email && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.business_email.message}</p>}
-            </div>
-            <div>
-              <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>الموقع الإلكتروني</label>
-              <input
-                type="text"
-                {...register('website_url')}
-                placeholder="https://"
-                className="w-full px-3 py-2.5 rounded-lg text-sm border"
-                style={getFieldStyle('website_url')}
-              />
-              {formErrors.website_url && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.website_url.message}</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* Portfolio */}
-        <div>
-          <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>معرض الأعمال ({activeItems.length}/{MAX_PORTFOLIO_ITEMS})</h3>
-          <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <div className="grid grid-cols-3 gap-3">
-              {activeItems.map((item, index) => (
-                <div key={item.id} className="relative w-full aspect-square rounded-lg overflow-hidden group">
-                  {item.type === 'video' && item.previewUrl ? (
-                    <video src={item.previewUrl} className="w-full h-full object-cover" controls={false} muted />
-                  ) : item.previewUrl ? (
-                    <img src={item.previewUrl} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
-                  ) : item.url ? (
-                    item.type === 'video' ? (
-                      <video src={item.url} className="w-full h-full object-cover" controls={false} muted />
-                    ) : (
-                      <img src={item.url} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
-                    )
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.border }}>
-                      {item.type === 'video' ? <Video size={24} style={{ color: themeConfig.colors.textMuted }} /> : <ImageIcon size={24} style={{ color: themeConfig.colors.textMuted }} />}
-                    </div>
-                  )}
-                  <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold"
-                    style={{ backgroundColor: item.type === 'video' ? '#8B5CF6' : themeConfig.colors.primary, color: '#fff' }}>
-                    {item.type === 'video' ? 'فيديو' : 'صورة'}
+              <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>صورة الملف الشخصي</h3>
+              <div className="rounded-2xl border p-4 flex flex-col items-center justify-center space-y-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+                {avatarPreviewUrl ? (
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden">
+                    <img src={avatarPreviewUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => { setAvatarFile(null); setAvatarPreviewUrl(null); }} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"><Trash2 size={16} /></button>
                   </div>
-                  <button type="button" onClick={() => removePortfolioItem(portfolioItems.findIndex(p => p.id === item.id))}
-                    className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 size={24} color="white" />
-                  </button>
-                  {uploadProgress[item.id] && (
-                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-                      <Loader2 size={20} className="animate-spin text-white" />
-                    </div>
-                  )}
+                ) : (
+                  <div className="w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}><Upload size={32} /></div>
+                )}
+                <input type="file" id="avatar-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleAvatarChange(e)} className="hidden" />
+                <label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>{avatarFile ? 'تغيير الصورة' : 'رفع صورة'}</label>
+              </div>
+            </div>
+
+            {isBarber && (
+              <div>
+                <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>صورة الغلاف</h3>
+                <div className="rounded-2xl border p-3 space-y-3 overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+                  <div className="relative w-full h-32 rounded-xl overflow-hidden" style={{ backgroundColor: themeConfig.colors.background }}>
+                    {coverPreviewUrl ? (
+                      <img src={coverPreviewUrl} alt="غلاف" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ color: themeConfig.colors.textMuted }}>
+                        <ImageIcon size={28} />
+                      </div>
+                    )}
+                  </div>
+                  <input type="file" id="cover-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleCoverChange(e)} className="hidden" />
+                  <label htmlFor="cover-upload" className="cursor-pointer inline-flex px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>
+                    {coverFile ? 'تغيير الغلاف' : 'رفع غلاف'}
+                  </label>
                 </div>
-              ))}
-
-              {!isUploading && activeItems.length < MAX_PORTFOLIO_ITEMS && (
-                <label htmlFor="portfolio-upload" className="flex flex-col items-center justify-center w-full aspect-square rounded-lg border-2 border-dashed cursor-pointer"
-                  style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>
-                  <Plus size={24} /><span className="text-xs mt-1">أضف صورة/فيديو</span>
-                  <input type="file" id="portfolio-upload" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple onChange={handlePortfolioChange} className="hidden" />
-                </label>
-              )}
-            </div>
-            <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
-              يدعم الصور (JPG, PNG, WebP) والفيديو (MP4, WebM) - الحد الأقصى 10 ميجابايت لكل ملف
-            </p>
-          </div>
-        </div>
-
-        {/* Working Hours */}
-        {appUser?.id && (
-          <div>
-            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>ساعات العمل</h3>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <WorkingHoursEditor barberId={appUser.id} />
-            </div>
-          </div>
-        )}
-
-        {/* Availability Exceptions */}
-        {appUser?.id && (
-          <div>
-            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>أيام الإغلاق</h3>
-            <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <AvailabilityExceptions barberId={appUser.id} />
-            </div>
-          </div>
-        )}
+              </div>
+            )}
           </>
         )}
 
-        {/* Submit */}
-        <div className="flex gap-2 pt-4">
+        {activeSection === 'personal' && (
+          <div>
+            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>المعلومات الأساسية</h3>
+            <div className="space-y-3 rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>الاسم الكامل *</label>
+                <input type="text" {...register('full_name')} placeholder="أدخل اسمك" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('full_name')} />
+                {formErrors.full_name && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.full_name.message}</p>}
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>النبذة الشخصية</label>
+                <textarea {...register('bio')} placeholder="أخبرنا عن نفسك" rows={3} className="w-full px-3 py-2.5 rounded-lg text-sm border resize-none" style={getFieldStyle('bio')} />
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>رقم الهاتف</label>
+                <input type="tel" {...register('phone_number')} placeholder="+213 XXX XXX XXX" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('phone_number')} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSection === 'business' && (isBarber || isSeller) && (
+          <div>
+            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>معلومات العمل</h3>
+            <div className="space-y-3 rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>{isBarber ? 'اسم الصالون' : 'اسم النشاط'}</label>
+                <input type="text" {...register('business_name')} placeholder={isBarber ? 'اسم الصالون' : 'اسم المتجر / العيادة'} className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('business_name')} />
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>عنوان العمل</label>
+                <input type="text" {...register('business_address')} placeholder="العنوان" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('business_address')} />
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>هاتف العمل</label>
+                <input type="tel" {...register('business_phone')} placeholder="هاتف العمل" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('business_phone')} />
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>بريد العمل</label>
+                <input type="email" {...register('business_email')} placeholder="email@example.com" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('business_email')} />
+                {formErrors.business_email && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.business_email.message}</p>}
+              </div>
+              <div>
+                <label className="text-xs font-bold mb-1.5 block" style={{ color: themeConfig.colors.text }}>الموقع الإلكتروني</label>
+                <input type="text" {...register('website_url')} placeholder="https://" className="w-full px-3 py-2.5 rounded-lg text-sm border" style={getFieldStyle('website_url')} />
+                {formErrors.website_url && <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.error }}>{formErrors.website_url.message}</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSection === 'portfolio' && isBarber && (
+          <div>
+            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>
+              معرض الأعمال ({activeItems.length}/{MAX_PORTFOLIO_ITEMS}) · {(portfolioBytes / (1024 * 1024)).toFixed(1)}/{(MAX_PORTFOLIO_TOTAL / (1024 * 1024)).toFixed(0)} ميجا
+            </h3>
+            <div className="rounded-2xl border p-4 space-y-3" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="grid grid-cols-3 gap-3">
+                {activeItems.map((item, index) => (
+                  <div key={item.id} className="relative w-full aspect-square rounded-lg overflow-hidden group">
+                    {item.type === 'video' && item.previewUrl ? (
+                      <video src={item.previewUrl} className="w-full h-full object-cover" controls={false} muted />
+                    ) : item.previewUrl ? (
+                      <img src={item.previewUrl} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
+                    ) : item.url ? (
+                      item.type === 'video' ? (
+                        <video src={item.url} className="w-full h-full object-cover" controls={false} muted />
+                      ) : (
+                        <img src={item.url} alt={`Portfolio ${index + 1}`} className="w-full h-full object-cover" />
+                      )
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.border }}>
+                        {item.type === 'video' ? <Video size={24} style={{ color: themeConfig.colors.textMuted }} /> : <ImageIcon size={24} style={{ color: themeConfig.colors.textMuted }} />}
+                      </div>
+                    )}
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[8px] font-bold"
+                      style={{ backgroundColor: item.type === 'video' ? '#8B5CF6' : themeConfig.colors.primary, color: '#fff' }}>
+                      {item.type === 'video' ? 'فيديو' : 'صورة'}
+                    </div>
+                    <button type="button" onClick={() => removePortfolioItem(portfolioItems.findIndex(p => p.id === item.id))}
+                      className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 size={24} color="white" />
+                    </button>
+                    {uploadProgress[item.id] && (
+                      <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                        <Loader2 size={20} className="animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {!isUploading && activeItems.length < MAX_PORTFOLIO_ITEMS && portfolioBytes < MAX_PORTFOLIO_TOTAL && (
+                  <label htmlFor="portfolio-upload" className="flex flex-col items-center justify-center w-full aspect-square rounded-lg border-2 border-dashed cursor-pointer"
+                    style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}>
+                    <Plus size={24} /><span className="text-xs mt-1">أضف</span>
+                    <input type="file" id="portfolio-upload" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple onChange={e => void handlePortfolioChange(e)} className="hidden" />
+                  </label>
+                )}
+              </div>
+              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
+                الميزانية الإجمالية للمعرض {(MAX_PORTFOLIO_TOTAL / (1024 * 1024)).toFixed(0)} ميجا — حد الملف {(MAX_FILE_SIZE / (1024 * 1024)).toFixed(0)} ميجا
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeSection === 'calendar' && isBarber && appUser?.id && (
+          <>
+            <div>
+              <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>ساعات العمل</h3>
+              <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+                <WorkingHoursEditor barberId={appUser.id} />
+              </div>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>أيام الإغلاق</h3>
+              <div className="rounded-2xl border p-4" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+                <AvailabilityExceptions barberId={appUser.id} />
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 pt-2">
           <button type="button" onClick={onBack} className="flex-1 h-12 rounded-xl text-sm font-bold border transition-all" style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}>إلغاء</button>
           <button type="submit" disabled={isSubmitting || isUploading} className="flex-1 h-12 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.primary }}>
-            {isSubmitting ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />جاري الحفظ...</> : isUploading ? <><Loader2 size={16} className="animate-spin" />جاري الرفع...</> : <><Save size={16} />حفظ التغييرات</>}
+            {isSubmitting ? <><div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />جاري الحفظ...</> : isUploading ? <><Loader2 size={16} className="animate-spin" />جاري الرفع...</> : <><Save size={16} />حفظ</>}
           </button>
         </div>
       </form>

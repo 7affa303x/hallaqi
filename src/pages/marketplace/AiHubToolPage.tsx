@@ -34,7 +34,7 @@ export default function AiHubToolPage() {
 
   if (tool === 'qr' || tool === 'camera') {
     return (
-      <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: themeConfig.colors.background }}>
+      <div className="h-[100dvh] overflow-hidden" style={{ backgroundColor: themeConfig.colors.background }}>
         <div className="flex items-center gap-3 px-4 pt-4 pb-2">
           <button type="button" onClick={goBack} className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: themeConfig.colors.surface }} aria-label="رجوع">
             <ArrowLeft size={18} />
@@ -50,7 +50,11 @@ export default function AiHubToolPage() {
           </button>
         </div>
         <Suspense fallback={<p className="text-center py-10" style={{ color: themeConfig.colors.textMuted }}>جاري التحميل...</p>}>
-          <CameraTab isActive />
+          <CameraTab
+            isActive
+            initialMode={tool === 'camera' ? 'camera' : 'scanner'}
+            compact
+          />
         </Suspense>
       </div>
     );

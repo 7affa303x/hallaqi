@@ -27,6 +27,7 @@ import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { reportClientError } from '@/lib/error-reporting';
 import { useI18n } from '@/hooks/useI18n';
+import { barberOffersMobile, findMobileAddonService } from '@/lib/mobileAddon';
 
 type PreferredPeriod = 'morning' | 'afternoon' | 'evening' | 'any';
 
@@ -242,8 +243,15 @@ export default function BookingFlowPage() {
   };
 
   const selectedServicesData = barber.services.filter((s: Service) => selectedServices.includes(s.id));
-  const totalPrice = selectedServicesData.reduce((sum: number, s: Service) => sum + s.price, 0);
-  const totalDuration = selectedServicesData.reduce((sum: number, s: Service) => sum + s.duration, 0);
+  const mobileAddon = findMobileAddonService(barber);
+  const offersMobile = barberOffersMobile(barber);
+  const mobileFee = watchedIsMobileService && mobileAddon && !selectedServices.includes(mobileAddon.id)
+    ? mobileAddon.price
+    : 0;
+  const servicesSubtotal = selectedServicesData.reduce((sum: number, s: Service) => sum + s.price, 0);
+  const totalPrice = servicesSubtotal + mobileFee;
+  const totalDuration = selectedServicesData.reduce((sum: number, s: Service) => sum + s.duration, 0)
+    + (watchedIsMobileService && mobileAddon && !selectedServices.includes(mobileAddon.id) ? mobileAddon.duration : 0);
   const selectedVoucher = availableVouchers.find(voucher => voucher.id === selectedVoucherId);
   const discountAmount = selectedVoucher
     ? Math.round(totalPrice * selectedVoucher.discountPercent) / 100
@@ -302,9 +310,14 @@ export default function BookingFlowPage() {
         return;
       }
 
+      const bookingServiceIds = [
+        ...selectedServicesData.map(service => service.id),
+        ...(data.isMobileService && mobileAddon && !selectedServices.includes(mobileAddon.id) ? [mobileAddon.id] : []),
+      ];
+
       const saved = await createBookingWithServices({
         professionalId: barber.id,
-        serviceIds: selectedServicesData.map(service => service.id),
+        serviceIds: bookingServiceIds,
         preferredDate: selectedDate,
         preferredTimeOfDay: preferredPeriod,
         note: data.note,
@@ -709,6 +722,9 @@ export default function BookingFlowPage() {
           <div className="space-y-2">
             {barber.services.map((svc: Service) => {
               const isSelected = selectedServices.includes(svc.id);
+              const isExtra = ['facial', 'hair_treatment', 'coloring', 'package', 'styling'].includes(svc.category)
+                || /vip|مميز|عناية|إضافي|اضافي/i.test(svc.name);
+              const isMobileSvc = mobileAddon?.id === svc.id;
               return (
                 <button
                   key={svc.id}
@@ -729,8 +745,16 @@ export default function BookingFlowPage() {
                   >
                     {isSelected && <Check size={12} className="text-white" />}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{svc.name}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{svc.name}</p>
+                      {isMobileSvc && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${themeConfig.colors.info}18`, color: themeConfig.colors.info }}>متنقل</span>
+                      )}
+                      {isExtra && !isMobileSvc && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: `${themeConfig.colors.accent}18`, color: themeConfig.colors.accent }}>إضافي</span>
+                      )}
+                    </div>
                     <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{svc.duration} دقيقة</p>
                   </div>
                   <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(svc.price)}</p>
@@ -889,6 +913,12 @@ export default function BookingFlowPage() {
                   <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>{money(svc.price)}</span>
                 </div>
               ))}
+              {watchedIsMobileService && mobileAddon && !selectedServices.includes(mobileAddon.id) && (
+                <div className="flex justify-between">
+                  <span className="text-xs" style={{ color: themeConfig.colors.info }}>{mobileAddon.name} (زيارة منزلية)</span>
+                  <span className="text-xs font-bold" style={{ color: themeConfig.colors.info }}>{money(mobileAddon.price)}</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between mt-3 pt-2 border-t" style={{ borderColor: themeConfig.colors.border }}>
               <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>اليوم المفضل</span>
@@ -1019,25 +1049,38 @@ export default function BookingFlowPage() {
             </p>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-            <div className="flex items-center gap-2">
-              <Car size={18} style={{ color: themeConfig.colors.primary }} />
-              <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>خدمة متنقلة (يأتي لعندك)</span>
+          {offersMobile && (
+            <div className="rounded-xl border p-3 space-y-2" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Car size={18} style={{ color: themeConfig.colors.primary }} />
+                  <div>
+                    <span className="text-xs font-bold block" style={{ color: themeConfig.colors.text }}>طلب حلاق متنقل</span>
+                    <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
+                      {mobileAddon
+                        ? `خدمة إضافية: ${mobileAddon.name} (+${money(mobileAddon.price)})`
+                        : 'يأتي الحلاق لعنوانك'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep3Value('isMobileService', !watchedIsMobileService)}
+                  className="w-12 h-6 rounded-full relative transition-all"
+                  style={{ backgroundColor: watchedIsMobileService ? themeConfig.colors.primary : themeConfig.colors.border }}
+                  aria-pressed={watchedIsMobileService}
+                  aria-label="تفعيل الخدمة المتنقلة"
+                >
+                  <div
+                    className="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all"
+                    style={{ right: watchedIsMobileService ? '2px' : 'auto', left: watchedIsMobileService ? 'auto' : '2px' }}
+                  />
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setStep3Value('isMobileService', !watchedIsMobileService)}
-              className="w-12 h-6 rounded-full relative transition-all"
-              style={{ backgroundColor: watchedIsMobileService ? themeConfig.colors.primary : themeConfig.colors.border }}
-            >
-              <div
-                className="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all"
-                style={{ right: watchedIsMobileService ? '2px' : 'auto', left: watchedIsMobileService ? 'auto' : '2px' }}
-              />
-            </button>
-          </div>
+          )}
 
-          {watchedIsMobileService && (
+          {offersMobile && watchedIsMobileService && (
             <div>
               <p className="text-xs font-bold mb-2" style={{ color: themeConfig.colors.text }}>العنوان</p>
               <div
