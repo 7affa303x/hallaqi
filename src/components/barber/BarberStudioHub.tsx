@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check, CheckCircle2, Clock, MessageSquare, PlayCircle, Plus, Sparkles,
-  User as UserIcon, Wallet, X, XCircle, AlertCircle, CalendarDays,
+  User as UserIcon, Wallet, X, XCircle, AlertCircle, CalendarDays, Phone,
 } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 import BrandLogo from '@/components/BrandLogo';
@@ -14,6 +14,8 @@ import {
   getProfessionalBookings,
   getProfessionalMetrics,
   updateBookingStatus,
+  acceptBookingWithTime,
+  getBookingClientPhone,
   sendNotification,
   getOrCreateConversation,
   sendMessage,
@@ -25,6 +27,9 @@ import {
   formatClock,
   formatDayLabel,
   serviceLabel,
+  preferredPeriodLabel,
+  requestDayLabel,
+  bookingDurationMinutes,
   type StudioBooking,
 } from '@/lib/barber/studioHelpers';
 import type { BookingStatus } from '@/types';
@@ -32,16 +37,23 @@ import type { Database } from '@/types/supabase';
 
 type DbBookingStatus = Database['public']['Enums']['booking_status'];
 
+const ACCEPT_SLOTS = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00',
+  '14:30', '15:00', '15:30', '16:00', '16:30', '17:00',
+  '17:30', '18:00', '18:30', '19:00', '19:30', '20:00',
+];
+
 const barberTabs: { key: BookingStatus | 'all' | 'today'; label: string }[] = [
   { key: 'today', label: 'اليوم' },
-  { key: 'pending', label: 'جديدة' },
+  { key: 'pending', label: 'طلبات' },
   { key: 'confirmed', label: 'مؤكدة' },
   { key: 'completed', label: 'مكتملة' },
   { key: 'cancelled', label: 'ملغية' },
 ];
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: 'قيد الانتظار', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
+  pending: { label: 'طلب جديد', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
   in_progress: { label: 'قيد التنفيذ', color: '#0EA5E9', bg: '#E0F2FE', icon: Clock },
   confirmed: { label: 'مؤكد', color: '#3B82F6', bg: '#DBEAFE', icon: CheckCircle2 },
   completed: { label: 'مكتمل', color: '#22C55E', bg: '#DCFCE7', icon: CheckCircle2 },
@@ -54,13 +66,18 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
   const [rows, setRows] = useState<StudioBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<BookingStatus | 'all' | 'today'>('today');
+  const [filter, setFilter] = useState<BookingStatus | 'all' | 'today'>('pending');
   const [quickOpen, setQuickOpen] = useState(false);
   const [assistOpen, setAssistOpen] = useState(false);
   const [assistCtx, setAssistCtx] = useState<{ clientName?: string; serviceName?: string; notes?: string; question?: string }>({});
   const [templateFor, setTemplateFor] = useState<StudioBooking | null>(null);
   const [metrics, setMetrics] = useState({ average_response_minutes: 0, acceptance_rate: 0, completed_bookings: 0 });
   const [toast, setToast] = useState('');
+  const [acceptFor, setAcceptFor] = useState<StudioBooking | null>(null);
+  const [acceptDate, setAcceptDate] = useState('');
+  const [acceptTime, setAcceptTime] = useState('');
+  const [acceptError, setAcceptError] = useState('');
+  const [clientPhones, setClientPhones] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,8 +86,19 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
         getProfessionalBookings(proId),
         getProfessionalMetrics(proId).catch(() => ({ average_response_minutes: 0, acceptance_rate: 0, completed_bookings: 0 })),
       ]);
-      setRows(data as unknown as StudioBooking[]);
+      const mapped = data as unknown as StudioBooking[];
+      setRows(mapped);
       setMetrics(m as typeof metrics);
+
+      const pending = mapped.filter(r => r.status === 'pending' && r.client_id);
+      const phones: Record<string, string> = {};
+      await Promise.all(pending.map(async (row) => {
+        try {
+          const phone = await getBookingClientPhone(row.id);
+          if (phone) phones[row.id] = phone;
+        } catch { /* ignore */ }
+      }));
+      setClientPhones(phones);
     } catch {
       setRows([]);
     } finally {
@@ -94,14 +122,64 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
       const end = new Date(); end.setHours(23, 59, 59, 999);
       return rows
         .filter(r => {
-          if (!r.booking_start_time) return false;
-          const t = new Date(r.booking_start_time).getTime();
-          return t >= start.getTime() && t <= end.getTime() && r.status !== 'cancelled';
+          if (r.status === 'cancelled') return false;
+          const raw = r.status === 'pending'
+            ? (r.preferred_date || r.booking_start_time)
+            : r.booking_start_time;
+          if (!raw) return false;
+          const iso = raw.includes('T') ? raw : `${raw}T12:00:00`;
+          const t = new Date(iso).getTime();
+          return t >= start.getTime() && t <= end.getTime();
         })
-        .sort((a, b) => new Date(a.booking_start_time || 0).getTime() - new Date(b.booking_start_time || 0).getTime());
+        .sort((a, b) => {
+          if (a.status === 'pending' && b.status !== 'pending') return -1;
+          if (b.status === 'pending' && a.status !== 'pending') return 1;
+          return new Date(a.booking_start_time || 0).getTime() - new Date(b.booking_start_time || 0).getTime();
+        });
     }
     return rows.filter(r => filter === 'all' || r.status === filter);
   }, [rows, filter]);
+
+  const openAccept = (b: StudioBooking) => {
+    const preferred = b.preferred_date
+      || (b.booking_start_time ? b.booking_start_time.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setAcceptFor(b);
+    setAcceptDate(preferred);
+    setAcceptTime('');
+    setAcceptError('');
+  };
+
+  const confirmAccept = async () => {
+    if (!acceptFor) return;
+    if (!acceptDate || !acceptTime) {
+      setAcceptError('اختر اليوم والوقت بعد الاتصال بالزبون');
+      return;
+    }
+    setBusyId(acceptFor.id);
+    setAcceptError('');
+    try {
+      const startsAt = new Date(`${acceptDate}T${acceptTime}:00`).toISOString();
+      await acceptBookingWithTime(acceptFor.id, startsAt);
+      if (acceptFor.client_id) {
+        try {
+          await sendNotification({
+            userId: acceptFor.client_id,
+            title: 'تم تأكيد موعدك',
+            message: `تم تحديد موعدك في ${acceptDate} الساعة ${acceptTime}. نراك قريباً!`,
+            type: 'booking',
+            metadata: { booking_id: acceptFor.id },
+          });
+        } catch { /* best-effort */ }
+      }
+      setAcceptFor(null);
+      await load();
+      setToast('تم قبول الطلب وتحديد الوقت');
+    } catch (err) {
+      setAcceptError(err instanceof Error ? err.message : 'تعذر قبول الطلب');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const act = async (b: StudioBooking, status: BookingStatus, clientMessage: string) => {
     setBusyId(b.id);
@@ -119,7 +197,7 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
         } catch { /* best-effort */ }
       }
       await load();
-      setToast(status === 'confirmed' ? 'تم قبول الحجز' : status === 'completed' ? 'تم إكمال الموعد' : 'تم التحديث');
+      setToast(status === 'completed' ? 'تم إكمال الموعد' : 'تم التحديث');
     } finally {
       setBusyId(null);
     }
@@ -296,7 +374,11 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
                   <StatusIcon size={14} style={{ color: status.color }} />
                   <span className="text-xs font-bold" style={{ color: status.color }}>{status.label}</span>
                 </div>
-                <span className="text-[10px]" style={{ color: status.color + '99' }}>{formatClock(b.booking_start_time)}</span>
+                <span className="text-[10px]" style={{ color: status.color + '99' }}>
+                  {b.status === 'pending'
+                    ? `${requestDayLabel(b)} · ${preferredPeriodLabel(b.preferred_time_of_day)}`
+                    : formatClock(b.booking_start_time)}
+                </span>
               </div>
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-3">
@@ -309,6 +391,11 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
                     {!b.client_id && (
                       <span className="text-[10px]" style={{ color: themeConfig.colors.accent }}>عميل مباشر</span>
                     )}
+                    {b.status === 'pending' && (
+                      <span className="text-[10px] block mt-0.5" style={{ color: themeConfig.colors.textMuted }}>
+                        المدة التقريبية {bookingDurationMinutes(b)} د — الوقت يُحدَّد بعد الاتصال
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm font-bold shrink-0" style={{ color: themeConfig.colors.primary }}>{b.total_price ?? 0} دج</p>
                 </div>
@@ -320,13 +407,24 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
                   </div>
                 )}
 
+                {b.status === 'pending' && clientPhones[b.id] && (
+                  <a
+                    href={`tel:${clientPhones[b.id]}`}
+                    className="flex items-center justify-center gap-2 mb-3 h-10 rounded-xl text-xs font-bold"
+                    style={{ backgroundColor: themeConfig.colors.primary + '12', color: themeConfig.colors.primary }}
+                  >
+                    <Phone size={14} />
+                    اتصل بالزبون · {clientPhones[b.id]}
+                  </a>
+                )}
+
                 <div className="flex gap-2 flex-wrap pt-3 border-t" style={{ borderColor: themeConfig.colors.border }}>
                   {b.status === 'pending' && (
                     <>
-                      <button disabled={busyId === b.id} onClick={() => void act(b, 'confirmed', 'تم تأكيد حجزك من طرف الحلاق')}
+                      <button disabled={busyId === b.id} onClick={() => openAccept(b)}
                         className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold disabled:opacity-50"
                         style={{ backgroundColor: themeConfig.colors.success + '15', color: themeConfig.colors.success }}>
-                        <Check size={14} /> قبول
+                        <Check size={14} /> قبول وتحديد الوقت
                       </button>
                       <button disabled={busyId === b.id} onClick={() => void act(b, 'cancelled', 'نعتذر، تم رفض طلب الحجز')}
                         className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-bold disabled:opacity-50"
@@ -436,6 +534,85 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
           else setToast('افتح محادثة عميل أولاً لاستخدام المسودة');
         }}
       />
+
+      <AnimatePresence>
+        {acceptFor && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-4"
+            onClick={() => setAcceptFor(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl border p-4"
+              style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>قبول الطلب وتحديد الوقت</h3>
+                <button type="button" onClick={() => setAcceptFor(null)} aria-label="إغلاق">
+                  <X size={18} style={{ color: themeConfig.colors.textMuted }} />
+                </button>
+              </div>
+              <p className="text-[11px] mb-3 leading-5" style={{ color: themeConfig.colors.textMuted }}>
+                اتصل بالزبون أولاً، ثم اختر اليوم والساعة التي اتفقتما عليها.
+              </p>
+              {clientPhones[acceptFor.id] && (
+                <a
+                  href={`tel:${clientPhones[acceptFor.id]}`}
+                  className="flex items-center justify-center gap-2 mb-3 h-11 rounded-xl text-xs font-bold text-white"
+                  style={{ backgroundColor: themeConfig.colors.primary }}
+                >
+                  <Phone size={16} />
+                  اتصال · {clientPhones[acceptFor.id]}
+                </a>
+              )}
+              <label className="block text-[11px] font-bold mb-1" style={{ color: themeConfig.colors.text }}>اليوم</label>
+              <input
+                type="date"
+                value={acceptDate}
+                onChange={(e) => setAcceptDate(e.target.value)}
+                className="w-full h-11 rounded-xl border px-3 text-sm mb-3"
+                style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border, color: themeConfig.colors.text }}
+              />
+              <p className="text-[11px] font-bold mb-2" style={{ color: themeConfig.colors.text }}>الوقت</p>
+              <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto mb-3">
+                {ACCEPT_SLOTS.map(slot => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setAcceptTime(slot)}
+                    className="h-9 rounded-xl text-[11px] font-bold border"
+                    style={{
+                      backgroundColor: acceptTime === slot ? themeConfig.colors.primary : themeConfig.colors.background,
+                      borderColor: acceptTime === slot ? themeConfig.colors.primary : themeConfig.colors.border,
+                      color: acceptTime === slot ? '#fff' : themeConfig.colors.text,
+                    }}
+                  >
+                    {slot}
+                  </button>
+                ))}
+              </div>
+              {acceptError && (
+                <p className="text-[11px] mb-2" style={{ color: themeConfig.colors.error }}>{acceptError}</p>
+              )}
+              <button
+                type="button"
+                disabled={busyId === acceptFor.id}
+                onClick={() => void confirmAccept()}
+                className="w-full h-11 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                style={{ backgroundColor: themeConfig.colors.success }}
+              >
+                {busyId === acceptFor.id ? 'جاري التأكيد...' : 'تأكيد الموعد'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {templateFor && (

@@ -223,10 +223,13 @@ export type Database = {
           payment_id: string | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          preferred_date: string | null
+          preferred_time_of_day: string | null
           professional_id: string | null
           service_address: string | null
           service_id: string | null
           status: Database["public"]["Enums"]["booking_status"] | null
+          time_set_by_barber: boolean
           total_price: number
           updated_at: string | null
         }
@@ -243,10 +246,13 @@ export type Database = {
           payment_id?: string | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          preferred_date?: string | null
+          preferred_time_of_day?: string | null
           professional_id?: string | null
           service_address?: string | null
           service_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
+          time_set_by_barber?: boolean
           total_price?: number
           updated_at?: string | null
         }
@@ -263,10 +269,13 @@ export type Database = {
           payment_id?: string | null
           payment_method?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          preferred_date?: string | null
+          preferred_time_of_day?: string | null
           professional_id?: string | null
           service_address?: string | null
           service_id?: string | null
           status?: Database["public"]["Enums"]["booking_status"] | null
+          time_set_by_barber?: boolean
           total_price?: number
           updated_at?: string | null
         }
@@ -1686,6 +1695,7 @@ export type Database = {
           mobile_service?: boolean
           note?: string
           payment_method_name?: string
+          preferred_period?: string
           professional: string
           selected_services: string[]
           starts_at: string
@@ -1703,10 +1713,13 @@ export type Database = {
           payment_id: string | null
           payment_method: string | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          preferred_date: string | null
+          preferred_time_of_day: string | null
           professional_id: string | null
           service_address: string | null
           service_id: string | null
           status: Database["public"]["Enums"]["booking_status"] | null
+          time_set_by_barber: boolean
           total_price: number
           updated_at: string | null
         }
@@ -1716,6 +1729,45 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      accept_booking_with_time: {
+        Args: {
+          booking: string
+          starts_at: string
+        }
+        Returns: {
+          booking_end_time: string
+          booking_start_time: string
+          client_id: string | null
+          created_at: string | null
+          discount_amount: number
+          id: string
+          is_mobile_service: boolean
+          loyalty_redemption_id: string | null
+          notes: string | null
+          payment_id: string | null
+          payment_method: string | null
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          preferred_date: string | null
+          preferred_time_of_day: string | null
+          professional_id: string | null
+          service_address: string | null
+          service_id: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          time_set_by_barber: boolean
+          total_price: number
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_booking_client_phone: {
+        Args: { booking: string }
+        Returns: string
       }
       create_walk_in_booking: {
         Args: {

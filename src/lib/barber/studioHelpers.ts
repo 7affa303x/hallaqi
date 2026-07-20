@@ -5,12 +5,45 @@ export interface StudioBooking {
   client_id: string | null;
   booking_start_time: string | null;
   booking_end_time?: string | null;
+  preferred_date?: string | null;
+  preferred_time_of_day?: string | null;
+  time_set_by_barber?: boolean | null;
   total_price: number | null;
   notes: string | null;
   status: BookingStatus;
   profiles?: { full_name: string | null; avatar_url: string | null } | null;
   services?: { name: string | null } | null;
-  booking_services?: Array<{ services?: { name: string | null } | null }>;
+  booking_services?: Array<{ services?: { name: string | null } | null; duration_snapshot?: number | null }>;
+  /** Loaded via get_booking_client_phone for pending accept flow */
+  clientPhone?: string | null;
+}
+
+export function preferredPeriodLabel(value: string | null | undefined): string {
+  switch (value) {
+    case 'morning': return 'صباحاً';
+    case 'afternoon': return 'بعد الظهر';
+    case 'evening': return 'مساءً';
+    default: return 'أي وقت';
+  }
+}
+
+export function requestDayLabel(booking: StudioBooking): string {
+  const raw = booking.preferred_date || booking.booking_start_time;
+  if (!raw) return 'يوم غير محدد';
+  const d = new Date(raw.includes('T') ? raw : `${raw}T12:00:00`);
+  return d.toLocaleDateString('ar-DZ', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+export function bookingDurationMinutes(booking: StudioBooking): number {
+  const fromServices = booking.booking_services
+    ?.reduce((sum, item) => sum + (item.duration_snapshot || 0), 0) || 0;
+  if (fromServices > 0) return fromServices;
+  if (booking.booking_start_time && booking.booking_end_time) {
+    return Math.max(15, Math.round(
+      (new Date(booking.booking_end_time).getTime() - new Date(booking.booking_start_time).getTime()) / 60000,
+    ));
+  }
+  return 30;
 }
 
 export function parseGuestName(notes: string | null | undefined): string | null {
@@ -84,7 +117,14 @@ export interface DayStats {
 
 export function computeDayStats(rows: StudioBooking[], now = new Date()): DayStats {
   const today = rows
-    .filter(r => isSameDay(r.booking_start_time, now) && r.status !== 'cancelled')
+    .filter(r => {
+      if (r.status === 'cancelled') return false;
+      if (r.status === 'pending') {
+        const pref = r.preferred_date || r.booking_start_time;
+        return pref ? isSameDay(pref.includes('T') ? pref : `${pref}T12:00:00`, now) : false;
+      }
+      return isSameDay(r.booking_start_time, now);
+    })
     .sort((a, b) => new Date(a.booking_start_time || 0).getTime() - new Date(b.booking_start_time || 0).getTime());
 
   const pendingCount = rows.filter(r => r.status === 'pending').length;
@@ -101,7 +141,6 @@ export function computeDayStats(rows: StudioBooking[], now = new Date()): DaySta
   }) || null;
 
   const nextBooking = confirmedToday.find(r => new Date(r.booking_start_time || 0) > now)
-    || today.find(r => r.status === 'pending' && new Date(r.booking_start_time || 0) > now)
     || null;
 
   const followUps = rows
@@ -113,9 +152,10 @@ export function computeDayStats(rows: StudioBooking[], now = new Date()): DaySta
     .slice(0, 5);
 
   const gaps: DayStats['gaps'] = [];
-  for (let i = 0; i < today.length; i += 1) {
-    const current = today[i];
-    const next = today[i + 1] || null;
+  const scheduled = today.filter(r => r.status !== 'pending' && r.booking_start_time);
+  for (let i = 0; i < scheduled.length; i += 1) {
+    const current = scheduled[i];
+    const next = scheduled[i + 1] || null;
     const end = current.booking_end_time
       ? new Date(current.booking_end_time)
       : new Date(new Date(current.booking_start_time || 0).getTime() + 40 * 60000);

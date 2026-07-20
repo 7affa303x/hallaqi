@@ -303,7 +303,9 @@ export async function createWalkInBooking(params: {
 export async function createBookingWithServices(params: {
   professionalId: string;
   serviceIds: string[];
-  startsAt: string;
+  /** Preferred day — barber will set the real clock time when accepting. */
+  preferredDate: string;
+  preferredTimeOfDay?: 'morning' | 'afternoon' | 'evening' | 'any';
   note?: string;
   paymentMethod: string;
   isMobileService: boolean;
@@ -311,23 +313,59 @@ export async function createBookingWithServices(params: {
   voucherCode?: string;
 }) {
   guard();
+  // RPC still takes starts_at; we pass noon on the preferred date as a soft placeholder.
+  const startsAt = `${params.preferredDate}T12:00:00`;
   const { data, error } = await supabase.rpc('create_booking_with_services', {
     professional: params.professionalId,
     selected_services: params.serviceIds,
-    starts_at: params.startsAt,
+    starts_at: startsAt,
     note: params.note || undefined,
     payment_method_name: params.paymentMethod,
     mobile_service: params.isMobileService,
     mobile_address: params.mobileAddress || undefined,
     loyalty_voucher: params.voucherCode || undefined,
+    preferred_period: params.preferredTimeOfDay || 'any',
   });
   if (error) {
+    if (error.message?.includes('PHONE_REQUIRED') || error.code === 'P0001') {
+      throw new Error('PHONE_REQUIRED');
+    }
     if (error.code === '23P01' || error.code === '23505') {
-      throw new Error('هذا الموعد حُجز للتو. اختر وقتاً آخر.');
+      throw new Error('تعذر إرسال الطلب. حاول مرة أخرى.');
     }
     throw new Error(error.message);
   }
   return data;
+}
+
+export async function acceptBookingWithTime(bookingId: string, startsAt: string) {
+  guard();
+  const { data, error } = await supabase.rpc('accept_booking_with_time', {
+    booking: bookingId,
+    starts_at: startsAt,
+  });
+  if (error) {
+    if (error.message?.includes('SLOT_TAKEN') || error.code === '23P01') {
+      throw new Error('هذا الوقت محجوز. اختر وقتاً آخر.');
+    }
+    throw new Error(error.message);
+  }
+  return data;
+}
+
+export async function getBookingClientPhone(bookingId: string): Promise<string | null> {
+  guard();
+  const { data, error } = await supabase.rpc('get_booking_client_phone', {
+    booking: bookingId,
+  });
+  if (error) {
+    // Soft-fail until migration is applied.
+    if (error.code === 'PGRST202' || error.message.includes('get_booking_client_phone')) {
+      return null;
+    }
+    throw new Error(error.message);
+  }
+  return typeof data === 'string' && data.trim() ? data.trim() : null;
 }
 
 export async function updateBookingStatus(bookingId: string, status: Database["public"]["Enums"]["booking_status"]) {

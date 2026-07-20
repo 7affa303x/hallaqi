@@ -97,6 +97,9 @@ export interface Booking {
   services: Service[];
   date: string;
   time: string;
+  /** When false/undefined and status is pending, time is only a preference. */
+  timeSetByBarber?: boolean;
+  preferredTimeOfDay?: 'morning' | 'afternoon' | 'evening' | 'any';
   status: BookingStatus;
   totalPrice: number;
   discountAmount?: number;

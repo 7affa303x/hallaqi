@@ -64,6 +64,13 @@ export function mapBookingRow(value: unknown): Booking {
   const service = mapService(row.services);
   const reviews = Array.isArray(row.reviews) ? row.reviews.map(asRow) : [];
   const startTime = asString(row.booking_start_time);
+  const preferredDate = asString(row.preferred_date);
+  const timeSetByBarber = row.time_set_by_barber === true;
+  const status = asString(row.status, 'pending') as Booking['status'];
+  const date = preferredDate || (startTime ? startTime.split('T')[0] : '');
+  const time = timeSetByBarber || status !== 'pending'
+    ? (startTime ? (startTime.split('T')[1] || '').slice(0, 5) : '')
+    : '';
 
   return {
     id: asString(row.id),
@@ -73,9 +80,11 @@ export function mapBookingRow(value: unknown): Booking {
       || 'حلاق',
     barberAvatar: asString(professionalProfile.avatar_url, '/logo-icon.png'),
     services: bookingServices.length > 0 ? bookingServices : service ? [service] : [],
-    date: startTime ? startTime.split('T')[0] : '',
-    time: startTime ? (startTime.split('T')[1] || '').slice(0, 5) : '',
-    status: asString(row.status, 'pending') as Booking['status'],
+    date,
+    time,
+    timeSetByBarber,
+    preferredTimeOfDay: (asString(row.preferred_time_of_day, 'any') as Booking['preferredTimeOfDay']),
+    status,
     totalPrice: asNumber(row.total_price),
     discountAmount: asNumber(row.discount_amount) || undefined,
     note: asString(row.notes) || undefined,

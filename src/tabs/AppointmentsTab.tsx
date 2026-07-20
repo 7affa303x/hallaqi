@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: 'قيد الانتظار', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
+  pending: { label: 'بانتظار قبول الحلاق', color: '#F59E0B', bg: '#FEF3C7', icon: Clock },
   in_progress: { label: 'قيد التنفيذ', color: '#8B5CF6', bg: '#EDE9FE', icon: Clock },
   confirmed: { label: 'مؤكد', color: '#3B82F6', bg: '#DBEAFE', icon: CheckCircle2 },
   completed: { label: 'مكتمل', color: '#22C55E', bg: '#DCFCE7', icon: CheckCircle2 },
@@ -228,10 +228,20 @@ export default function AppointmentsTab() {
                       </button>
                       <div className="flex items-center gap-2 mt-0.5">
                         <CalendarDays size={11} style={{ color: themeConfig.colors.textMuted }} />
-                        <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{booking.date}</span>
+                        <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{booking.date || '—'}</span>
                         <Clock size={11} style={{ color: themeConfig.colors.textMuted }} />
-                        <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>{booking.time}</span>
+                        <span className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
+                          {booking.time
+                            || (booking.status === 'pending'
+                              ? ({ morning: 'صباحاً', afternoon: 'بعد الظهر', evening: 'مساءً', any: 'أي وقت' }[booking.preferredTimeOfDay || 'any'] || 'بانتظار تحديد الوقت')
+                              : '—')}
+                        </span>
                       </div>
+                      {booking.status === 'pending' && !booking.timeSetByBarber && (
+                        <p className="text-[10px] mt-1" style={{ color: themeConfig.colors.warning }}>
+                          الحلاق سيتصل بك لتحديد الساعة
+                        </p>
+                      )}
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-bold" style={{ color: themeConfig.colors.primary }}>{money(booking.totalPrice)}</p>
