@@ -19,7 +19,8 @@ describe('featureFlags', () => {
     expect(FEATURE_FLAGS.paidSubscriptionsEnabled).toBe(false);
     expect(FEATURE_FLAGS.aiImageGenerationEnabled).toBe(false);
     expect(FEATURE_FLAGS.competitionsEnabled).toBe(false);
-    expect(FEATURE_FLAGS.accountTypeSwitchEnabled).toBe(false);
+    // Account-type switch is intentionally on (client/barber/store) without soft-launch gate.
+    expect(FEATURE_FLAGS.accountTypeSwitchEnabled).toBe(true);
     expect(FEATURE_FLAGS.barberExtrasInMarketplace).toBe(false);
     expect(isCashOnlyPayments()).toBe(true);
   });

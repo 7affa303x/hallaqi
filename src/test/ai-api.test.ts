@@ -1,9 +1,21 @@
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { POST as advicePost } from '../../api/ai/advice';
 import { POST as listingAssistPost } from '../../api/ai/listing-assist';
 import { GET as capabilitiesGet } from '../../api/ai/capabilities';
 
+const createGroqMock = vi.hoisted(() => vi.fn((opts: { apiKey: string; baseURL?: string }) => {
+  return (modelId: string) => ({ provider: 'mock', modelId, opts });
+}));
+
+vi.mock('@ai-sdk/groq', () => ({
+  createGroq: createGroqMock,
+}));
+
 describe('AI API contracts', () => {
+  beforeEach(() => {
+    createGroqMock.mockClear();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.AI_GENERATION_ENABLED;
@@ -76,6 +88,24 @@ describe('AI API contracts', () => {
     process.env.XAI_API_KEY = 'xai-explicit-test-key';
     const body = await capabilitiesGet().json();
     expect(body.provider).toBe('groq');
+  });
+
+  it('routes Groq gsk_ keys to default Groq endpoint (not api.x.ai)', async () => {
+    process.env.GROQ_API_KEY = 'gsk_test_valid_key';
+    const { getTextModel } = await import('../../api/_lib/ai-provider');
+    getTextModel();
+    expect(createGroqMock).toHaveBeenCalledWith({ apiKey: 'gsk_test_valid_key' });
+    expect(createGroqMock.mock.calls[0][0].baseURL).toBeUndefined();
+  });
+
+  it('routes xAI keys through api.x.ai only', async () => {
+    process.env.XAI_API_KEY = 'xai-explicit-test-key';
+    const { getTextModel } = await import('../../api/_lib/ai-provider');
+    getTextModel();
+    expect(createGroqMock).toHaveBeenCalledWith({
+      apiKey: 'xai-explicit-test-key',
+      baseURL: 'https://api.x.ai/v1',
+    });
   });
 
   it('reports gemini provider when a server key is present', async () => {
