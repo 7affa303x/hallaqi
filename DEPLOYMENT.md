@@ -9,11 +9,11 @@
 ## Step 1: Supabase
 
 ### 1.1 Official Project
-Production uses Supabase project `cdwzbtjwqybnahhbhldy`. Do not deploy Hallaqi
+Production uses Supabase project `npkmqlupkvijhumkldpm`. Do not deploy Hallaqi
 schema or functions to similarly named projects.
 
 ### 1.2 Run Migrations
-1. Run `npx supabase link --project-ref cdwzbtjwqybnahhbhldy`
+1. Run `npx supabase link --project-ref npkmqlupkvijhumkldpm`
 2. Review with `npx supabase migration list --linked`
 3. Apply with `npx supabase db push`
 

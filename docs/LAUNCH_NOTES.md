@@ -71,7 +71,7 @@
 ### متغيرات Vercel المطلوبة
 
 ```
-VITE_SUPABASE_URL=https://cdwzbtjwqybnahhbhldy.supabase.co
+VITE_SUPABASE_URL=https://npkmqlupkvijhumkldpm.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon JWT أو publishable>
 SUPABASE_SERVICE_ROLE_KEY=<sb_secret — خادم فقط>
 GROQ_API_KEY=<gsk_... — مجاني للنصوص>

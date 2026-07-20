@@ -245,7 +245,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    setState(s => ({ ...s, isLoading: true, error: null }));
+    // Do NOT set isLoading=true here.  App.tsx shows a blank loading shell
+    // whenever isLoading is true.  Setting it causes the LoginScreen to
+    // unmount and the router to render a LoadingFallback — that is the
+    // "white screen after login" bug.  AuthProvider already manages
+    // isLoading during onAuthStateChange, so we keep it untouched.
+    setState(s => ({ ...s, error: null }));
     if (isDeveloperMode) {
       setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: { id: 'dev-user' } as User, appUser: DEV_PROFILE }));
       return;
@@ -275,7 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     accountType: 'client' | 'barber' | 'store' | 'company' | 'doctor' = 'client',
     phoneNumber?: string | null,
   ) => {
-    setState(s => ({ ...s, isLoading: true, error: null }));
+    // Same fix as login(): do NOT set isLoading=true — it unmounts the
+    // RegisterScreen and shows a blank LoadingFallback instead.
+    setState(s => ({ ...s, error: null }));
     if (isDeveloperMode) {
       setState(s => ({
         ...s,
@@ -305,7 +312,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const googleSignIn = useCallback(async () => {
-    setState(s => ({ ...s, isLoading: true, error: null }));
+    // Do NOT set isLoading=true — for the same reason as login().
+    // Google OAuth redirects away and comes back with ?code=; AuthProvider
+    // already manages isLoading during that flow via initAuth.
+    setState(s => ({ ...s, error: null }));
     if (isDeveloperMode) {
       setState(s => ({ ...s, isLoading: false, isAuthenticated: true, user: { id: 'dev-user' } as User, appUser: DEV_PROFILE }));
       return { data: { url: window.location.origin }, error: null };
@@ -316,7 +326,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: { redirectTo: getAuthRedirectUrl('/') },
       });
       if (error) throw error;
-      setState(s => ({ ...s, isLoading: true }));
+      // Keep isLoading unchanged so the auth gate does not turn the
+      // page white while the browser is redirecting to Google.
       return data;
     } catch (err) {
       setState(s => ({ ...s, isLoading: false, error: getErrMsg(err) }));

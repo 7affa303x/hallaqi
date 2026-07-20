@@ -11,7 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema } from '@/lib/validation';
 import type { LoginFormData } from '@/lib/validation';
 import { isSafeAuthRedirectScreen, isSafeAuthRedirectTab } from '@/lib/authRedirect';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStore } from '@/store/useStore';
 
@@ -58,9 +58,13 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
     navigate('home', { redirectTab: safeTab || 'booking' });
   }, [navigate, redirectParams, redirectScreen, setActiveTab]);
 
+  // Track whether we already handled the post-login redirect for this mount.
+  const didRedirect = useRef(false);
+
   // OAuth / session restore can land on ?screen=login while already signed in.
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && isAuthenticated && !didRedirect.current) {
+      didRedirect.current = true;
       completeRedirect();
     }
   }, [authLoading, isAuthenticated, completeRedirect]);
@@ -72,8 +76,12 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
   const onSubmit = async (data: LoginFormData) => {
     clearError();
     try {
+      // login() will flip isLoading=true then isAuthenticated=true.
+      // The useEffect above (gated by didRedirect) will handle navigation
+      // once AuthProvider finishes.  Calling navigate() here too causes
+      // a double-navigation that can land on a blank / stale page.
       await login(data.email, data.password);
-      completeRedirect();
+      // Do NOT call completeRedirect() here — the useEffect handles it.
     } catch (err) {
       const msg = getErrMsg(err);
       if (msg.includes('user-not-found') || msg.includes('لم يتم العثور')) {
