@@ -75,11 +75,15 @@ export function getGoogleProvider() {
 /**
  * Prefer Groq (free) for text; then xAI Grok (OpenAI-compatible via Groq SDK);
  * fall back to Gemini when configured.
+ *
+ * Important: Groq keys (gsk_…) must hit api.groq.com (SDK default).
+ * Only xAI keys use baseURL https://api.x.ai/v1 — routing gsk_ to xAI
+ * makes capabilities report generativeAdvice:true while every call fails.
  */
 export function getTextModel(): LanguageModel | null {
   const groqKey = getGroqApiKey();
   if (groqKey) {
-    return createGroq({ apiKey: groqKey, baseURL: 'https://api.x.ai/v1' })(getTextModelId());
+    return createGroq({ apiKey: groqKey })(getTextModelId());
   }
   const xaiKey = getXaiApiKey();
   if (xaiKey) {
