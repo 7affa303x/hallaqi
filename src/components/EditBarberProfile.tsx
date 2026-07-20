@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
-import { updateProfile, updateProfessionalProfile, addPortfolioItem, deletePortfolioItem, updatePortfolioItem, getPortfolioItems } from '@/supabase/database';
-import { uploadAvatar, uploadPortfolioItemWithMeta, deletePortfolioFile } from '@/supabase/storage';
+import { updateProfile, updateProfessionalProfile, addPortfolioItem, deletePortfolioItem, updatePortfolioItem, getPortfolioItems, getProfessionalById } from '@/supabase/database';
+import { uploadAvatar, uploadCover, uploadPortfolioItemWithMeta, deletePortfolioFile } from '@/supabase/storage';
 import { ArrowLeft, Save, AlertCircle, CheckCircle, Plus, Trash2, Upload, Image as ImageIcon, Video, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -60,6 +60,8 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
 
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItemWithPreview[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
@@ -80,6 +82,13 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
 
       if (appUser.id && isBarber) {
         loadPortfolioItems(appUser.id);
+        void getProfessionalById(appUser.id)
+          .then(pro => {
+            if (pro?.coverImage && !pro.coverImage.endsWith('/logo-wordmark.png')) {
+              setCoverPreviewUrl(pro.coverImage);
+            }
+          })
+          .catch(() => { /* optional */ });
       }
     } else {
       setIsFetching(false);
@@ -103,6 +112,17 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
     const compressed = await compressImageFile(file);
     setAvatarFile(compressed);
     setAvatarPreviewUrl(URL.createObjectURL(compressed));
+    setServerError(null);
+  };
+
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { setServerError('صورة الغلاف يجب أن تكون أقل من 8 ميجا'); return; }
+    const { compressImageFile } = await import('@/lib/imageUpload');
+    const compressed = await compressImageFile(file, { maxWidth: 1600 });
+    setCoverFile(compressed);
+    setCoverPreviewUrl(URL.createObjectURL(compressed));
     setServerError(null);
   };
 
@@ -190,6 +210,15 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
       if (avatarFile && appUser.id) {
         const avatarUrl = await uploadAvatar(appUser.id, avatarFile);
         if (avatarUrl) await updateProfile(appUser.id, { avatar_url: avatarUrl });
+      }
+
+      if (isBarber && coverFile && appUser.id) {
+        const coverUrl = await uploadCover(appUser.id, coverFile);
+        if (coverUrl) {
+          await updateProfessionalProfile(appUser.id, { cover_image_url: coverUrl });
+          setCoverPreviewUrl(coverUrl);
+          setCoverFile(null);
+        }
       }
 
       const activeItems = isBarber ? portfolioItems.filter(p => !p.isDeleted) : [];
@@ -280,13 +309,13 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
   };
 
   return (
-    <div className="pb-20 min-h-screen" style={{ backgroundColor: themeConfig.colors.background }}>
+    <div className="pb-20 min-h-screen overflow-x-hidden max-w-full" style={{ backgroundColor: themeConfig.colors.background }}>
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>تعديل البروفايل</h2>
+        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold truncate" style={{ color: themeConfig.colors.text }}>تعديل البروفايل</h2>
       </div>
 
-      <form onSubmit={handleFormSubmit(onSubmit)} className="px-4 mt-4 space-y-4">
+      <form onSubmit={handleFormSubmit(onSubmit)} className="px-4 mt-4 space-y-4 max-w-full overflow-x-hidden">
         {(serverError || Object.keys(formErrors).length > 0) && (
           <div className="p-3 rounded-xl flex items-start gap-3" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
             <AlertCircle size={18} style={{ color: themeConfig.colors.error }} className="flex-shrink-0 mt-0.5" />
@@ -318,6 +347,27 @@ export default function EditBarberProfile({ onBack, userRole }: EditBarberProfil
             <label htmlFor="avatar-upload" className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>{avatarFile ? 'تغيير الصورة' : 'رفع صورة'}</label>
           </div>
         </div>
+
+        {isBarber && (
+          <div>
+            <h3 className="text-xs font-bold mb-3 px-1" style={{ color: themeConfig.colors.textMuted }}>صورة الغلاف</h3>
+            <div className="rounded-2xl border p-3 space-y-3 overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+              <div className="relative w-full h-32 rounded-xl overflow-hidden" style={{ backgroundColor: themeConfig.colors.background }}>
+                {coverPreviewUrl ? (
+                  <img src={coverPreviewUrl} alt="غلاف" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ color: themeConfig.colors.textMuted }}>
+                    <ImageIcon size={28} />
+                  </div>
+                )}
+              </div>
+              <input type="file" id="cover-upload" accept="image/jpeg,image/png,image/webp" onChange={e => void handleCoverChange(e)} className="hidden" />
+              <label htmlFor="cover-upload" className="cursor-pointer inline-flex px-4 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: themeConfig.colors.primary, color: '#fff' }}>
+                {coverFile ? 'تغيير الغلاف' : 'رفع غلاف'}
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Basic Info */}
         <div>

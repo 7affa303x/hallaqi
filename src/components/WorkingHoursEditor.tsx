@@ -147,7 +147,7 @@ export default function WorkingHoursEditor({ barberId }: WorkingHoursEditorProps
         return (
           <div
             key={field.id}
-            className="flex items-center gap-3 p-3 rounded-xl border transition-all"
+            className="flex flex-wrap items-center gap-2 p-3 rounded-xl border transition-all"
             style={{
               backgroundColor: isActive ? themeConfig.colors.surface : themeConfig.colors.background,
               borderColor: isActive ? themeConfig.colors.primary + '30' : themeConfig.colors.border,
@@ -162,24 +162,24 @@ export default function WorkingHoursEditor({ barberId }: WorkingHoursEditorProps
             >
               <div className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all" style={{ left: isActive ? '22px' : '2px' }} />
             </button>
-            <span className="text-xs font-bold w-14 flex-shrink-0" style={{ color: themeConfig.colors.text }}>{day?.label}</span>
+            <span className="text-xs font-bold w-12 flex-shrink-0" style={{ color: themeConfig.colors.text }}>{day?.label}</span>
             {isActive ? (
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0 basis-full sm:basis-auto">
                 <input
                   type="time"
                   {...register(`days.${index}.start_time` as const)}
-                  className="flex-1 px-2 py-1 rounded-lg text-xs border text-center"
+                  className="min-w-0 flex-1 px-1.5 py-1 rounded-lg text-xs border text-center"
                   style={{
                     backgroundColor: themeConfig.colors.background,
                     borderColor: startTimeError ? themeConfig.colors.error : themeConfig.colors.border,
                     color: themeConfig.colors.text,
                   }}
                 />
-                <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>إلى</span>
+                <span className="text-[10px] flex-shrink-0" style={{ color: themeConfig.colors.textMuted }}>إلى</span>
                 <input
                   type="time"
                   {...register(`days.${index}.end_time` as const)}
-                  className="flex-1 px-2 py-1 rounded-lg text-xs border text-center"
+                  className="min-w-0 flex-1 px-1.5 py-1 rounded-lg text-xs border text-center"
                   style={{
                     backgroundColor: themeConfig.colors.background,
                     borderColor: endTimeError ? themeConfig.colors.error : themeConfig.colors.border,

@@ -117,7 +117,6 @@ export default function SellerProductsPage() {
             onChange={e => setForm(f => ({ ...f, kind: e.target.value as MarketplaceProductKind }))}
             style={{ backgroundColor: themeConfig.colors.background, color: themeConfig.colors.text }}>
             <option value="physical">منتج فيزيائي</option>
-            <option value="service_extra">خدمة إضافية</option>
             <option value="device">جهاز</option>
             <option value="course">دورة</option>
             <option value="accessory">إكسسوار</option>

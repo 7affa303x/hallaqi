@@ -109,6 +109,10 @@ export default function BarberStudioHub({ proId }: { proId: string }) {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     if (!toast) return;
     const t = window.setTimeout(() => setToast(''), 2400);
     return () => window.clearTimeout(t);

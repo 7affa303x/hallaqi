@@ -86,6 +86,11 @@ export default function AdminDashboard() {
     totalPayments: 0, pendingCCPReceipts: 0, stripePayments: 0,
     pendingReviews: 0, totalRevenue: 0,
   });
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
@@ -1034,7 +1039,7 @@ const DEFAULT_SECTIONS_SAFE: MarketplaceSectionConfig = {
   showProductOfTheDay: true,
   showFeaturedStrip: true,
   showBanners: true,
-  showBarberExtras: true,
+  showBarberExtras: false,
   showCompanies: true,
   showDoctors: true,
   categoryOrder: [],

@@ -1,5 +1,6 @@
 import { useApp } from '@/contexts/useApp';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 import {
   ArrowLeft, Bell, MessageSquare, Calendar,
   Trophy, Tag, Info, CheckCheck, ChevronLeft
@@ -26,6 +27,10 @@ const colorMap = {
 
 export default function NotificationsPage() {
   const { themeConfig, notifications, markNotificationRead, markAllNotificationsRead, navigate, setActiveTab, goBack } = useApp();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const unreadNotifications = notifications.filter(n => !n.read);
   const readNotifications = notifications.filter(n => n.read);

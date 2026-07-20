@@ -6,7 +6,8 @@ export const DEFAULT_MARKETPLACE_SECTIONS: MarketplaceSectionConfig = {
   showProductOfTheDay: true,
   showFeaturedStrip: true,
   showBanners: true,
-  showBarberExtras: true,
+  /** Soft-launch: hide barber extras in marketplace — booking services stay in profile. */
+  showBarberExtras: false,
   showCompanies: true,
   showDoctors: true,
   categoryOrder: [],

@@ -5,6 +5,7 @@ import { useAuthGate } from '@/hooks/useAuthGate';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import { FEATURE_FLAGS, PAUSED_LABEL } from '@/lib/featureFlags';
 import { buildClientSiteContext } from '@/lib/ai/siteContext';
+import { clearGalleryHandoff, readGalleryHandoff } from '@/lib/galleryHandoff';
 import {
   getAICapabilities,
   requestGroomingAdvice,
@@ -29,6 +30,7 @@ export default function AIAdvisorPage() {
   const [question, setQuestion] = useState('');
   const [advice, setAdvice] = useState<GroomingAdvice | null>(null);
   const [styleImage, setStyleImage] = useState('');
+  const [galleryHandoff, setGalleryHandoff] = useState(() => readGalleryHandoff()?.dataUrl || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +38,11 @@ export default function AIAdvisorPage() {
     void getAICapabilities().then(setCapabilities).catch(() => {
       setCapabilities(fallbackCapabilities);
     });
+  }, []);
+
+  useEffect(() => {
+    const saved = readGalleryHandoff();
+    if (saved?.dataUrl) setGalleryHandoff(saved.dataUrl);
   }, []);
 
   const imagePaused = !FEATURE_FLAGS.aiImageGenerationEnabled;
@@ -140,6 +147,26 @@ export default function AIAdvisorPage() {
           <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-[11px]" style={{ backgroundColor: themeConfig.colors.primary + '10', color: themeConfig.colors.textMuted }}>
             <MapPin size={13} style={{ color: themeConfig.colors.primary }} />
             <span>{contextLabel}{(siteContext.topBarbers?.length ?? 0) > 0 ? ` · ${siteContext.topBarbers!.length} حلاق مقترح` : ''}</span>
+          </div>
+        )}
+
+        {galleryHandoff && (
+          <div className="rounded-2xl border overflow-hidden" style={{ borderColor: themeConfig.colors.border }}>
+            <img src={galleryHandoff} alt="صورة من المعرض" className="w-full max-h-48 object-cover" />
+            <div className="px-3 py-2 flex items-center justify-between gap-2" style={{ backgroundColor: themeConfig.colors.surface }}>
+              <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>صورة محفوظة من المعرض</p>
+              <button
+                type="button"
+                className="text-[10px] font-bold px-2 py-1 rounded-lg"
+                style={{ color: themeConfig.colors.error, backgroundColor: `${themeConfig.colors.error}12` }}
+                onClick={() => {
+                  clearGalleryHandoff();
+                  setGalleryHandoff('');
+                }}
+              >
+                إزالة
+              </button>
+            </div>
           </div>
         )}
 

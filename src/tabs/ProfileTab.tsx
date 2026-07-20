@@ -22,7 +22,9 @@ import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
+import BarberOnboardingCard from '@/components/BarberOnboardingCard';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL, isSettingsItemVisible, canAccessMfaSettings } from '@/lib/featureFlags';
+import type { OnboardingStepId } from '@/lib/barberOnboarding';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   createIdVerificationRequest,
@@ -192,30 +194,26 @@ export default function ProfileTab() {
   const badges = (appUser as unknown as { badges?: UserBadge[] })?.badges || [];
   const ownProfessional = barbers.find(barber => barber.id === appUser?.id);
   const followers = ownProfessional?.followers || 0;
-  const onboardingSteps = ownProfessional ? [
-    { label: 'معلومات العمل', complete: Boolean(ownProfessional.name && ownProfessional.bio), page: 'edit-profile' as ProfileSubPage },
-    { label: 'الخدمات والأسعار', complete: ownProfessional.services.length > 0, page: 'services' as ProfileSubPage },
-    { label: 'صورة الغلاف', complete: !ownProfessional.coverImage.endsWith('/logo-wordmark.png'), page: 'edit-profile' as ProfileSubPage },
-    { label: 'معرض الأعمال', complete: ownProfessional.portfolio.length > 0, page: 'edit-profile' as ProfileSubPage },
-    { label: 'توثيق الهوية', complete: ownProfessional.idCardVerified || ownProfessional.isVerified, page: 'id-verification' as ProfileSubPage },
-  ] : [];
-  const onboardingComplete = onboardingSteps.filter(step => step.complete).length;
-  const onboardingPercent = onboardingSteps.length
-    ? Math.round(onboardingComplete / onboardingSteps.length * 100)
-    : 0;
-  const nextOnboardingStep = onboardingSteps.find(step => !step.complete);
+
+  const openOnboardingStep = (stepId: OnboardingStepId) => {
+    if (stepId === 'services') setSubPage('services');
+    else if (stepId === 'verification') setSubPage('id-verification');
+    else setSubPage('edit-profile');
+  };
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 overflow-x-hidden max-w-full">
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg font-bold text-white">{translate(settings.language, 'profile')}</h1>
-          <p className="text-[10px] text-white/70 mt-0.5">
-            {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
-            {' · '}
-            {findCurrency(settings.currencyCode).code}
-          </p>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-bold text-white truncate">{translate(settings.language, 'profile')}</h1>
+            <p className="text-[10px] text-white/70 mt-0.5 truncate">
+              {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
+              {' · '}
+              {findCurrency(settings.currencyCode).code}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => navigate('notifications')}
               aria-label="الإشعارات"
@@ -278,15 +276,19 @@ export default function ProfileTab() {
         )}
       </div>
 
-      {(userRole === 'barber' || userRole === 'specialist') && onboardingPercent < 100 && (
-        <div className="px-4 mt-4">
-          <div className="p-4 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.primary + '40' }}>
-            <div className="flex items-center justify-between"><div><p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>أكمل ملفك المهني</p><p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>الملفات المكتملة تحصل على حجوزات أكثر</p></div><span className="text-sm font-black" style={{ color: themeConfig.colors.primary }}>{onboardingPercent}%</span></div>
-            <div className="h-2 rounded-full overflow-hidden mt-3" style={{ backgroundColor: themeConfig.colors.border }}><div className="h-full rounded-full transition-all" style={{ width: `${onboardingPercent}%`, backgroundColor: themeConfig.colors.primary }} /></div>
-            <div className="flex flex-wrap gap-1.5 mt-3">{onboardingSteps.map(step => <span key={step.label} className="text-[9px] px-2 py-1 rounded-full" style={{ backgroundColor: step.complete ? themeConfig.colors.success + '15' : themeConfig.colors.background, color: step.complete ? themeConfig.colors.success : themeConfig.colors.textMuted }}>{step.complete ? '✓ ' : ''}{step.label}</span>)}</div>
-            {nextOnboardingStep && <button onClick={() => setSubPage(nextOnboardingStep.page)} className="w-full h-9 rounded-xl text-xs font-bold text-white mt-3" style={{ backgroundColor: themeConfig.colors.primary }}>إكمال: {nextOnboardingStep.label}</button>}
-          </div>
-        </div>
+      {(userRole === 'barber' || userRole === 'specialist') && appUser && ownProfessional && (
+        <BarberOnboardingCard
+          userId={appUser.id}
+          progressInput={{
+            hasNameAndBio: Boolean(ownProfessional.name && ownProfessional.bio),
+            hasServices: ownProfessional.services.length > 0,
+            hasCover: Boolean(ownProfessional.coverImage && !ownProfessional.coverImage.endsWith('/logo-wordmark.png')),
+            hasPortfolio: ownProfessional.portfolio.length > 0,
+            isVerified: ownProfessional.idCardVerified || ownProfessional.isVerified,
+          }}
+          colors={themeConfig.colors}
+          onContinue={openOnboardingStep}
+        />
       )}
 
       {appUser?.user_role === 'admin' && (

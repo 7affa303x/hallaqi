@@ -180,13 +180,13 @@ export default function AvailabilityExceptions({ barberId }: { barberId: string 
           {/* Type */}
           <div>
             <label className="text-[10px] font-bold block mb-1" style={{ color: themeConfig.colors.textMuted }}>النوع</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {EXCEPTION_TYPES.map(t => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => registerException('type').onChange({ target: { value: t.key } })}
-                  className="flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all"
+                  className="min-w-[30%] flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all"
                   style={{
                     backgroundColor: watchedType === t.key ? themeConfig.colors.primary + '15' : themeConfig.colors.background,
                     borderColor: watchedType === t.key ? themeConfig.colors.primary : themeConfig.colors.border,

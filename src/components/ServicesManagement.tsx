@@ -131,13 +131,16 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="pb-20 min-h-screen" style={{ backgroundColor: themeConfig.colors.background }}>
+    <div className="pb-20 min-h-screen overflow-x-hidden max-w-full" style={{ backgroundColor: themeConfig.colors.background }}>
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 backdrop-blur-lg border-b" style={{ backgroundColor: `${themeConfig.colors.background}ee`, borderColor: themeConfig.colors.border }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
-        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>إدارة الخدمات</h2>
+        <button onClick={onBack} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold truncate" style={{ color: themeConfig.colors.text }}>إدارة الخدمات</h2>
       </div>
 
-      <form onSubmit={handleFormSubmit(onSubmit)} className="px-4 mt-4 space-y-4">
+      <form onSubmit={handleFormSubmit(onSubmit)} className="px-4 mt-4 space-y-4 max-w-full overflow-x-hidden">
+        <p className="text-[11px] leading-5 px-1" style={{ color: themeConfig.colors.textMuted }}>
+          أضف الخدمات الأساسية للحجز (قص، لحية، عناية…). اجعل القائمة قصيرة وواضحة — يُفضّل 5–12 خدمة. خدمات إضافية للسوق متوقفة حالياً.
+        </p>
         {error && (
           <div className="p-3 rounded-xl flex items-center gap-3" style={{ backgroundColor: themeConfig.colors.error + '15' }}>
             <AlertCircle size={16} style={{ color: themeConfig.colors.error }} />
@@ -193,7 +196,7 @@ export default function ServicesManagement({ onBack }: { onBack: () => void }) {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] font-bold mb-1 block" style={{ color: themeConfig.colors.textMuted }}>السعر (دج)</label>
                     <input

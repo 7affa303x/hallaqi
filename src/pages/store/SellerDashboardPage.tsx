@@ -31,6 +31,10 @@ export default function SellerDashboardPage() {
   const [toast, setToast] = useState('');
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     void (async () => {
       const list = await getMarketplacePlans(role);
       setPlans(list);

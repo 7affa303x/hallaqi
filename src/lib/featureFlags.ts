@@ -116,6 +116,11 @@ export const FEATURE_FLAGS = {
    * Licenses / open-source credits page — soft-hide.
    */
   licensesPageEnabled: false,
+  /**
+   * Barber "extra services" section in marketplace — paused.
+   * Booking services remain in the barber profile; marketplace stays product-focused.
+   */
+  barberExtrasInMarketplace: false,
 } as const;
 
 /** User-facing label for deferred launch features. */

@@ -20,6 +20,7 @@ describe('featureFlags', () => {
     expect(FEATURE_FLAGS.aiImageGenerationEnabled).toBe(false);
     expect(FEATURE_FLAGS.competitionsEnabled).toBe(false);
     expect(FEATURE_FLAGS.accountTypeSwitchEnabled).toBe(false);
+    expect(FEATURE_FLAGS.barberExtrasInMarketplace).toBe(false);
     expect(isCashOnlyPayments()).toBe(true);
   });
 

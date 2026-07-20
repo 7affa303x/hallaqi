@@ -19,6 +19,7 @@ import { formatDzd, discountPercent, flattenCategories } from '@/lib/marketplace
 import { trackMarketplaceEvent } from '@/lib/marketplace/analytics';
 import { mapBarberExtrasToMarketplace } from '@/lib/marketplace/barberExtras';
 import { readMarketplaceSectionConfig } from '@/lib/marketplace/sectionConfig';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import type {
   MarketplaceCategory,
   MarketplaceFilters,
@@ -251,7 +252,7 @@ export default function MarketplaceTab() {
       )}
 
       {/* Barber service extras (not physical store products) */}
-      {sections.showBarberExtras && barberExtras.length > 0 && (
+      {FEATURE_FLAGS.barberExtrasInMarketplace && sections.showBarberExtras && barberExtras.length > 0 && (
         <section className="px-4 mt-4">
           <button
             type="button"
