@@ -180,6 +180,12 @@ export default function BottomNav() {
           if (action === 'ai') {
             // Stay in tabs shell — keeps bottom nav visible
             setActiveTab('ai-hub');
+          } else if (action === 'messages') {
+            if (!isAuthenticated) {
+              navigate('login', { redirectScreen: 'messages' });
+              return;
+            }
+            navigate('messages');
           } else if (action === 'qr') {
             navigate('ai-hub-tool', { tool: 'qr' });
           } else if (action === 'camera') {

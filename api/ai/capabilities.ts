@@ -1,5 +1,6 @@
 import {
   getActiveTextProviderName,
+  getAiExternalBlocker,
   hasImageGeneration,
   isAiGenerationEnabled,
 } from '../_lib/ai-provider.js';
@@ -8,6 +9,7 @@ export function GET() {
   const generationEnabled = isAiGenerationEnabled();
   const provider = getActiveTextProviderName();
   const hasTextProvider = Boolean(provider);
+  const blocker = getAiExternalBlocker();
 
   return Response.json({
     deterministicRecommendations: true,
@@ -16,9 +18,7 @@ export function GET() {
     hairstyleImageGeneration: hasImageGeneration(),
     barberAssist: generationEnabled && hasTextProvider,
     provider,
-    externalBlocker: generationEnabled && hasTextProvider
-      ? null
-      : 'Set GROQ_API_KEY (free) or GEMINI_API_KEY on the server to enable generative AI.',
+    externalBlocker: generationEnabled && hasTextProvider ? null : blocker,
   }, {
     headers: { 'Cache-Control': 'public, max-age=60' },
   });

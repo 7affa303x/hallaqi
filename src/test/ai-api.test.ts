@@ -9,6 +9,7 @@ describe('AI API contracts', () => {
     delete process.env.AI_GENERATION_ENABLED;
     delete process.env.AI_IMAGE_GENERATION_ENABLED;
     delete process.env.GROQ_API_KEY;
+    delete process.env.XAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     delete process.env.GOOGLE_API_KEY;
@@ -27,9 +28,9 @@ describe('AI API contracts', () => {
     }));
   });
 
-  it('reports groq provider when a server key is present', async () => {
+  it('reports groq provider when a valid gsk_ server key is present', async () => {
     process.env.AI_GENERATION_ENABLED = 'true';
-    process.env.GROQ_API_KEY = 'test-key';
+    process.env.GROQ_API_KEY = 'gsk_test_valid_key';
     const body = await capabilitiesGet().json();
     expect(body).toEqual(expect.objectContaining({
       generativeAdvice: true,
@@ -38,6 +39,43 @@ describe('AI API contracts', () => {
       hairstyleImageGeneration: false,
       externalBlocker: null,
     }));
+  });
+
+  it('rejects invalid keys in GROQ_API_KEY unless they are legacy xAI', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.GROQ_API_KEY = 'not-a-real-key';
+    const body = await capabilitiesGet().json();
+    expect(body.generativeAdvice).toBe(false);
+    expect(body.provider).toBeNull();
+    expect(body.externalBlocker).toBeTruthy();
+  });
+
+  it('treats legacy xai- key in GROQ_API_KEY as xAI provider', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.GROQ_API_KEY = 'xai-relH76IlK7gLcRVw';
+    const body = await capabilitiesGet().json();
+    expect(body.generativeAdvice).toBe(true);
+    expect(body.provider).toBe('xai');
+    expect(body.externalBlocker).toBeNull();
+  });
+
+  it('prefers explicit XAI_API_KEY over empty Groq', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.XAI_API_KEY = 'xai-explicit-test-key';
+    const body = await capabilitiesGet().json();
+    expect(body).toEqual(expect.objectContaining({
+      generativeAdvice: true,
+      provider: 'xai',
+      externalBlocker: null,
+    }));
+  });
+
+  it('prefers Groq gsk_ over xAI when both present', async () => {
+    process.env.AI_GENERATION_ENABLED = 'true';
+    process.env.GROQ_API_KEY = 'gsk_test_valid_key';
+    process.env.XAI_API_KEY = 'xai-explicit-test-key';
+    const body = await capabilitiesGet().json();
+    expect(body.provider).toBe('groq');
   });
 
   it('reports gemini provider when a server key is present', async () => {

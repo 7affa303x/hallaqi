@@ -71,11 +71,7 @@
         return Promise.all(keys.map(function (k) { return caches.delete(k); }));
       }));
     }
-    if (navigator.serviceWorker) {
-      tasks.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
-        return Promise.all(regs.map(function (r) { return r.unregister(); }));
-      }));
-    }
+    // Keep push SW registered — public/sw.js has no precache.
     return tasks.length ? Promise.all(tasks) : Promise.resolve();
   }
 

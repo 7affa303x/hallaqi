@@ -30,32 +30,38 @@ The functions:
 
 1. validate the Supabase bearer token,
 2. validate bounded input with Zod,
-3. select server-owned Gemini models via `@ai-sdk/google`,
-4. read `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` (never exposed to Vite),
+3. select a text provider via `api/_lib/ai-provider.ts`,
+4. read server-only keys (never exposed to Vite),
 5. enforce per-user daily quotas in Postgres,
 6. map budget/rate/provider failures to safe unavailable states.
+
+### Provider priority (text)
+
+| Priority | Provider | Env | Default model |
+|----------|----------|-----|---------------|
+| 1 | **Groq** (free) | `GROQ_API_KEY` (`gsk_…`) | `llama-3.3-70b-versatile` |
+| 2 | **xAI Grok** | `XAI_API_KEY` (`xai-…`) or legacy `GROQ_API_KEY` starting with `xai-` | `grok-3-latest` |
+| 3 | **Gemini** | `GEMINI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | `gemini-2.0-flash` |
+
+Image generation (optional, costly) still requires Gemini +
+`AI_IMAGE_GENERATION_ENABLED=true` + client `FEATURE_FLAGS.aiImageGenerationEnabled`.
 
 No model key is exposed to the browser. Advice is stateless and does not reuse
 human chat conversations.
 
-Current default model identifiers:
-
-- text: `gemini-2.0-flash`
-- image reference: `gemini-2.0-flash-preview-image-generation`
-- barber assist: same text model
-
 ## Activation
-
-Generation turns on when the server has a Gemini key (or when
-`AI_GENERATION_ENABLED=true` with a key):
 
 ```env
 AI_GENERATION_ENABLED=true
-AI_TEXT_MODEL=gemini-2.0-flash
-AI_IMAGE_MODEL=gemini-2.0-flash-preview-image-generation
-GEMINI_API_KEY=your_key_here
-# optional alias also supported:
-# GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+# Groq (recommended free path):
+GROQ_API_KEY=gsk_...
+AI_TEXT_MODEL=llama-3.3-70b-versatile
+# OR xAI Grok:
+# XAI_API_KEY=xai-...
+# AI_TEXT_MODEL=grok-3-latest
+# OR Gemini fallback:
+# GEMINI_API_KEY=...
+AI_IMAGE_GENERATION_ENABLED=false
 ```
 
 Set these on Vercel Project → Settings → Environment Variables (Production +

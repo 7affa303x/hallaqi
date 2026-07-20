@@ -38,7 +38,7 @@ export default function AiHubToolPage() {
           </button>
         </div>
         <Suspense fallback={<p className="text-center py-10" style={{ color: themeConfig.colors.textMuted }}>جاري التحميل...</p>}>
-          <CameraTab />
+          <CameraTab isActive />
         </Suspense>
       </div>
     );

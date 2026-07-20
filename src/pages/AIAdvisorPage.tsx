@@ -18,7 +18,7 @@ const fallbackCapabilities: AICapabilities = {
   optimizedScheduling: true,
   generativeAdvice: false,
   hairstyleImageGeneration: false,
-  externalBlocker: 'المساعد ينتظر إعداد GROQ_API_KEY على الخادم.',
+  externalBlocker: 'المساعد ينتظر إعداد مفتاح AI على الخادم (Groq أو Grok أو Gemini).',
 };
 
 export default function AIAdvisorPage() {
@@ -173,7 +173,7 @@ export default function AIAdvisorPage() {
           />
           {!providerReady && mode === 'advice' && (
             <p className="text-[11px] mt-2 p-2 rounded-lg" style={{ color: themeConfig.colors.warning, backgroundColor: themeConfig.colors.warning + '10' }}>
-              {capabilities.externalBlocker || 'المساعد ينتظر إعداد GROQ_API_KEY (مجاني) على الخادم.'}
+              {capabilities.externalBlocker || 'المساعد ينتظر إعداد مفتاح AI على الخادم (GROQ / XAI / Gemini).'}
             </p>
           )}
           {providerReady && capabilities.provider === 'groq' && (

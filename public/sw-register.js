@@ -1,4 +1,4 @@
-/** Register SW only on normal visits — never during OAuth callback (PKCE ?code=). */
+/** Register push SW on normal visits — never during OAuth callback (PKCE ?code=). */
 (function () {
   if (!('serviceWorker' in navigator)) return;
   if (window.__HALLAQI_SKIP_SW_REGISTER || window.__HALLAQI_OAUTH_RETURN) return;
@@ -10,8 +10,12 @@
     return;
   }
 
-  window.addEventListener('load', function () {
+  function registerPushSw() {
     if (window.__HALLAQI_SKIP_SW_REGISTER || window.__HALLAQI_OAUTH_RETURN) return;
-    navigator.serviceWorker.register('/sw.js', { scope: '/' });
-  });
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .catch(function (err) { console.warn('[Hallaqi] push SW register failed', err); });
+  }
+
+  if (document.readyState === 'complete') registerPushSw();
+  else window.addEventListener('load', registerPushSw);
 })();

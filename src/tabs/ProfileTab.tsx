@@ -22,7 +22,7 @@ import EditBarberProfile from '@/components/EditBarberProfile';
 import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
-import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL } from '@/lib/featureFlags';
+import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL, isSettingsItemVisible, canAccessMfaSettings } from '@/lib/featureFlags';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
   createIdVerificationRequest,
@@ -79,7 +79,7 @@ const iconMap: Record<string, LucideIcon> = {
 type ProfileSubPage = 'main' | 'theme' | 'animation' | 'language' | 'country' | 'currency' | 'notifications' |
   'privacy' | 'account' | 'subscription' | 'payment' | 'id-verification' |
   'linked-accounts' | 'help' | 'about' | 'badges' | 'stats' | 'edit-profile' | 'services' | 'loyalty' |
-  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves';
+  'accessibility' | 'privacy-policy' | 'terms' | 'licenses' | 'security' | 'saves' | 'account-type';
 
 export default function ProfileTab() {
   const { themeConfig, settings, navigate, setActiveTab, unreadCount, bookings, barbers, screenParams } = useApp();
@@ -177,6 +177,7 @@ export default function ProfileTab() {
   if (subPage === 'accessibility') return <AccessibilitySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'security') return <SecuritySettings onBack={() => setSubPage('main')} />;
   if (subPage === 'saves') return <SavedItemsPage onBack={() => setSubPage('main')} />;
+  if (subPage === 'account-type') return <AccountTypeSwitcher onBack={() => setSubPage('main')} currentRole={userRole} />;
   if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} />;
   if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
 
@@ -215,7 +216,6 @@ export default function ProfileTab() {
             {findCurrency(settings.currencyCode).code}
           </p>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate('messages')} aria-label="المحادثات" className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"><MessageSquare size={16} className="text-white" /></button>
             <button
               onClick={() => navigate('notifications')}
               aria-label="الإشعارات"
@@ -246,13 +246,21 @@ export default function ProfileTab() {
             <p className="text-xs text-white/70 mt-0.5">{userEmail}</p>
             {userPhone && <p className="text-xs text-white/70">{userPhone}</p>}
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.rank}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.points} نقطة</span>
+              {FEATURE_FLAGS.gamificationSurfacesEnabled && (
+                <>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.rank}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">{stats.points} نقطة</span>
+                </>
+              )}
               {userRole === 'admin' && <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/30 text-white font-medium">مشرف</span>}
+              {(userRole === 'barber' || userRole === 'specialist') && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white font-medium">حلاق</span>
+              )}
             </div>
           </div>
         </div>
 
+        {FEATURE_FLAGS.gamificationSurfacesEnabled && (
         <div className="flex gap-3 mt-4">
           <button onClick={() => setSubPage("stats")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-white">{stats.totalBookings}</p><p className="text-[10px] text-white/60">حجوزات</p>
@@ -267,6 +275,7 @@ export default function ProfileTab() {
             <p className="text-lg font-bold text-white">{stats.streakDays}</p><p className="text-[10px] text-white/60">يوم متتالي</p>
           </div>
         </div>
+        )}
       </div>
 
       {(userRole === 'barber' || userRole === 'specialist') && onboardingPercent < 100 && (
@@ -323,7 +332,7 @@ export default function ProfileTab() {
             <CalendarDays size={16} style={{ color: themeConfig.colors.primary }} />
             <span>
               <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مواعيدي</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>الحجوزات والرسائل</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>الحجوزات القادمة</span>
             </span>
           </button>
           <button
@@ -400,8 +409,8 @@ export default function ProfileTab() {
           >
             <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
             <span>
-              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مساعد Gemini</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>نصائح وتصور قصات</span>
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مساعد AI</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>نصائح وتوصيات</span>
             </span>
           </button>
         </div>
@@ -439,14 +448,47 @@ export default function ProfileTab() {
       )}
 
       <div className="px-4 mt-4 space-y-4">
-        {settingsSections.map(section => (
+        {FEATURE_FLAGS.accountTypeSwitchEnabled && appUser && (
+          <button
+            type="button"
+            onClick={() => setSubPage('account-type')}
+            className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <UserPlus size={16} style={{ color: themeConfig.colors.primary }} />
+            <span className="flex-1">
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>تبديل نوع الحساب</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>عميل · حلاق · متجر — {COMING_SOON_LABEL} للتفعيل الكامل</span>
+            </span>
+            <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
+          </button>
+        )}
+        {canAccessMfaSettings(userRole) && (
+          <button
+            type="button"
+            onClick={() => setSubPage('security')}
+            className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
+            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+          >
+            <Shield size={16} style={{ color: themeConfig.colors.primary }} />
+            <span className="flex-1">
+              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>أمان الحساب (MFA)</span>
+              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>مصادقة ثنائية للحسابات المميزة</span>
+            </span>
+            <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
+          </button>
+        )}
+        {settingsSections.map(section => {
+          const visibleItems = section.items.filter(item => isSettingsItemVisible(item.id, userRole));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={section.title}>
             <h3 className="text-xs font-bold mb-2 px-1" style={{ color: themeConfig.colors.textMuted }}>{section.title}</h3>
             <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              {section.items.map((item, index) => {
+              {visibleItems.map((item, index) => {
                 const Icon = iconMap[item.icon] || Settings;
                 const isDanger = item.type === 'danger';
-                const isLast = index === section.items.length - 1;
+                const isLast = index === visibleItems.length - 1;
                 const handleClick = async () => {
                   setActionError('');
                   setActionMessage('');
@@ -457,10 +499,7 @@ export default function ProfileTab() {
                         const keys = await caches.keys();
                         await Promise.all(keys.map(key => caches.delete(key)));
                       }
-                      if ('serviceWorker' in navigator) {
-                        const regs = await navigator.serviceWorker.getRegistrations();
-                        await Promise.all(regs.map(reg => reg.unregister()));
-                      }
+                      // Keep push SW alive — only clear caches, do not unregister SW
                       try { localStorage.removeItem('hallaqi-app-build-v1'); } catch { /* ignore */ }
                       setActionMessage('تم مسح الذاكرة — جاري التحديث…');
                       window.setTimeout(() => window.location.reload(), 600);
@@ -532,7 +571,8 @@ export default function ProfileTab() {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -541,6 +581,48 @@ export default function ProfileTab() {
 // ====== SUB PAGE COMPONENTS ======
 
 type LoyaltyData = Awaited<ReturnType<typeof getLoyaltyDashboard>>;
+
+function AccountTypeSwitcher({ onBack, currentRole }: { onBack: () => void; currentRole: string }) {
+  const { themeConfig } = useApp();
+  const options = [
+    { id: 'client', label: 'عميل', desc: 'حجز مواعيد وتصفح السوق' },
+    { id: 'barber', label: 'حلاق / مختص', desc: 'استوديو عمل وحجوزات' },
+    { id: 'store', label: 'متجر', desc: 'بيع منتجات العناية' },
+  ] as const;
+
+  return (
+    <div className="pb-20">
+      <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
+        <button onClick={onBack} aria-label="رجوع" className="w-9 h-9 rounded-xl flex items-center justify-center"><ArrowLeft size={20} style={{ color: themeConfig.colors.text }} /></button>
+        <h2 className="text-base font-bold" style={{ color: themeConfig.colors.text }}>نوع الحساب</h2>
+      </div>
+      <div className="p-4 space-y-3">
+        <PausedFeatureBanner
+          title={`تبديل نوع الحساب ${COMING_SOON_LABEL}`}
+          description="الواجهة جاهزة — التفعيل الكامل يحتاج موافقة الإدارة وترحيل الأدوار."
+          kind="soon"
+          colors={themeConfig.colors}
+        />
+        {options.map(option => (
+          <div
+            key={option.id}
+            className="p-4 rounded-2xl border"
+            style={{
+              backgroundColor: themeConfig.colors.surface,
+              borderColor: currentRole === option.id ? themeConfig.colors.primary : themeConfig.colors.border,
+            }}
+          >
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
+              {option.label}
+              {currentRole === option.id ? ' · الحالي' : ''}
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: themeConfig.colors.textMuted }}>{option.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function SecuritySettings({ onBack }: { onBack: () => void }) {
   const { themeConfig } = useApp();

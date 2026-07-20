@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles, QrCode, Camera, Images, X, MessageSquareHeart,
+  Sparkles, QrCode, Camera, Images, X, MessageSquare,
 } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 
-type RadialAction = 'ai' | 'qr' | 'camera' | 'gallery';
+export type RadialAction = 'ai' | 'qr' | 'camera' | 'gallery' | 'messages';
 
 interface Props {
   open: boolean;
@@ -14,14 +14,15 @@ interface Props {
 
 const actions: { id: RadialAction; label: string; icon: typeof Sparkles; angle: number }[] = [
   { id: 'ai', label: 'AI', icon: Sparkles, angle: -90 },
-  { id: 'qr', label: 'QR', icon: QrCode, angle: -20 },
-  { id: 'camera', label: 'كاميرا', icon: Camera, angle: 50 },
-  { id: 'gallery', label: 'معرض', icon: Images, angle: 120 },
+  { id: 'messages', label: 'محادثات', icon: MessageSquare, angle: -30 },
+  { id: 'qr', label: 'QR', icon: QrCode, angle: 30 },
+  { id: 'camera', label: 'كاميرا', icon: Camera, angle: 90 },
+  { id: 'gallery', label: 'معرض', icon: Images, angle: 150 },
 ];
 
 export default function AiRadialMenu({ open, onClose, onSelect }: Props) {
   const { themeConfig } = useApp();
-  const radius = 88;
+  const radius = 92;
 
   return (
     <AnimatePresence>
@@ -34,7 +35,7 @@ export default function AiRadialMenu({ open, onClose, onSelect }: Props) {
           onClick={onClose}
         >
           <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />
-          <div className="relative w-56 h-56" onClick={e => e.stopPropagation()}>
+          <div className="relative w-60 h-60" onClick={e => e.stopPropagation()}>
             {actions.map((action, index) => {
               const rad = (action.angle * Math.PI) / 180;
               const x = Math.cos(rad) * radius;
@@ -68,8 +69,8 @@ export default function AiRadialMenu({ open, onClose, onSelect }: Props) {
               <X size={18} />
             </button>
           </div>
-          <p className="absolute bottom-16 text-xs text-white/90 font-semibold flex items-center gap-1">
-            <MessageSquareHeart size={14} /> اضغط مطولاً للوصول السريع
+          <p className="absolute bottom-16 text-xs text-white/90 font-semibold">
+            اضغط مطولاً لفتح المساعد مباشرة
           </p>
         </motion.div>
       )}

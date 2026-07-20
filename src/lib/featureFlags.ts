@@ -75,6 +75,47 @@ export const FEATURE_FLAGS = {
    * MFA (TOTP) — soft launch: admin/moderator only in UI.
    */
   mfaForPrivilegedOnly: true,
+  /**
+   * Forum competitions banner + join flow — off until entry→post linking is complete.
+   * Code path is ready; flip to true when seeding active competitions.
+   */
+  competitionsEnabled: false,
+  /**
+   * Account type switcher on profile — hidden until role migration is approved.
+   */
+  accountTypeSwitchEnabled: false,
+  /**
+   * Advanced appearance (animation style, country, currency) — soft-hide at launch.
+   */
+  advancedAppearanceEnabled: false,
+  /**
+   * Advanced privacy toggles (profile visible, location, bookings, block list).
+   */
+  advancedPrivacyEnabled: false,
+  /**
+   * Email notification preferences — soft-hide (push + booking reminders remain).
+   */
+  emailNotificationsEnabled: false,
+  /**
+   * ID card verification UI — paused.
+   */
+  idVerificationEnabled: false,
+  /**
+   * Linked social accounts — paused.
+   */
+  linkedAccountsEnabled: false,
+  /**
+   * Export personal data action — paused.
+   */
+  dataExportEnabled: false,
+  /**
+   * Gamification cards (badges / streak / points strip) — soft-hide clutter.
+   */
+  gamificationSurfacesEnabled: false,
+  /**
+   * Licenses / open-source credits page — soft-hide.
+   */
+  licensesPageEnabled: false,
 } as const;
 
 /** User-facing label for deferred launch features. */
@@ -103,4 +144,85 @@ export function getSupportWhatsAppUrl(): string | null {
   const raw = String(import.meta.env.VITE_SUPPORT_WHATSAPP || '').replace(/\D/g, '');
   if (!raw) return null;
   return `https://wa.me/${raw}`;
+}
+
+/** Settings item ids visible at soft launch (others stay in code, hidden in UI). */
+const LAUNCH_VISIBLE_SETTING_IDS = new Set([
+  'theme',
+  'fontSize',
+  'language',
+  'pushNotifications',
+  'bookingReminders',
+  'editProfile',
+  'changePassword',
+  'helpCenter',
+  'contactUs',
+  'aboutApp',
+  'privacyPolicy',
+  'termsOfService',
+  'clearCache',
+  'deleteAccount',
+  'logout',
+]);
+
+/**
+ * Whether a settings list item should render for the current soft-launch + role.
+ * Hide-not-delete: items remain in mockData; this filters at render time.
+ */
+export function isSettingsItemVisible(
+  itemId: string,
+  role: string | undefined,
+): boolean {
+  if (FEATURE_FLAGS.advancedAppearanceEnabled) {
+    // when advanced appearance is on, still use base set + extras below
+  } else if (itemId === 'animation' || itemId === 'country' || itemId === 'currency') {
+    return false;
+  }
+
+  if (!FEATURE_FLAGS.emailNotificationsEnabled && itemId === 'emailNotifications') return false;
+  if (!FEATURE_FLAGS.emailNotificationsEnabled && itemId === 'forumReplies') return false;
+  if (!FEATURE_FLAGS.advancedPrivacyEnabled && [
+    'profileVisible', 'showLocation', 'showBookings', 'allowMessages', 'blockList',
+  ].includes(itemId)) return false;
+  if (!FEATURE_FLAGS.idVerificationEnabled && itemId === 'idVerification') return false;
+  if (!FEATURE_FLAGS.linkedAccountsEnabled && itemId === 'linkedAccounts') return false;
+  if (!FEATURE_FLAGS.dataExportEnabled && itemId === 'exportData') return false;
+  if (!FEATURE_FLAGS.licensesPageEnabled && itemId === 'licenses') return false;
+  if (FEATURE_FLAGS.hideMonetizationSurfaces && itemId === 'paymentMethods') return false;
+  if (!FEATURE_FLAGS.paidSubscriptionsEnabled && itemId === 'subscription') return false;
+
+  // Services management: barbers / specialists only
+  if (itemId === 'services') {
+    return role === 'barber' || role === 'specialist';
+  }
+
+  // Soft launch: only show the curated set (plus role-gated services above)
+  if (!LAUNCH_VISIBLE_SETTING_IDS.has(itemId) && itemId !== 'services') {
+    // Allow advanced appearance extras when flag flips
+    if (FEATURE_FLAGS.advancedAppearanceEnabled
+      && (itemId === 'animation' || itemId === 'country' || itemId === 'currency')) {
+      return true;
+    }
+    if (FEATURE_FLAGS.emailNotificationsEnabled
+      && (itemId === 'emailNotifications' || itemId === 'forumReplies')) {
+      return true;
+    }
+    if (FEATURE_FLAGS.advancedPrivacyEnabled
+      && ['profileVisible', 'showLocation', 'showBookings', 'allowMessages', 'blockList'].includes(itemId)) {
+      return true;
+    }
+    if (FEATURE_FLAGS.idVerificationEnabled && itemId === 'idVerification') return true;
+    if (FEATURE_FLAGS.linkedAccountsEnabled && itemId === 'linkedAccounts') return true;
+    if (FEATURE_FLAGS.dataExportEnabled && itemId === 'exportData') return true;
+    if (FEATURE_FLAGS.licensesPageEnabled && itemId === 'licenses') return true;
+    if (!FEATURE_FLAGS.hideMonetizationSurfaces && itemId === 'paymentMethods') return true;
+    return false;
+  }
+
+  return true;
+}
+
+export function canAccessMfaSettings(role: string | undefined): boolean {
+  if (!FEATURE_FLAGS.mfaForPrivilegedOnly) return true;
+  return role === 'admin' || role === 'moderator';
 }

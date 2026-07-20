@@ -83,7 +83,26 @@ async function main() {
   }
 
   if (!groqKey && !geminiKey) {
-    await check('AI text provider', false, 'Set GROQ_API_KEY (free) or GEMINI_API_KEY');
+    await check('AI text provider', false, 'Set GROQ_API_KEY (gsk_…), XAI_API_KEY (xai-…), or GEMINI_API_KEY');
+  } else if (groqKey?.startsWith('xai-') || process.env.XAI_API_KEY?.startsWith('xai-')) {
+    const xaiKey = process.env.XAI_API_KEY?.startsWith('xai-') ? process.env.XAI_API_KEY : groqKey;
+    const genRes = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${xaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.AI_TEXT_MODEL?.startsWith('grok') ? process.env.AI_TEXT_MODEL : 'grok-3-latest',
+        messages: [{ role: 'user', content: 'قل مرحبا' }],
+        max_tokens: 10,
+      }),
+    });
+    await check(
+      'xAI Grok API',
+      genRes.status === 200,
+      genRes.status === 200 ? 'chat OK' : `HTTP ${genRes.status}`,
+    );
   } else if (groqKey) {
     const genRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

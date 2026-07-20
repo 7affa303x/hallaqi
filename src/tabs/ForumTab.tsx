@@ -9,8 +9,9 @@ import { motion } from 'framer-motion';
 import { forumCategories } from '@/data/mockData';
 import type { ForumCategory, ForumPost, ScreenName, ScreenParams } from '@/types';
 import { themes } from '@/data/themes';
-import { enterCompetition, getActiveCompetitions, getForumCategories } from '@/supabase/database';
+import { enterCompetition, getActiveCompetitions, getForumCategories, getUserCompetitionIds } from '@/supabase/database';
 import { isForumBookmarked, toggleForumBookmark } from '@/lib/deviceStorage';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import {
   MessageCircle, Trophy, Eye, Shield, BadgeCheck, Pin,
   Megaphone, Heart, MessageSquare, Share2, Bookmark,
@@ -31,6 +32,7 @@ export default function ForumTab() {
   const [competitions, setCompetitions] = useState<ActiveCompetition[]>([]);
   const [competitionMessage, setCompetitionMessage] = useState('');
   const [busyCompetition, setBusyCompetition] = useState('');
+  const [joinedCompetitionIds, setJoinedCompetitionIds] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Array<{ key: string; label: string; color: string }>>(
     forumCategories.map(category => ({ ...category }))
   );
@@ -50,8 +52,22 @@ export default function ForumTab() {
   }, [themeConfig.colors.primary]);
 
   useEffect(() => {
+    if (!FEATURE_FLAGS.competitionsEnabled) {
+      setCompetitions([]);
+      return;
+    }
     getActiveCompetitions().then(setCompetitions).catch(() => setCompetitions([]));
   }, []);
+
+  useEffect(() => {
+    if (!FEATURE_FLAGS.competitionsEnabled || !appUser) {
+      setJoinedCompetitionIds(new Set());
+      return;
+    }
+    getUserCompetitionIds(appUser.id)
+      .then(ids => setJoinedCompetitionIds(new Set(ids)))
+      .catch(() => setJoinedCompetitionIds(new Set()));
+  }, [appUser]);
 
   const joinCompetition = async (competitionId: string) => {
     if (!appUser) {
@@ -61,8 +77,12 @@ export default function ForumTab() {
     setBusyCompetition(competitionId);
     setCompetitionMessage('');
     try {
-      await enterCompetition(competitionId, appUser.id);
-      setCompetitionMessage('تم تسجيل مشاركتك. أنشئ منشوراً لعرض عملك.');
+      if (!joinedCompetitionIds.has(competitionId)) {
+        await enterCompetition(competitionId, appUser.id);
+        setJoinedCompetitionIds(prev => new Set([...prev, competitionId]));
+      }
+      setCompetitionMessage('تم التسجيل — أنشئ منشوراً لعرض عملك');
+      navigate('create-post', { competitionId });
     } catch (err) {
       setCompetitionMessage(err instanceof Error ? err.message : 'تعذر الانضمام للمسابقة');
     } finally {
@@ -164,24 +184,34 @@ export default function ForumTab() {
         </div>
       )}
 
-      {/* Competitions Banner */}
-      {competitions.length > 0 && <div className="px-4 mt-2 mb-3">
+      {/* Competitions Banner — gated until entry→post flow is ready */}
+      {FEATURE_FLAGS.competitionsEnabled && competitions.length > 0 && <div className="px-4 mt-2 mb-3">
         <div className="p-3 rounded-2xl border" style={{ backgroundColor: themeConfig.colors.primary + '05', borderColor: themeConfig.colors.primary + '15', borderStyle: 'dashed' }}>
           <div className="flex items-center gap-2 mb-2">
             <Trophy size={16} style={{ color: themeConfig.colors.primary }} />
             <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>مسابقات نشطة</span>
           </div>
           <div className="space-y-2">
-            {competitions.map(comp => (
+            {competitions.map(comp => {
+              const alreadyJoined = joinedCompetitionIds.has(comp.id);
+              return (
               <div key={comp.id} className="flex items-center justify-between p-2.5 rounded-xl" style={{ backgroundColor: themeConfig.colors.surface }}>
                 <div>
                   <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>{comp.title}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{comp.competition_entries?.[0]?.count || 0} مشارك &bull; {comp.prize}</p>
                   <p className="text-[9px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>تنتهي {new Date(comp.ends_at).toLocaleDateString('ar-DZ')}</p>
                 </div>
-                <button disabled={busyCompetition === comp.id} onClick={() => void joinCompetition(comp.id)} className="px-3 h-8 rounded-lg text-[10px] font-bold text-white disabled:opacity-50" style={{ backgroundColor: themeConfig.colors.primary }}>شارك</button>
+                <button
+                  disabled={busyCompetition === comp.id}
+                  onClick={() => void joinCompetition(comp.id)}
+                  className="px-3 h-8 rounded-lg text-[10px] font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: alreadyJoined ? themeConfig.colors.success : themeConfig.colors.primary }}
+                >
+                  {alreadyJoined ? 'منشور' : 'شارك'}
+                </button>
               </div>
-            ))}
+              );
+            })}
           </div>
           {competitionMessage && <p role="status" className="text-[10px] mt-2" style={{ color: themeConfig.colors.primary }}>{competitionMessage}</p>}
         </div>

@@ -1056,6 +1056,32 @@ export async function enterCompetition(
   return data;
 }
 
+/** Competition ids the user has already entered. */
+export async function getUserCompetitionIds(userId: string): Promise<string[]> {
+  guard();
+  const { data, error } = await supabase
+    .from('competition_entries')
+    .select('competition_id')
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  return (data || []).map(row => row.competition_id);
+}
+
+/** Attach a forum post to an existing competition entry. */
+export async function linkCompetitionEntryPost(
+  competitionId: string,
+  userId: string,
+  forumPostId: string,
+) {
+  guard();
+  const { error } = await supabase
+    .from('competition_entries')
+    .update({ forum_post_id: forumPostId })
+    .eq('competition_id', competitionId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
 /* ========== REAL-TIME ========== */
 
 export function subscribeToTable(table: string, callback: (payload: Record<string, unknown>) => void) {

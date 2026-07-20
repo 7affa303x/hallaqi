@@ -12,23 +12,17 @@ export default defineConfig({
     react(),
     VitePWA({
       /**
-       * Soft-launch: unregister every old service worker.
-       * Stale precached shells were remounting an "old app" after Google OAuth.
-       * Re-enable a careful NetworkOnly PWA after the stale fleet is cleared.
+       * Push-only SW lives in public/sw.js (no Workbox precache).
+       * Disabling plugin SW generation — selfDestroying broke Web Push.
        */
-      selfDestroying: true,
+      disable: true,
       registerType: "autoUpdate",
       injectRegister: null,
       devOptions: {
         enabled: false,
       },
       manifest: false,
-      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "offline.html", "robots.txt", "auth-shell.js", "oauth-guard.js", "sw-register.js"],
-      workbox: {
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-      },
+      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "sw.js", "offline.html", "robots.txt", "auth-shell.js", "oauth-guard.js", "sw-register.js"],
     }),
   ],
   server: {

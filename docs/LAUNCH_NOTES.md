@@ -33,7 +33,7 @@
 | CCP / بريدي موب | **متوقف** — `ccpPaymentsEnabled: false` |
 | ترقية الاشتراك المدفوع | **متوقف** — `paidSubscriptionsEnabled: false` |
 | مواضع إعلان مدفوعة | **متوقف** — `paidPlacementsEnabled: false` |
-| Web Push | **متوقف** — يحتاج `VITE_VAPID_PUBLIC_KEY` |
+| Web Push | **جاهز للنشر** — يحتاج دمج SW + `VITE_VAPID_PUBLIC_KEY` ثم مسح بيانات الموقع مرة |
 | مزامنة الحفظ/الإشارات للسيرفر | **متوقف** — جهاز فقط (`serverBookmarksEnabled`) |
 | سجل تدقيق أدمن / لوحة مشرف | **متوقف** |
 | تحليلات وهمية / mock | **متوقف** — أرقام حقيقية (قد تكون صفر) |
@@ -59,7 +59,7 @@
 | Supabase publishable (`sb_publishable_…`) | **يعمل** |
 | Supabase service (`sb_secret_…`) | **يعمل** — للخادم فقط |
 | Gemini API | **المفتاح صالح** لكن `generateContent` يرجع **429** (حصة مجانية منتهية) |
-| **Groq API** | **✅ يعمل مجاناً** — `llama-3.3-70b-versatile` للنصوص |
+| **Groq / xAI / Gemini** | **مدعوم** — أولوية: Groq (`gsk_`) ثم xAI (`xai-`) ثم Gemini |
 | مخطط السوق على Supabase | **مُحدَّث** — بذر 3 بائعين + 6 منتجات |
 
 ### خطوات إصلاح Supabase
@@ -75,11 +75,21 @@ VITE_SUPABASE_URL=https://cdwzbtjwqybnahhbhldy.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon JWT أو publishable>
 SUPABASE_SERVICE_ROLE_KEY=<sb_secret — خادم فقط>
 GROQ_API_KEY=<gsk_... — مجاني للنصوص>
+# أو XAI_API_KEY=<xai-... — Grok> مع AI_TEXT_MODEL=grok-3-latest
 AI_GENERATION_ENABLED=true
 AI_TEXT_MODEL=llama-3.3-70b-versatile
 VITE_AI_PROVIDER=groq
 GEMINI_API_KEY=<اختياري — لتوليد الصور فقط>
+VITE_VAPID_PUBLIC_KEY=<مفتاح VAPID العام>
 ```
+
+### Soft-launch flags (إخفاء لا حذف)
+
+- `competitionsEnabled=false` — مسابقات المنتدى مخفية حتى اكتمال تدفق المنشور
+- `accountTypeSwitchEnabled=false` — زر تبديل نوع الحساب موجود ومخفي
+- إعدادات البروفايل مفلترة عبر `isSettingsItemVisible()` (~20% ظاهرة)
+- `gamificationSurfacesEnabled=false` — شارات/نقاط مخفية
+- الرسائل من قائمة المساعد الشعاعية (ليست من هيدر البروفايل)
 
 ### ما تم إصلاحه في دفعة الإطلاق P0 (2026-07-18)
 

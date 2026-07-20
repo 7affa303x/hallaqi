@@ -10,9 +10,14 @@ import type { IScannerControls } from '@zxing/browser';
 
 type CameraMode = 'scanner' | 'generator' | 'camera';
 
-export default function CameraTab() {
+interface CameraTabProps {
+  /** When false, camera/scanner streams are released immediately. */
+  isActive?: boolean;
+}
+
+export default function CameraTab({ isActive = true }: CameraTabProps) {
   const { themeConfig, navigate, barbers } = useApp();
-  const [mode, setMode] = useState<CameraMode>('scanner');
+  const [mode, setMode] = useState<CameraMode>('generator');
   const [scannedResult, setScannedResult] = useState('');
   const [scannedBarberId, setScannedBarberId] = useState('');
   const [selectedBarberId, setSelectedBarberId] = useState(barbers[0]?.id || '');
@@ -23,6 +28,8 @@ export default function CameraTab() {
   const scannerControlsRef = useRef<IScannerControls | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  /** User must explicitly tap to start — never auto-start on mount. */
+  const [userRequested, setUserRequested] = useState(false);
 
   const selectedBarber = barbers.find(b => b.id === selectedBarberId);
   const canonicalBarberUrl = selectedBarber
@@ -33,10 +40,33 @@ export default function CameraTab() {
     if (!selectedBarberId && barbers[0]) setSelectedBarberId(barbers[0].id);
   }, [barbers, selectedBarberId]);
 
+  const releaseCamera = useCallback(() => {
+    scannerControlsRef.current?.stop();
+    scannerControlsRef.current = null;
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    const video = videoRef.current;
+    if (video) {
+      const attached = video.srcObject;
+      if (attached instanceof MediaStream) {
+        attached.getTracks().forEach(track => track.stop());
+      }
+      video.srcObject = null;
+    }
+
+    setCameraActive(false);
+    setFlashOn(false);
+  }, []);
+
   const startCamera = useCallback(async () => {
+    releaseCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: frontCamera ? 'user' : 'environment' }
+        video: { facingMode: frontCamera ? 'user' : 'environment' },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -48,17 +78,7 @@ export default function CameraTab() {
       setCameraActive(false);
       setCameraError('تعذر الوصول إلى الكاميرا. تحقق من الإذن.');
     }
-  }, [frontCamera]);
-
-  const stopCamera = useCallback(() => {
-    scannerControlsRef.current?.stop();
-    scannerControlsRef.current = null;
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  }, []);
+  }, [frontCamera, releaseCamera]);
 
   const parseBarberId = useCallback((text: string): string => {
     try {
@@ -79,7 +99,7 @@ export default function CameraTab() {
 
   const startScanner = useCallback(async () => {
     if (!videoRef.current) return;
-    stopCamera();
+    releaseCamera();
     try {
       const { BrowserQRCodeReader } = await import('@zxing/browser');
       const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 250 });
@@ -92,23 +112,51 @@ export default function CameraTab() {
           const barberId = parseBarberId(text);
           setScannedResult(text);
           setScannedBarberId(barberId);
+          // Keep stream running until user dismisses — stop scanner decode loop only
           scannerControlsRef.current?.stop();
-        }
+          scannerControlsRef.current = null;
+        },
       );
+      // ZXing owns the stream on the video element — track it for cleanup
+      if (videoRef.current.srcObject instanceof MediaStream) {
+        streamRef.current = videoRef.current.srcObject;
+      }
       setCameraActive(true);
       setCameraError('');
     } catch {
       setCameraActive(false);
       setCameraError('تعذر تشغيل ماسح QR. تحقق من إذن الكاميرا.');
     }
-  }, [frontCamera, parseBarberId, stopCamera]);
+  }, [frontCamera, parseBarberId, releaseCamera]);
 
+  // Start only when user requested AND page is active AND mode needs camera
   useEffect(() => {
+    if (!isActive || !userRequested) {
+      releaseCamera();
+      return;
+    }
     if (mode === 'scanner') void startScanner();
     else if (mode === 'camera') void startCamera();
-    else stopCamera();
-    return () => stopCamera();
-  }, [mode, startCamera, startScanner, stopCamera]);
+    else releaseCamera();
+    return () => releaseCamera();
+  }, [isActive, userRequested, mode, startCamera, startScanner, releaseCamera]);
+
+  // Pause when tab/app is backgrounded
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) releaseCamera();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [releaseCamera]);
+
+  // Always release on unmount
+  useEffect(() => () => releaseCamera(), [releaseCamera]);
+
+  const requestStart = () => {
+    setUserRequested(true);
+    setCameraError('');
+  };
 
   const qrData = selectedBarber
     ? JSON.stringify({
@@ -176,9 +224,21 @@ export default function CameraTab() {
     setFlashOn(next);
   };
 
+  const switchMode = (next: CameraMode) => {
+    setMode(next);
+    setScannedResult('');
+    if (next === 'generator') {
+      setUserRequested(false);
+      releaseCamera();
+    } else {
+      // Require explicit start for camera/scanner modes
+      setUserRequested(false);
+      releaseCamera();
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: '#000' }}>
-      {/* Camera Viewfinder */}
       <div className="relative flex-1 bg-black overflow-hidden">
         {(mode === 'scanner' || mode === 'camera') && (
           <video
@@ -190,18 +250,15 @@ export default function CameraTab() {
           />
         )}
 
-        {/* Generator View */}
         {mode === 'generator' && selectedBarber && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6"
             style={{ backgroundColor: themeConfig.colors.background }}
           >
-            {/* Hallaqi Logo */}
             <div className="flex items-center gap-2 mb-6">
               <img src="/logo-symbol.png" alt="Hallaqi" className="w-8 h-8" />
               <span className="text-lg font-bold" style={{ color: themeConfig.colors.primary }}>HALLAQI</span>
             </div>
 
-            {/* QR Code */}
             <div className="relative p-4 rounded-3xl bg-white shadow-xl">
               <QRCodeSVG
                 id="hallaqi-profile-qr"
@@ -229,7 +286,6 @@ export default function CameraTab() {
               امسح QR Code لزيارة البروفايل
             </p>
 
-            {/* Actions */}
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => copyToClipboard(canonicalBarberUrl)}
@@ -259,28 +315,33 @@ export default function CameraTab() {
           </div>
         )}
 
-        {/* Scan Frame Overlay */}
+        {mode === 'generator' && !selectedBarber && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6"
+            style={{ backgroundColor: themeConfig.colors.background }}
+          >
+            <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>لا يوجد حلاق لإنشاء QR</p>
+            <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>استخدم مسح QR أو الكاميرا من الأزرار أدناه</p>
+          </div>
+        )}
+
         {mode === 'scanner' && cameraActive && (
           <>
             <div className="absolute inset-0 bg-black/40" />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative w-64 h-64">
-                {/* Corner markers */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 rounded-tl-lg" style={{ borderColor: themeConfig.colors.accent }} />
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 rounded-tr-lg" style={{ borderColor: themeConfig.colors.accent }} />
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 rounded-bl-lg" style={{ borderColor: themeConfig.colors.accent }} />
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 rounded-br-lg" style={{ borderColor: themeConfig.colors.accent }} />
-                {/* Scan line */}
                 <div className="absolute left-0 right-0 h-0.5 animate-scan-line" style={{ backgroundColor: themeConfig.colors.accent, boxShadow: `0 0 10px ${themeConfig.colors.accent}` }} />
               </div>
             </div>
             <div className="absolute bottom-32 left-0 right-0 text-center">
-              <p className="text-sm text-white/80 font-medium"> ضع QR Code داخل الإطار</p>
+              <p className="text-sm text-white/80 font-medium">ضع QR Code داخل الإطار</p>
             </div>
           </>
         )}
 
-        {/* Scan Result */}
         {scannedResult && (
           <div className="absolute bottom-24 left-4 right-4 p-4 rounded-2xl bg-white/95 backdrop-blur shadow-xl">
             <div className="flex items-center gap-3">
@@ -299,25 +360,24 @@ export default function CameraTab() {
               >
                 عرض
               </button>
-              <button onClick={() => setScannedResult('')} className="flex-shrink-0">
+              <button onClick={() => { setScannedResult(''); setUserRequested(true); void startScanner(); }} className="flex-shrink-0">
                 <X size={18} style={{ color: themeConfig.colors.textMuted }} />
               </button>
             </div>
           </div>
         )}
 
-        {/* No Camera Fallback */}
         {!cameraActive && (mode === 'scanner' || mode === 'camera') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
             <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 mb-4 rounded-2xl" />
             <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
               {mode === 'scanner' ? 'ماسح QR Code' : 'الكاميرا'}
             </p>
-            <p className="text-xs mt-2" style={{ color: themeConfig.colors.textMuted }}>
-              {cameraError || 'يلزم إذن الوصول للكاميرا'}
+            <p className="text-xs mt-2 text-center px-6" style={{ color: themeConfig.colors.textMuted }}>
+              {cameraError || 'اضغط للتشغيل — الكاميرا تتوقف تلقائياً عند المغادرة'}
             </p>
             <button
-              onClick={() => mode === 'scanner' ? void startScanner() : void startCamera()}
+              onClick={requestStart}
               className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold text-white"
               style={{ backgroundColor: themeConfig.colors.primary }}
             >
@@ -327,9 +387,7 @@ export default function CameraTab() {
         )}
       </div>
 
-      {/* Bottom Controls */}
       <div className="flex-shrink-0 pb-8 pt-4 px-4" style={{ backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(20px)' }}>
-        {/* Mode Switcher */}
         <div className="flex items-center justify-center gap-2 mb-6">
           {[
             { key: 'scanner' as CameraMode, icon: Scan, label: 'مسح QR' },
@@ -339,7 +397,7 @@ export default function CameraTab() {
             <motion.button
               key={m.key}
               whileTap={{ scale: 0.92 }}
-              onClick={() => setMode(m.key)}
+              onClick={() => switchMode(m.key)}
               className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all relative"
               style={{
                 backgroundColor: mode === m.key ? 'rgba(255,255,255,0.15)' : 'transparent',
@@ -353,7 +411,6 @@ export default function CameraTab() {
           ))}
         </div>
 
-        {/* Action Buttons */}
         {mode !== 'generator' && <div className="flex items-center justify-center gap-8">
           <motion.button
             whileTap={{ scale: 0.85 }}
@@ -364,10 +421,11 @@ export default function CameraTab() {
             <Flashlight size={22} style={{ color: flashOn ? '#F59E0B' : '#fff' }} />
           </motion.button>
 
-          {/* Shutter / Scan Button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onClick={mode === 'camera' ? capturePhoto : mode === 'scanner' ? () => void startScanner() : undefined}
+            onClick={mode === 'camera'
+              ? capturePhoto
+              : () => { setUserRequested(true); void startScanner(); }}
             className="w-18 h-18 rounded-full flex items-center justify-center p-1"
             style={{
               border: mode === 'scanner' ? '3px solid #F59E0B' : '3px solid #fff',
@@ -386,7 +444,12 @@ export default function CameraTab() {
 
           <motion.button
             whileTap={{ scale: 0.85 }}
-            onClick={() => setFrontCamera(!frontCamera)}
+            onClick={() => {
+              setFrontCamera(prev => !prev);
+              if (userRequested && (mode === 'scanner' || mode === 'camera')) {
+                // effect will restart with new facingMode when frontCamera changes
+              }
+            }}
             className="w-12 h-12 rounded-full flex items-center justify-center"
             style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
           >
@@ -394,7 +457,6 @@ export default function CameraTab() {
           </motion.button>
         </div>}
 
-        {/* Barber Selector for Generator Mode */}
         {mode === 'generator' && (
           <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide px-2">
             {barbers.map(barber => (

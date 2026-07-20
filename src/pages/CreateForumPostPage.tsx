@@ -4,17 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRight, ImagePlus, Send, X } from 'lucide-react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
-import { addForumPost, getForumCategories } from '@/supabase/database';
+import { addForumPost, getForumCategories, linkCompetitionEntryPost } from '@/supabase/database';
 import { uploadForumImage } from '@/supabase/storage';
 import { forumPostSchema } from '@/lib/validation';
 import type { ForumPostFormData } from '@/lib/validation';
 import type { ForumCategory as DatabaseForumCategory } from '@/types/supabase-aliases';
 import { trackProductEvent } from '@/lib/product-analytics';
 import { assertFileWithinLimit, compressImageFile, UPLOAD_LIMITS } from '@/lib/imageUpload';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 export default function CreateForumPostPage() {
-  const { themeConfig, goBack, refreshData } = useApp();
+  const { themeConfig, goBack, refreshData, screenParams } = useApp();
   const { appUser } = useAuth();
+  const competitionId = FEATURE_FLAGS.competitionsEnabled ? screenParams?.competitionId : undefined;
   const [categories, setCategories] = useState<DatabaseForumCategory[]>([]);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -65,7 +67,7 @@ export default function CreateForumPostPage() {
     setError('');
     try {
       const imageUrl = image ? await uploadForumImage(appUser.id, image) : null;
-      await addForumPost({
+      const post = await addForumPost({
         author_id: appUser.id,
         category_id: data.categoryId,
         title: data.title,
@@ -75,9 +77,17 @@ export default function CreateForumPostPage() {
         is_pinned: false,
         is_locked: false,
       });
+      if (competitionId && post?.id) {
+        try {
+          await linkCompetitionEntryPost(competitionId, appUser.id, post.id);
+        } catch {
+          // Entry may already exist without post — non-blocking for publish
+        }
+      }
       trackProductEvent('Forum Post Created', {
         categoryId: data.categoryId,
         hasImage: Boolean(imageUrl),
+        competitionId: competitionId || undefined,
       });
       await refreshData();
       goBack();
@@ -96,8 +106,12 @@ export default function CreateForumPostPage() {
           <ArrowRight size={20} style={{ color: themeConfig.colors.text }} />
         </button>
         <div>
-          <h1 className="font-bold" style={{ color: themeConfig.colors.text }}>منشور جديد</h1>
-          <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>شارك سؤالاً أو تجربة مع المجتمع</p>
+          <h1 className="font-bold" style={{ color: themeConfig.colors.text }}>
+            {competitionId ? 'منشور المسابقة' : 'منشور جديد'}
+          </h1>
+          <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
+            {competitionId ? 'ارفع عملك للمشاركة في المسابقة' : 'شارك سؤالاً أو تجربة مع المجتمع'}
+          </p>
         </div>
       </header>
 
@@ -178,7 +192,7 @@ export default function CreateForumPostPage() {
           style={{ backgroundColor: themeConfig.colors.primary }}
         >
           <Send size={16} />
-          {isSubmitting ? 'جاري النشر...' : 'نشر الموضوع'}
+          {isSubmitting ? 'جاري النشر...' : competitionId ? 'نشر للمسابقة' : 'نشر الموضوع'}
         </button>
       </form>
     </div>

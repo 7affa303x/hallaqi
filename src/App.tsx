@@ -23,7 +23,6 @@ import ForumTab from '@/tabs/ForumTab';
 import './App.css';
 
 const AppointmentsTab = lazy(() => import('@/tabs/AppointmentsTab'));
-const CameraTab = lazy(() => import('@/tabs/CameraTab'));
 const ProfileTab = lazy(() => import('@/tabs/ProfileTab'));
 const MarketplaceTab = lazy(() => import('@/tabs/MarketplaceTab'));
 const BarberDetailPage = lazy(() => import('@/pages/BarberDetailPage'));
@@ -63,9 +62,6 @@ function TabContent({ tab }: { tab: string }) {
       </div>
       <div className={tab === 'appointments' ? 'block' : 'hidden'} aria-hidden={tab !== 'appointments'}>
         <Suspense fallback={<LoadingFallback />}><AppointmentsTab /></Suspense>
-      </div>
-      <div className={tab === 'camera' ? 'block' : 'hidden'} aria-hidden={tab !== 'camera'}>
-        <Suspense fallback={<LoadingFallback />}><CameraTab /></Suspense>
       </div>
       <div className={tab === 'ai-hub' ? 'block' : 'hidden'} aria-hidden={tab !== 'ai-hub'}>
         <Suspense fallback={<LoadingFallback />}><AIAdvisorPage /></Suspense>
@@ -333,7 +329,9 @@ function AppContent() {
           </button>
         </div>
       )}
-      {dataError && !dismissDataError && (
+      {/* Hide technical dataError on auth screens — it scares users during login. */}
+      {dataError && !dismissDataError && screen !== 'login' && screen !== 'register'
+        && screen !== 'forgot-password' && screen !== 'reset-password' && !authLoading && (
         <div
           role="alert"
           className="fixed top-2 left-1/2 -translate-x-1/2 z-[90] w-[calc(100%-2rem)] max-w-lg rounded-xl px-3 py-2 flex items-center gap-3 shadow-lg"
