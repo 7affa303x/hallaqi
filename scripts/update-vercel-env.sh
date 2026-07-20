@@ -1,81 +1,185 @@
 #!/usr/bin/env bash
-# Updates Vercel environment variables for the new Supabase project.
+# Sync Hallaqi secrets to the canonical Vercel project (hallaqi on team souf303x).
+#
+# Never commit real keys. Load from a local file, then run:
+#   cp scripts/vercel-env.example scripts/.env.vercel.local  # then fill values
+#   set -a && source scripts/.env.vercel.local && set +a
+#   ./scripts/update-vercel-env.sh
+#
+# Required env vars:
+#   VERCEL_TOKEN
+#   VITE_SUPABASE_ANON_KEY
+#   SUPABASE_SERVICE_ROLE_KEY
+#
+# Optional (set only what you want to update):
+#   GROQ_API_KEY, GEMINI_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+#
+# Canonical targets (do not change):
+#   Vercel project: hallaqi  (prj_MnuU0K6uk3nXeBwmEHZMVayhZy51)
+#   Supabase ref:   cdwzbtjwqybnahhbhldy  (org: souf)
+
 set -euo pipefail
 
-VERCEL_TOKEN="${VERCEL_TOKEN:-}"
-TEAM_ID="team_9Wfao03YeLV9wamY5Qz0f54A"
-PROJECT_ID="prj_MYHfKm7hpMxRvYFcEKjH64qoR4WE"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
-if [[ -z "$VERCEL_TOKEN" ]]; then
-  echo "ERROR: VERCEL_TOKEN is not set"
-  exit 1
+# --- Canonical IDs (hallaqi only — never hallaqi-*) ---
+VERCEL_TEAM_ID="${VERCEL_TEAM_ID:-team_9Wfao03YeLV9wamY5Qz0f54A}"
+VERCEL_PROJECT_ID="${VERCEL_PROJECT_ID:-prj_MnuU0K6uk3nXeBwmEHZMVayhZy51}"
+VERCEL_PROJECT_NAME="${VERCEL_PROJECT:-hallaqi}"
+SUPABASE_PROJECT_REF="${SUPABASE_PROJECT_REF:-cdwzbtjwqybnahhbhldy}"
+VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-https://${SUPABASE_PROJECT_REF}.supabase.co}"
+
+# Auto-load local secrets file if present (gitignored).
+LOCAL_ENV="${VERCEL_ENV_FILE:-$ROOT/scripts/.env.vercel.local}"
+if [[ -f "$LOCAL_ENV" ]]; then
+  # shellcheck disable=SC1090
+  set -a && source "$LOCAL_ENV" && set +a
 fi
 
-# Step 1: Remove ALL env vars matching the key (sensitive ones can only be removed via ID)
+require() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    echo "ERROR: Missing required env var: $name" >&2
+    echo "       Copy scripts/vercel-env.example → scripts/.env.vercel.local and fill values." >&2
+    exit 1
+  fi
+}
+
+jwt_ref() {
+  local token="$1"
+  python3 - "$token" <<'PY'
+import base64, json, sys
+token = sys.argv[1]
+try:
+    payload = token.split(".")[1]
+    pad = "=" * (-len(payload) % 4)
+    data = json.loads(base64.urlsafe_b64decode(payload + pad).decode())
+    print(data.get("ref", ""))
+except Exception:
+    print("")
+PY
+}
+
+assert_supabase_jwt() {
+  local label="$1"
+  local token="$2"
+  local ref
+  ref="$(jwt_ref "$token")"
+  if [[ -z "$ref" ]]; then
+    echo "ERROR: $label is not a valid Supabase JWT." >&2
+    exit 1
+  fi
+  if [[ "$ref" != "$SUPABASE_PROJECT_REF" ]]; then
+    echo "ERROR: $label belongs to project '$ref', expected '$SUPABASE_PROJECT_REF'." >&2
+    echo "       Refuse to sync keys from the wrong Supabase project." >&2
+    exit 1
+  fi
+}
+
+api() {
+  curl -sS "$@"
+}
+
 remove_all_env() {
   local key="$1"
-  echo "  Getting all entries for $key..."
-  RESP=$(curl -sS "https://api.vercel.com/v10/projects/$PROJECT_ID/env?teamId=$TEAM_ID" \
-    -H "Authorization: Bearer $VERCEL_TOKEN")
-  IDS=$(echo "$RESP" | python3 -c "
+  echo "  Removing existing entries for $key..."
+  RESP="$(api "https://api.vercel.com/v10/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_TEAM_ID" \
+    -H "Authorization: Bearer $VERCEL_TOKEN")"
+  IDS="$(echo "$RESP" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 for e in d.get('envs', []):
     if e.get('key') == '$key':
         print(e['id'])
-" 2>/dev/null)
+" 2>/dev/null || true)"
   for ID in $IDS; do
-    echo "  Removing id=$ID"
-    curl -sS -X DELETE "https://api.vercel.com/v9/projects/$PROJECT_ID/env/$ID?teamId=$TEAM_ID" \
-      -H "Authorization: Bearer $VERCEL_TOKEN"
-    echo ""
+    api -X DELETE \
+      "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env/$ID?teamId=$VERCEL_TEAM_ID" \
+      -H "Authorization: Bearer $VERCEL_TOKEN" >/dev/null
+    echo "    removed id=$ID"
   done
 }
 
-echo "==> Step 1: Removing old VITE_SUPABASE_URL"
-remove_all_env "VITE_SUPABASE_URL"
+upsert_env() {
+  local key="$1"
+  local value="$2"
+  local type="${3:-plain}"
+  shift 3
+  local targets_json
+  targets_json="$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "$@")"
 
-echo "==> Step 1b: Removing old VITE_SUPABASE_ANON_KEY"
-remove_all_env "VITE_SUPABASE_ANON_KEY"
+  remove_all_env "$key"
 
-echo "==> Step 1c: Removing old SUPABASE_SERVICE_ROLE_KEY"
-remove_all_env "SUPABASE_SERVICE_ROLE_KEY"
+  python3 - "$key" "$value" "$type" "$targets_json" <<'PY' | api -X POST \
+    "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID/env?teamId=$VERCEL_TEAM_ID" \
+    -H "Authorization: Bearer $VERCEL_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d @-
+import json, sys
+key, value, typ, targets_json = sys.argv[1:5]
+targets = json.loads(targets_json)
+print(json.dumps({
+    "key": key,
+    "value": value,
+    "type": typ,
+    "target": targets,
+}))
+PY
+  echo "  set $key ($type) → ${targets_json}"
+}
+
+echo "==> Hallaqi Vercel env sync"
+echo "    project: $VERCEL_PROJECT_NAME ($VERCEL_PROJECT_ID)"
+echo "    supabase: $SUPABASE_PROJECT_REF"
+
+require VERCEL_TOKEN
+require VITE_SUPABASE_ANON_KEY
+require SUPABASE_SERVICE_ROLE_KEY
+
+assert_supabase_jwt "VITE_SUPABASE_ANON_KEY" "$VITE_SUPABASE_ANON_KEY"
+assert_supabase_jwt "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY"
+
+if [[ "$VITE_SUPABASE_URL" != "https://${SUPABASE_PROJECT_REF}.supabase.co" ]]; then
+  echo "ERROR: VITE_SUPABASE_URL must be https://${SUPABASE_PROJECT_REF}.supabase.co" >&2
+  exit 1
+fi
 
 echo ""
-echo "==> Step 2: Setting new VITE_SUPABASE_URL"
-curl -sS -X POST "https://api.vercel.com/v9/projects/$PROJECT_ID/env?teamId=$TEAM_ID" \
-  -H "Authorization: Bearer $VERCEL_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "key": "VITE_SUPABASE_URL",
-    "value": "https://cdwzbtjwqybnahhbhldy.supabase.co",
-    "type": "plain",
-    "target": ["production", "preview", "development"]
-  }'
-echo ""
+echo "==> Supabase (souf / $SUPABASE_PROJECT_REF)"
+upsert_env "VITE_SUPABASE_URL" "$VITE_SUPABASE_URL" plain production preview development
+upsert_env "VITE_SUPABASE_ANON_KEY" "$VITE_SUPABASE_ANON_KEY" plain production preview development
+upsert_env "SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY" sensitive production preview development
 
-echo "==> Step 3: Setting new VITE_SUPABASE_ANON_KEY"
-curl -sS -X POST "https://api.vercel.com/v9/projects/$PROJECT_ID/env?teamId=$TEAM_ID" \
-  -H "Authorization: Bearer $VERCEL_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "key": "VITE_SUPABASE_ANON_KEY",
-    "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wa21xbHVwa3Zpamh1bWtsZHBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2NjU0MDAsImV4cCI6MjA5OTI0MTQwMH0.8TcARSew4d_UQwKOany8OJIcs69Gqpy2ka7QEPXTK1Q",
-    "type": "plain",
-    "target": ["production", "preview", "development"]
-  }'
-echo ""
+if [[ -n "${GROQ_API_KEY:-}" ]]; then
+  echo ""
+  echo "==> AI (Groq)"
+  upsert_env "GROQ_API_KEY" "$GROQ_API_KEY" sensitive production preview development
+  upsert_env "AI_GENERATION_ENABLED" "true" plain production preview development
+fi
 
-echo "==> Step 4: Setting new SUPABASE_SERVICE_ROLE_KEY (sensitive, production+preview only)"
-curl -sS -X POST "https://api.vercel.com/v9/projects/$PROJECT_ID/env?teamId=$TEAM_ID" \
-  -H "Authorization: Bearer $VERCEL_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "key": "SUPABASE_SERVICE_ROLE_KEY",
-    "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wa21xbHVwa3Zpamh1bWtsZHBtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzY2NTQwMCwiZXhwIjoyMDk5MjQxNDAwfQ.Zpjtrurv5QWIr86AdLhDtpCoEZ1BSfFq3CySY2l4fFo",
-    "type": "sensitive",
-    "target": ["production", "preview"]
-  }'
-echo ""
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+  echo ""
+  echo "==> AI (Gemini)"
+  upsert_env "GEMINI_API_KEY" "$GEMINI_API_KEY" sensitive production preview development
+  upsert_env "GOOGLE_GENERATIVE_AI_API_KEY" "$GEMINI_API_KEY" sensitive production preview development
+  upsert_env "AI_GENERATION_ENABLED" "true" plain production preview development
+fi
 
-echo "==> Done. Redeploy for changes to take effect."
+if [[ -n "${STRIPE_SECRET_KEY:-}" ]]; then
+  echo ""
+  echo "==> Stripe"
+  upsert_env "STRIPE_SECRET_KEY" "$STRIPE_SECRET_KEY" sensitive production preview
+fi
+
+if [[ -n "${STRIPE_WEBHOOK_SECRET:-}" ]]; then
+  upsert_env "STRIPE_WEBHOOK_SECRET" "$STRIPE_WEBHOOK_SECRET" sensitive production preview
+fi
+
+if [[ -n "${VITE_STRIPE_PUBLISHABLE_KEY:-}" ]]; then
+  upsert_env "VITE_STRIPE_PUBLISHABLE_KEY" "$VITE_STRIPE_PUBLISHABLE_KEY" plain production preview development
+fi
+
+echo ""
+echo "==> Done. Redeploy production for changes to take effect:"
+echo "    npx vercel deploy --prod --project $VERCEL_PROJECT_NAME"

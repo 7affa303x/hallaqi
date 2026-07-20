@@ -1,0 +1,36 @@
+# Copy to scripts/.env.vercel.local (gitignored) and fill with values from dashboards.
+# Then: set -a && source scripts/.env.vercel.local && set +a && ./scripts/update-vercel-env.sh
+#
+# Canonical targets:
+#   Vercel: hallaqi (team souf303x)
+#   Supabase: cdwzbtjwqybnahhbhldy (org souf)
+#   GitHub: 7affa303x/hallaqi
+
+# --- Vercel CLI token (https://vercel.com/account/tokens) ---
+VERCEL_TOKEN=
+
+# --- Supabase souf / Hallaqi (Settings → API) ---
+# URL must match ref cdwzbtjwqybnahhbhldy — NOT npkmqlupkvijhumkldpm
+VITE_SUPABASE_URL=https://cdwzbtjwqybnahhbhldy.supabase.co
+VITE_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# --- Supabase CLI / migrations (https://supabase.com/dashboard/account/tokens) ---
+SUPABASE_ACCESS_TOKEN=
+SUPABASE_DB_PASSWORD=
+
+# --- AI (at least one for /api/ai/*) ---
+GROQ_API_KEY=
+GEMINI_API_KEY=
+
+# --- Stripe test (optional until payments go live) ---
+VITE_STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+
+# --- Other integrations (set on Vercel manually or extend the script) ---
+# RESEND_API_KEY=
+# APOLLO_API_KEY=
+# EXA_API_KEY=
+# FIRECRAWL_API_KEY=
+# TAVILY_API_KEY=
