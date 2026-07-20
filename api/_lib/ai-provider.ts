@@ -43,7 +43,7 @@ export function getGoogleProvider() {
 export function getTextModel(): LanguageModel | null {
   const groqKey = getGroqApiKey();
   if (groqKey) {
-    return createGroq({ apiKey: groqKey })(getTextModelId());
+    return createGroq({ apiKey: groqKey, baseURL: 'https://api.x.ai/v1' })(getTextModelId());
   }
   const google = getGoogleProvider();
   if (!google) return null;
