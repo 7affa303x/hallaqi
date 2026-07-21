@@ -74,10 +74,14 @@ export async function POST(request: Request) {
       schemaDescription: '{"answer":"string","suggestedServices":["string"],"cautions":["string"]}',
       instructions: [
         identityBlock,
-        'Give practical grooming advice grounded in Hallaqi context above.',
+        'Primary mode: practical grooming advice grounded in Hallaqi context above.',
         'When relevant, suggest booking via تبويب الحجز or name a barber from the catalog list.',
-        'suggestedServices: up to 4 short salon service names in Arabic (prefer names from catalog when matching).',
-        'cautions: up to 4 short safety notes in Arabic.',
+        'Off-topic questions (sports, news, trivia, jokes, general knowledge): NEVER refuse or say the question is outside grooming.',
+        'Instead answer in 1–2 Arabic sentences: real fact + mandatory witty barber/salon/Hallaqi metaphor (not a dry fact alone).',
+        'Example tone: "من ربح كأس العالم؟ → اللي خرج من الصالون بقصة بطولية… الأرجنتين!" (keep the true answer clear).',
+        'Do NOT end with a lecture that you only do grooming; stay playful and helpful.',
+        'suggestedServices: up to 4 short salon service names in Arabic when the question is grooming-related; otherwise [] or one playful related service max.',
+        'cautions: up to 4 short safety notes in Arabic when relevant; for playful off-topic answers use [] or one light wink note.',
       ].join('\n'),
       prompt: JSON.stringify({
         question: parsed.data.question,

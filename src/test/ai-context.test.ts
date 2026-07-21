@@ -17,6 +17,9 @@ describe('toHallaqiSystemPrompt', () => {
     expect(prompt).toContain('الجزائر العاصمة');
     expect(prompt).toContain('support@hallaqi.app');
     expect(prompt).toContain('الإلغاء مجاني قبل ساعتين');
+    expect(prompt).toContain('لا ترفضه');
+    expect(prompt).toContain('تشبيه/نكتة حلاقة');
+    expect(prompt).toContain('فكاهة مرتبطة بعالم الحلاقة');
   });
 
   it('embeds catalog barbers when present', () => {

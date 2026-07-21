@@ -121,7 +121,7 @@ export default function AIAdvisorPage() {
         </button>
         <div>
           <h1 className="font-bold flex items-center gap-2" style={{ color: themeConfig.colors.text }}><Sparkles size={17} style={{ color: themeConfig.colors.accent }} /> مساعد حلاقي</h1>
-          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>مساعد Hallaqi — نصائح عناية مرتبطة بالمنصة والحلاقين</p>
+          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>مساعد Hallaqi — نصائح عناية… وأي سؤال بأسلوب حلاقي ذكي</p>
         </div>
       </header>
 
