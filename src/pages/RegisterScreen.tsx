@@ -13,6 +13,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, normalizeAlgerianPhone } from '@/lib/validation';
 import type { RegisterFormData } from '@/lib/validation';
+import { ReferralService } from '@/lib/growth-layer';
 
 function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' };
@@ -80,6 +81,14 @@ export default function RegisterScreen() {
         phone,
       );
       if (result.session) {
+        const pendingRef = ReferralService.consumePendingCode();
+        if (pendingRef && result.user?.id) {
+          try {
+            await ReferralService.attribute(pendingRef, result.user.id);
+          } catch {
+            /* non-blocking */
+          }
+        }
         const sellerRoles = ['store', 'company', 'doctor'];
         if (sellerRoles.includes(data.accountType)) {
           navigate('seller-dashboard', { role: data.accountType, pendingApproval: '1' });
