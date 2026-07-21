@@ -1,113 +1,77 @@
 /**
- * Device-local growth progress (no backend / no DB tables).
- * Survives refresh; keyed per user when logged in.
+ * Compatibility façade over local progression store.
+ * Prefer ProgressionService for new code.
  */
 
-export interface GrowthStoredState {
+import { ProgressionService } from '@/lib/progression';
+import { getLevelProgress } from '@/lib/progression/config/levels';
+import {
+  loadLocalProgression,
+  type LocalProgressionState,
+} from '@/lib/progression/repositories/localStore';
+
+/** @deprecated Use LocalProgressionState / ProgressionService */
+export type GrowthStoredState = {
   xp: number;
   streakDays: number;
   lastActiveDay: string | null;
-  /** missionId -> ISO day when XP was claimed */
   claimedMissions: Record<string, string>;
   unlockedBadges: string[];
   referralShares: number;
-  /** Local comment taps / soft progress when server comments are sparse */
   localForumComments: number;
   marketplaceProductViews: string[];
-}
+};
 
-const PREFIX = 'hallaqi-growth-v1';
-
-function storageKey(userId?: string | null): string {
-  return userId ? `${PREFIX}:${userId}` : `${PREFIX}:anon`;
-}
-
-function todayKey(d = new Date()): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function emptyState(): GrowthStoredState {
+function toLegacy(state: LocalProgressionState): GrowthStoredState {
+  const claimed: Record<string, string> = {};
+  for (const m of state.missions) {
+    if (m.claimedAt) claimed[m.missionId] = m.claimedAt;
+  }
   return {
-    xp: 0,
-    streakDays: 0,
-    lastActiveDay: null,
-    claimedMissions: {},
-    unlockedBadges: [],
-    referralShares: 0,
-    localForumComments: 0,
-    marketplaceProductViews: [],
+    xp: state.progress.totalXp,
+    streakDays: state.streak.currentStreak,
+    lastActiveDay: state.streak.lastActiveDate,
+    claimedMissions: claimed,
+    unlockedBadges: state.badges.map(b => b.badgeId),
+    referralShares: state.referralShares,
+    localForumComments: state.localForumComments,
+    marketplaceProductViews: state.marketplaceProductViews,
   };
 }
 
 export function loadGrowthState(userId?: string | null): GrowthStoredState {
-  try {
-    const raw = localStorage.getItem(storageKey(userId));
-    if (!raw) return emptyState();
-    const parsed = JSON.parse(raw) as Partial<GrowthStoredState>;
-    return {
-      ...emptyState(),
-      ...parsed,
-      claimedMissions: parsed.claimedMissions && typeof parsed.claimedMissions === 'object'
-        ? parsed.claimedMissions
-        : {},
-      unlockedBadges: Array.isArray(parsed.unlockedBadges) ? parsed.unlockedBadges.filter(x => typeof x === 'string') : [],
-      marketplaceProductViews: Array.isArray(parsed.marketplaceProductViews)
-        ? parsed.marketplaceProductViews.filter(x => typeof x === 'string')
-        : [],
-    };
-  } catch {
-    return emptyState();
-  }
+  return toLegacy(ProgressionService.load(userId));
 }
 
 export function saveGrowthState(userId: string | null | undefined, state: GrowthStoredState): void {
-  try {
-    localStorage.setItem(storageKey(userId), JSON.stringify(state));
-  } catch {
-    /* ignore quota */
-  }
+  const local = ProgressionService.load(userId);
+  local.progress.totalXp = state.xp;
+  local.streak.currentStreak = state.streakDays;
+  local.streak.lastActiveDate = state.lastActiveDay;
+  local.referralShares = state.referralShares;
+  local.localForumComments = state.localForumComments;
+  local.marketplaceProductViews = state.marketplaceProductViews;
+  ProgressionService.save(userId, local);
 }
 
-/** Update streak for opening/using the app today. */
 export function touchGrowthStreak(userId?: string | null): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  const today = todayKey();
-  if (state.lastActiveDay === today) return state;
-
-  if (!state.lastActiveDay) {
-    state.streakDays = 1;
-  } else {
-    const prev = new Date(`${state.lastActiveDay}T12:00:00`);
-    const cur = new Date(`${today}T12:00:00`);
-    const diffDays = Math.round((cur.getTime() - prev.getTime()) / 86400000);
-    state.streakDays = diffDays === 1 ? state.streakDays + 1 : 1;
-  }
-  state.lastActiveDay = today;
-  saveGrowthState(userId, state);
-  return state;
+  void ProgressionService.touchDailyActivity(userId);
+  return loadGrowthState(userId);
 }
 
 export function recordReferralShare(userId?: string | null): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  state.referralShares += 1;
-  saveGrowthState(userId, state);
-  return state;
+  ProgressionService.recordReferralShare(userId, 'customer');
+  return loadGrowthState(userId);
 }
 
 export function recordLocalForumComment(userId?: string | null): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  state.localForumComments += 1;
-  saveGrowthState(userId, state);
-  return state;
+  ProgressionService.recordLocalForumComment(userId);
+  return loadGrowthState(userId);
 }
 
 export function recordMarketplaceProductView(userId: string | null | undefined, productId: string): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  if (!state.marketplaceProductViews.includes(productId)) {
-    state.marketplaceProductViews = [...state.marketplaceProductViews, productId].slice(-50);
-    saveGrowthState(userId, state);
-  }
-  return state;
+  ProgressionService.recordMarketplaceProductView(userId, productId);
+  return loadGrowthState(userId);
 }
 
 export function claimMissionXp(
@@ -115,27 +79,21 @@ export function claimMissionXp(
   missionId: string,
   xpReward: number,
 ): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  if (state.claimedMissions[missionId]) return state;
-  state.claimedMissions[missionId] = todayKey();
-  state.xp += xpReward;
-  saveGrowthState(userId, state);
-  return state;
+  const day = new Date().toISOString().slice(0, 10);
+  void ProgressionService.claimMissionReward(userId, missionId, day, xpReward);
+  return loadGrowthState(userId);
 }
 
 export function unlockBadge(userId: string | null | undefined, badgeId: string): GrowthStoredState {
-  const state = loadGrowthState(userId);
-  if (!state.unlockedBadges.includes(badgeId)) {
-    state.unlockedBadges = [...state.unlockedBadges, badgeId];
-    state.xp += 15;
-    saveGrowthState(userId, state);
-  }
-  return state;
+  void ProgressionService.unlockBadge(userId, badgeId);
+  return loadGrowthState(userId);
 }
 
 export function xpToLevel(xp: number): { level: number; xpIntoLevel: number; xpToNext: number } {
-  const perLevel = 100;
-  const level = Math.floor(xp / perLevel) + 1;
-  const xpIntoLevel = xp % perLevel;
-  return { level, xpIntoLevel, xpToNext: perLevel };
+  const p = getLevelProgress(xp);
+  return { level: p.level, xpIntoLevel: p.xpIntoLevel, xpToNext: p.xpToNext };
+}
+
+export function loadRawLocal(userId?: string | null) {
+  return loadLocalProgression(userId);
 }
