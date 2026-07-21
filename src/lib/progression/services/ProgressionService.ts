@@ -25,6 +25,7 @@ import {
   upsertUserBadge,
   upsertUserMission,
 } from '@/lib/progression/repositories/remoteRepository';
+import { hydrateProgressionFromRemote } from '@/lib/progression/repositories/syncRemote';
 import type {
   AwardXpResult,
   UserAchievementState,
@@ -36,15 +37,70 @@ function toXpState(local: LocalProgressionState): XpEngineState {
   return { totalXp: local.progress.totalXp, ledger: local.ledger };
 }
 
+const hydratedUsers = new Set<string>();
+
 export const ProgressionService = {
   /** Load local state (with legacy growth migration). */
   load(userId?: string | null): LocalProgressionState {
     return migrateFromLegacyGrowth(userId);
   },
 
+  /** Whether remote hydration completed for this user in this session. */
+  isHydrated(userId?: string | null): boolean {
+    return Boolean(userId && hydratedUsers.has(userId));
+  },
+
+  /**
+   * Pull progression from Supabase into local cache (after migration is live).
+   * Safe to call on login / profile open.
+   */
+  async hydrateFromRemote(userId: string): Promise<boolean> {
+    const local = this.load(userId);
+    const { state, result } = await hydrateProgressionFromRemote(userId, local);
+    this.save(userId, state);
+    if (result.ok) hydratedUsers.add(userId);
+    return result.ok;
+  },
+
+  clearHydration(userId?: string | null): void {
+    if (userId) hydratedUsers.delete(userId);
+  },
+
   save(userId: string | null | undefined, state: LocalProgressionState): void {
     state.progress.level = levelFromXp(state.progress.totalXp);
     saveLocalProgression(userId, state);
+  },
+
+  /** Synchronous local XP award — used during snapshot evaluation (render-safe). */
+  awardXPLocal(
+    userId: string | null | undefined,
+    eventType: XpEventType,
+    amount?: number,
+    options?: { dedupeKey?: string | null; metadata?: Record<string, unknown> },
+  ): AwardXpResult {
+    const local = this.load(userId);
+    const applied = applyXpAward(toXpState(local), eventType, {
+      amount,
+      dedupeKey: options?.dedupeKey,
+      metadata: options?.metadata,
+    });
+    if (applied.result.ok) {
+      local.progress.totalXp = applied.state.totalXp;
+      local.progress.level = applied.result.level;
+      local.ledger = applied.state.ledger;
+      this.save(userId, local);
+      if (userId) {
+        void remoteAwardXp(eventType, applied.result.amount, options?.dedupeKey, options?.metadata).then((remote) => {
+          if (remote?.ok && typeof remote.total_xp === 'number') {
+            const latest = this.load(userId);
+            latest.progress.totalXp = Math.max(latest.progress.totalXp, remote.total_xp);
+            latest.progress.level = levelFromXp(latest.progress.totalXp);
+            this.save(userId, latest);
+          }
+        });
+      }
+    }
+    return applied.result;
   },
 
   /**
@@ -57,28 +113,35 @@ export const ProgressionService = {
     amount?: number,
     options?: { dedupeKey?: string | null; metadata?: Record<string, unknown> },
   ): Promise<AwardXpResult> {
-    const local = this.load(userId);
-    const applied = applyXpAward(toXpState(local), eventType, {
-      amount,
-      dedupeKey: options?.dedupeKey,
-      metadata: options?.metadata,
-    });
-
-    if (applied.result.ok) {
-      local.progress.totalXp = applied.state.totalXp;
-      local.progress.level = applied.result.level;
-      local.ledger = applied.state.ledger;
-      this.save(userId, local);
+    if (userId) {
+      const remote = await remoteAwardXp(eventType, amount, options?.dedupeKey, options?.metadata);
+      if (remote?.ok && typeof remote.total_xp === 'number') {
+        const local = this.load(userId);
+        local.progress.totalXp = remote.total_xp;
+        local.progress.level = remote.level ?? levelFromXp(remote.total_xp);
+        this.save(userId, local);
+        return {
+          ok: true,
+          amount: remote.amount ?? amount ?? 0,
+          totalXp: remote.total_xp,
+          level: local.progress.level,
+          eventType,
+        };
+      }
+      if (remote && !remote.ok && remote.reason === 'duplicate') {
+        await this.hydrateFromRemote(userId);
+        const refreshed = this.load(userId);
+        return {
+          ok: false,
+          amount: 0,
+          totalXp: refreshed.progress.totalXp,
+          level: refreshed.progress.level,
+          reason: 'duplicate',
+          eventType,
+        };
+      }
     }
-
-    // Best-effort remote sync (auth required). Does not block local award.
-    if (userId && applied.result.ok) {
-      void remoteAwardXp(eventType, applied.result.amount, options?.dedupeKey, options?.metadata);
-    } else if (userId && !applied.result.ok && applied.result.reason === 'duplicate') {
-      // already counted locally
-    }
-
-    return applied.result;
+    return this.awardXPLocal(userId, eventType, amount, options);
   },
 
   /**
@@ -89,7 +152,7 @@ export const ProgressionService = {
     const local = this.load(userId);
     local.streak = touchStreak(local.streak);
     this.save(userId, local);
-    void this.awardXP(userId, 'daily_login', undefined, {
+    this.awardXPLocal(userId, 'daily_login', undefined, {
       dedupeKey: `daily_login:${new Date().toISOString().slice(0, 10)}`,
     });
     if (userId) {
@@ -121,7 +184,7 @@ export const ProgressionService = {
     local.badges = [...local.badges, row];
     this.save(userId, local);
     if (def && def.xpBonus > 0) {
-      await this.awardXP(userId, 'badge_bonus', def.xpBonus, {
+    void this.awardXP(userId, 'badge_bonus', def.xpBonus, {
         dedupeKey: `badge_bonus:${badgeId}`,
         metadata: { badgeId },
       });
@@ -150,7 +213,7 @@ export const ProgressionService = {
     ];
     this.save(userId, local);
     if (xpReward > 0) {
-      await this.awardXP(userId, 'achievement_reward', xpReward, {
+    void this.awardXP(userId, 'achievement_reward', xpReward, {
         dedupeKey: `achievement:${achievementId}`,
         metadata: { achievementId },
       });

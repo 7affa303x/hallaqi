@@ -5,7 +5,7 @@
 
 import { ACHIEVEMENT_CATALOG } from '@/lib/progression/config/achievements';
 import { BADGE_CATALOG } from '@/lib/progression/config/badges';
-import { MISSION_CATALOG } from '@/lib/progression/config/missions';
+import { getMissionCatalogSync } from '@/lib/progression/missionCatalog';
 import { getLevelProgress } from '@/lib/progression/config/levels';
 import { evaluateNewAchievements, toAchievementViews } from '@/lib/progression/engines/achievementEngine';
 import { evaluateNewBadges, pinnedBadgeViews, toBadgeViews } from '@/lib/progression/engines/badgeEngine';
@@ -123,29 +123,29 @@ export function buildProgressionSignals(input: {
 export function evaluateProgression(signals: ProgressionSignals): ProgressionSnapshot {
   ProgressionService.touchDailyActivity(signals.userId);
 
-  // Milestone XP from profile/gallery (deduped)
+  // Milestone XP from profile/gallery (deduped, sync local + async remote)
   if (signals.hasCompleteProfile) {
-    void ProgressionService.awardXP(signals.userId, 'complete_profile', undefined, {
+    ProgressionService.awardXPLocal(signals.userId, 'complete_profile', undefined, {
       dedupeKey: `complete_profile:${signals.userId || 'anon'}`,
     });
   }
   if (signals.phoneVerified) {
-    void ProgressionService.awardXP(signals.userId, 'phone_verification', undefined, {
+    ProgressionService.awardXPLocal(signals.userId, 'phone_verification', undefined, {
       dedupeKey: `phone_verification:${signals.userId || 'anon'}`,
     });
   }
   if (signals.galleryPhotoCount >= 1) {
-    void ProgressionService.awardXP(signals.userId, 'first_gallery_photo', undefined, {
+    ProgressionService.awardXPLocal(signals.userId, 'first_gallery_photo', undefined, {
       dedupeKey: `first_gallery_photo:${signals.userId || 'anon'}`,
     });
   }
   if (signals.galleryCompleted) {
-    void ProgressionService.awardXP(signals.userId, 'gallery_completed', undefined, {
+    ProgressionService.awardXPLocal(signals.userId, 'gallery_completed', undefined, {
       dedupeKey: `gallery_completed:${signals.userId || 'anon'}`,
     });
   }
   if (signals.forumPostCount >= 1) {
-    void ProgressionService.awardXP(signals.userId, 'create_post', undefined, {
+    ProgressionService.awardXPLocal(signals.userId, 'create_post', undefined, {
       dedupeKey: `create_post:${new Date().toISOString().slice(0, 10)}`,
     });
   }
@@ -176,7 +176,8 @@ export function evaluateProgression(signals: ProgressionSignals): ProgressionSna
   }
 
   local = ProgressionService.load(signals.userId);
-  const missionViews = buildMissionViews(signals, local.missions, MISSION_CATALOG);
+  const missionCatalog = getMissionCatalogSync();
+  const missionViews = buildMissionViews(signals, local.missions, missionCatalog);
 
   // Persist mission progress + claim rewards
   for (const m of missionViews) {
@@ -196,7 +197,7 @@ export function evaluateProgression(signals: ProgressionSignals): ProgressionSna
   }
 
   local = ProgressionService.load(signals.userId);
-  const refreshedMissions = buildMissionViews(signals, local.missions, MISSION_CATALOG);
+  const refreshedMissions = buildMissionViews(signals, local.missions, missionCatalog);
   const level = getLevelProgress(local.progress.totalXp);
   const badges = toBadgeViews(BADGE_CATALOG, local.badges);
   const achievements = toAchievementViews(ACHIEVEMENT_CATALOG, local.achievements, signals, local.streak);

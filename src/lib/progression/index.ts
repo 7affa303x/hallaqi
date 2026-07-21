@@ -17,6 +17,7 @@ export {
   evaluateProgression,
   missionsForPeriod,
 } from '@/lib/progression/evaluate';
+export { getActiveMissionCatalog, getMissionCatalogSync } from '@/lib/progression/missionCatalog';
 export type {
   ProgressionSnapshot,
   ProgressionSignals,
