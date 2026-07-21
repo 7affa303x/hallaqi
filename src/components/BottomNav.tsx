@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { translate, type TranslationKey } from '@/lib/i18n';
 import AiRadialMenu from '@/components/nav/AiRadialMenu';
+import HubSearchSheet from '@/components/nav/HubSearchSheet';
 import { useLongPress } from '@/hooks/useLongPress';
 
 const tabs: { key: TabName; labelKey: TranslationKey; icon: typeof Scissors; special?: boolean }[] = [
@@ -27,6 +28,7 @@ export default function BottomNav() {
   const { activeTab, setActiveTab, themeConfig, unreadCount, navigate, settings, screen } = useApp();
   const { isAuthenticated } = useAuth();
   const [radialOpen, setRadialOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const openRadial = useCallback(() => setRadialOpen(true), []);
   const longPress = useLongPress(openRadial);
@@ -181,6 +183,10 @@ export default function BottomNav() {
             setActiveTab('ai-hub');
             return;
           }
+          if (action === 'search') {
+            setSearchOpen(true);
+            return;
+          }
           if (action === 'qr') {
             navigate('ai-hub-tool', { tool: 'qr' });
             return;
@@ -208,6 +214,7 @@ export default function BottomNav() {
           navigate('rewards');
         }}
       />
+      <HubSearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

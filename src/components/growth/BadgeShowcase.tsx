@@ -1,11 +1,12 @@
 import { ChevronLeft } from 'lucide-react';
-import { GROWTH_BADGES_MOCK } from '@/data/growthMock';
+import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
 
-/** Profile badge showcase — up to 8 mock badges, UI only. */
+/** Profile badge showcase — live unlock state from growth engine. */
 export default function BadgeShowcase() {
   const { themeConfig, navigate } = useApp();
-  const badges = GROWTH_BADGES_MOCK.slice(0, 8);
+  const { snapshot } = useGrowth();
+  const badges = snapshot.badges.slice(0, 8);
 
   return (
     <section
@@ -17,7 +18,9 @@ export default function BadgeShowcase() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>Badges</h3>
-          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>شارات تجريبية — قريباً نظام حقيقي</p>
+          <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
+            {snapshot.badgeCount > 0 ? `${snapshot.badgeCount} مفتوحة` : 'أكمل مهمات لفتح الشارات'}
+          </p>
         </div>
         <button
           type="button"

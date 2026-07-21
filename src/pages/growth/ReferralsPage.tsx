@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Check, Copy, Share2 } from 'lucide-react';
 import GrowthPageShell from '@/components/growth/GrowthPageShell';
-import { GROWTH_REFERRAL_CODE, GROWTH_REFERRAL_STATS_MOCK } from '@/data/growthMock';
+import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
 
 export default function ReferralsPage() {
   const { themeConfig } = useApp();
+  const { snapshot, shareReferral } = useGrowth();
   const [copied, setCopied] = useState(false);
-  const { invitedUsers, rewardsEarned } = GROWTH_REFERRAL_STATS_MOCK;
+  const code = snapshot.referralCode;
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(GROWTH_REFERRAL_CODE);
+      await navigator.clipboard.writeText(code);
+      shareReferral();
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -20,10 +22,11 @@ export default function ReferralsPage() {
   };
 
   const shareCode = async () => {
-    const text = `انضم إلى حلاقي بكودي: ${GROWTH_REFERRAL_CODE}\nhttps://hallaqi.app`;
+    const text = `انضم إلى حلاقي بكودي: ${code}\nhttps://hallaqi.app`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'حلاقي', text, url: 'https://hallaqi.app' });
+        shareReferral();
         return;
       }
     } catch {
@@ -33,7 +36,7 @@ export default function ReferralsPage() {
   };
 
   return (
-    <GrowthPageShell title="الدعوات" subtitle="ادعُ أصدقاءك إلى حلاقي" badge="تجريبي">
+    <GrowthPageShell title="الدعوات" subtitle="ادعُ أصدقاءك إلى حلاقي" badge="مباشر">
       <div
         className="rounded-3xl border p-4 mb-4 text-center"
         style={{
@@ -43,7 +46,7 @@ export default function ReferralsPage() {
       >
         <p className="text-[11px] font-bold mb-2" style={{ color: themeConfig.colors.textMuted }}>كود الدعوة</p>
         <p className="text-2xl font-black tracking-wider mb-4" style={{ color: themeConfig.colors.text }}>
-          {GROWTH_REFERRAL_CODE}
+          {code}
         </p>
         <div className="flex gap-2">
           <button
@@ -76,20 +79,20 @@ export default function ReferralsPage() {
           className="rounded-2xl border p-3 text-right"
           style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
         >
-          <p className="text-[10px] font-medium" style={{ color: themeConfig.colors.textMuted }}>Invited Users</p>
-          <p className="text-xl font-black mt-1" style={{ color: themeConfig.colors.text }}>{invitedUsers}</p>
+          <p className="text-[10px] font-medium" style={{ color: themeConfig.colors.textMuted }}>مشاركات الدعوة</p>
+          <p className="text-xl font-black mt-1" style={{ color: themeConfig.colors.text }}>{snapshot.invitedUsers}</p>
         </div>
         <div
           className="rounded-2xl border p-3 text-right"
           style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
         >
-          <p className="text-[10px] font-medium" style={{ color: themeConfig.colors.textMuted }}>Rewards Earned</p>
-          <p className="text-xl font-black mt-1" style={{ color: themeConfig.colors.text }}>{rewardsEarned}</p>
+          <p className="text-[10px] font-medium" style={{ color: themeConfig.colors.textMuted }}>نقاط مكتسبة</p>
+          <p className="text-xl font-black mt-1" style={{ color: themeConfig.colors.text }}>{snapshot.rewardsEarned}</p>
         </div>
       </div>
 
       <p className="text-[11px] leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
-        واجهة تجريبية فقط — تتبع الدعوات والمكافآت سيُربط لاحقاً دون تغيير هذه الشاشة.
+        النسخ/المشاركة يحتسبان فوراً على هذا الجهاز. تتبع المدعوّين الحقيقيين سيُربط لاحقاً بالخادم دون تغيير هذه الواجهة.
       </p>
     </GrowthPageShell>
   );

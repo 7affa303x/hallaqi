@@ -1,17 +1,22 @@
 import GrowthPageShell from '@/components/growth/GrowthPageShell';
-import { GROWTH_BADGES_MOCK } from '@/data/growthMock';
+import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
 
 export default function AchievementsPage() {
   const { themeConfig } = useApp();
+  const { snapshot } = useGrowth();
 
   return (
-    <GrowthPageShell title="الإنجازات" subtitle="شبكة الشارات" badge="تجريبي">
+    <GrowthPageShell
+      title="الإنجازات"
+      subtitle={`${snapshot.badgeCount} شارة مفتوحة`}
+      badge="مباشر"
+    >
       <p className="text-[11px] mb-4 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
-        شارات وهمية للعرض — بعضها مقفل حتى يُفعَّل النظام لاحقاً.
+        تُفتح الشارات تلقائياً عند إكمال الشروط من نشاطك الحقيقي في التطبيق.
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {GROWTH_BADGES_MOCK.map((badge) => (
+        {snapshot.badges.map((badge) => (
           <article
             key={badge.id}
             className="rounded-3xl border p-3 text-right"
@@ -34,7 +39,7 @@ export default function AchievementsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{badge.name}</p>
                 <p className="text-[10px] font-bold mt-0.5" style={{ color: badge.locked ? themeConfig.colors.textMuted : themeConfig.colors.success }}>
-                  {badge.locked ? 'Locked' : 'Unlocked'}
+                  {badge.locked ? 'مقفلة' : 'مفتوحة'}
                 </p>
               </div>
             </div>

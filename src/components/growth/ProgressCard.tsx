@@ -1,11 +1,18 @@
 import { GROWTH_PROGRESS_MOCK } from '@/data/growthMock';
+import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
 
-/** Premium dark progress card — mock Level/XP/Streak/Badges only (no real engine). */
+/** Live progress card — Level/XP/Streak/Badges from local growth engine. */
 export default function ProgressCard() {
   const { themeConfig } = useApp();
-  const { level, xp, xpToNext, streakDays, badgeCount } = GROWTH_PROGRESS_MOCK;
-  const pct = Math.min(100, Math.round((xp / Math.max(xpToNext, 1)) * 100));
+  const { snapshot } = useGrowth();
+  const level = snapshot.level || GROWTH_PROGRESS_MOCK.level;
+  const xp = snapshot.xp;
+  const xpToNext = snapshot.xpToNext;
+  const xpInto = snapshot.xpIntoLevel;
+  const streakDays = snapshot.streakDays;
+  const badgeCount = snapshot.badgeCount;
+  const pct = Math.min(100, Math.round((xpInto / Math.max(xpToNext, 1)) * 100));
   const accent = themeConfig.colors.primary;
 
   return (
@@ -57,13 +64,12 @@ export default function ProgressCard() {
           <div
             className="h-full rounded-full transition-all"
             style={{
-              width: `${pct}%`,
+              width: `${Math.max(pct, xp > 0 ? 4 : 0)}%`,
               background: `linear-gradient(90deg, ${accent}, ${themeConfig.colors.accent})`,
-              minWidth: xp > 0 ? undefined : 0,
             }}
           />
         </div>
-        <p className="text-[10px] text-white/40 mt-1.5">{xp} / {xpToNext} XP</p>
+        <p className="text-[10px] text-white/40 mt-1.5">{xpInto} / {xpToNext} XP لهذا المستوى</p>
       </div>
     </section>
   );
