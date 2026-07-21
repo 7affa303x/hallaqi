@@ -1,20 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
-import { buildGrowthSignals, evaluateGrowth, type GrowthSnapshot } from '@/lib/growth/engine';
 import {
-  recordLocalForumComment,
-  recordMarketplaceProductView,
-  recordReferralShare,
-} from '@/lib/growth/storage';
+  buildProgressionSignals,
+  evaluateProgression,
+  ProgressionService,
+  type ProgressionSnapshot,
+} from '@/lib/progression';
 
-/** Live growth snapshot derived from app data + device storage. */
+/** Live progression snapshot (XP / levels / badges / missions / streaks). */
 export function useGrowth(): {
-  snapshot: GrowthSnapshot;
+  snapshot: ProgressionSnapshot;
   refresh: () => void;
   shareReferral: () => void;
   markForumComment: () => void;
   markProductView: (productId: string) => void;
+  pinBadges: (badgeIds: string[]) => void;
 } {
   const { appUser } = useAuth();
   const { bookings, forumPosts } = useApp();
@@ -23,31 +24,39 @@ export function useGrowth(): {
 
   const snapshot = useMemo(() => {
     void tick;
-    const signals = buildGrowthSignals({
+    const signals = buildProgressionSignals({
       userId: appUser?.id,
       fullName: appUser?.full_name || appUser?.username,
       city: appUser?.city,
       avatarUrl: appUser?.avatar_url,
+      phone: appUser?.phone_number,
+      phoneVerified: Boolean(appUser?.phone_number && appUser.phone_number.replace(/\D/g, '').length >= 9),
+      isVerified: appUser?.verification_status === 'verified' || appUser?.verification_status === 'premium',
+      galleryPhotoCount: 0,
       bookings,
       forumPosts,
     });
-    return evaluateGrowth(signals);
+    return evaluateProgression(signals);
   }, [appUser, bookings, forumPosts, tick]);
 
   const shareReferral = useCallback(() => {
-    recordReferralShare(appUser?.id);
+    ProgressionService.recordReferralShare(appUser?.id, 'customer');
     refresh();
   }, [appUser?.id, refresh]);
 
   const markForumComment = useCallback(() => {
-    recordLocalForumComment(appUser?.id);
+    ProgressionService.recordLocalForumComment(appUser?.id);
     refresh();
   }, [appUser?.id, refresh]);
 
   const markProductView = useCallback((productId: string) => {
-    recordMarketplaceProductView(appUser?.id, productId);
+    ProgressionService.recordMarketplaceProductView(appUser?.id, productId);
     refresh();
   }, [appUser?.id, refresh]);
 
-  return { snapshot, refresh, shareReferral, markForumComment, markProductView };
+  const pinBadges = useCallback((badgeIds: string[]) => {
+    void ProgressionService.setPinnedBadges(appUser?.id, badgeIds).then(() => refresh());
+  }, [appUser?.id, refresh]);
+
+  return { snapshot, refresh, shareReferral, markForumComment, markProductView, pinBadges };
 }
