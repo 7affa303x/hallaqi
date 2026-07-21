@@ -2,24 +2,24 @@ import { ChevronLeft } from 'lucide-react';
 import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
 
-/** Profile badge showcase — live unlock state from growth engine. */
+/** Pinned badges on profile (max 8) from Progression Engine. */
 export default function BadgeShowcase() {
   const { themeConfig, navigate } = useApp();
   const { snapshot } = useGrowth();
-  const badges = snapshot.badges.slice(0, 8);
+  const badges = snapshot.pinnedBadges.slice(0, 8);
 
   return (
     <section
       className="rounded-3xl border p-4"
       style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-      aria-label="الشارات"
+      aria-label="الشارات المثبتة"
       dir="rtl"
     >
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>Badges</h3>
+          <h3 className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>شارات مثبتة</h3>
           <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
-            {snapshot.badgeCount > 0 ? `${snapshot.badgeCount} مفتوحة` : 'أكمل مهمات لفتح الشارات'}
+            {snapshot.badgeCount > 0 ? `${snapshot.badgeCount} مفتوحة · حتى 8 مثبتة` : 'أكمل مهمات لفتح الشارات'}
           </p>
         </div>
         <button

@@ -73,6 +73,8 @@ function screenUrl(screen: ScreenName, params?: ScreenParams): string {
   if (screen === 'company-detail' && params?.sellerId) return `/company/${encodeURIComponent(params.sellerId)}`;
   if (screen === 'doctor-detail' && params?.sellerId) return `/doctor/${encodeURIComponent(params.sellerId)}`;
   if (screen === 'product-detail' && params?.productId) return `/product/${encodeURIComponent(params.productId)}`;
+  if (screen === 'referral-landing' && params?.referralCode) return `/ref/${encodeURIComponent(params.referralCode)}`;
+  if (screen === 'mini-site' && params?.slug) return `/u/${encodeURIComponent(params.slug)}`;
   const query = new URLSearchParams({ screen });
   for (const [key, value] of Object.entries(params || {})) {
     if (value) query.set(key, value);
@@ -143,6 +145,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } else if (pathname.startsWith('/product/')) {
       initialScreen = 'product-detail';
       initialParams = { productId: decodeURIComponent(pathname.slice('/product/'.length)) };
+    } else if (pathname.startsWith('/ref/')) {
+      initialScreen = 'referral-landing';
+      initialParams = { referralCode: decodeURIComponent(pathname.slice('/ref/'.length)) };
+    } else if (pathname.startsWith('/u/')) {
+      initialScreen = 'mini-site';
+      initialParams = { slug: decodeURIComponent(pathname.slice('/u/'.length)) };
     } else if (queryScreen === 'payment-success') {
       initialScreen = 'payment-success';
       initialParams = { bookingId: query.get('booking_id') || undefined };
@@ -414,6 +422,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else if (pathname.startsWith('/product/')) {
         setScreen('product-detail');
         setScreenParams({ productId: decodeURIComponent(pathname.slice('/product/'.length)) });
+        return;
+      } else if (pathname.startsWith('/ref/')) {
+        setScreen('referral-landing');
+        setScreenParams({ referralCode: decodeURIComponent(pathname.slice('/ref/'.length)) });
+        return;
+      } else if (pathname.startsWith('/u/')) {
+        setScreen('mini-site');
+        setScreenParams({ slug: decodeURIComponent(pathname.slice('/u/'.length)) });
         return;
       } else if (query.get('screen') === 'payment-success') {
         setScreen('payment-success');

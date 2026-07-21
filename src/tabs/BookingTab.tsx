@@ -71,7 +71,7 @@ export default function BookingTab() {
   const { isLoggedIn } = useAuthGate();
   const { t, money } = useI18n();
   const lang = settings.language;
-  const tx = (key: TranslationKey) => translate(lang, key);
+  const tx = useCallback((key: TranslationKey) => translate(lang, key), [lang]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<BarberTag[]>([]);

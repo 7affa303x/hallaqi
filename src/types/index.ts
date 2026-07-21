@@ -161,6 +161,9 @@ export interface ForumPost {
   isLiked: boolean;
   isPinned: boolean;
   isAnnouncement: boolean;
+  allowMemeComments?: boolean;
+  beforeImage?: string;
+  afterImage?: string;
 }
 
 export type ForumCategory =
@@ -417,6 +420,10 @@ export type ScreenName =
   | 'referrals'
   | 'achievements'
   | 'rewards'
+  | 'leaderboard'
+  | 'create-transformation'
+  | 'referral-landing'
+  | 'mini-site'
   | 'coming-soon';
 
 export interface ScreenParams {

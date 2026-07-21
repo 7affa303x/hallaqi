@@ -9,9 +9,10 @@ import { translate } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import type { Booking, BookingStatus } from '@/types';
 import {
-  createReview,
   getOrCreateConversation,
 } from '@/supabase/database';
+import { ReviewCommunityService } from '@/lib/community';
+import ShareExperienceWatcher from '@/components/community/ShareExperienceWatcher';
 import BarberStudioHub from '@/components/barber/BarberStudioHub';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
 import {
@@ -90,7 +91,7 @@ export default function AppointmentsTab() {
     setIsReviewing(true);
     setReviewError('');
     try {
-      await createReview({
+      await ReviewCommunityService.submitReview({
         booking_id: reviewBooking.id,
         reviewer_id: appUser.id,
         professional_id: reviewBooking.barberId,
@@ -404,6 +405,7 @@ export default function AppointmentsTab() {
           </div>
         </div>
       )}
+      <ShareExperienceWatcher />
     </div>
   );
 }

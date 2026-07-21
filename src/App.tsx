@@ -57,6 +57,10 @@ const MissionsPage = lazy(() => import('@/pages/growth/MissionsPage'));
 const ReferralsPage = lazy(() => import('@/pages/growth/ReferralsPage'));
 const AchievementsPage = lazy(() => import('@/pages/growth/AchievementsPage'));
 const RewardsPage = lazy(() => import('@/pages/growth/RewardsPage'));
+const LeaderboardPage = lazy(() => import('@/pages/community/LeaderboardPage'));
+const CreateTransformationPage = lazy(() => import('@/pages/community/CreateTransformationPage'));
+const ReferralLandingPage = lazy(() => import('@/pages/growth/ReferralLandingPage'));
+const MiniSitePage = lazy(() => import('@/pages/growth/MiniSitePage'));
 
 function TabContent({ tab }: { tab: string }) {
   // Keep primary tabs mounted so auth/UI state does not remount and flash Login CTAs.
@@ -88,7 +92,7 @@ function ScreenRouter() {
   const { screen, screenParams, activeTab } = useApp();
   const { isAuthenticated, isLoading: authLoading, appUser } = useAuth();
 
-  const authRequiredScreens = ['booking-flow', 'chat-room', 'messages', 'create-post', 'admin-dashboard', 'seller-dashboard', 'seller-products', 'seller-placements', 'seller-profile-edit'];
+  const authRequiredScreens = ['booking-flow', 'chat-room', 'messages', 'create-post', 'create-transformation', 'admin-dashboard', 'seller-dashboard', 'seller-products', 'seller-placements', 'seller-profile-edit'];
   const requiresAuth = authRequiredScreens.includes(screen);
 
   // Never treat "session still restoring" as logged-out — that flashed LoginScreen on every nav.
@@ -175,6 +179,14 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><AchievementsPage /></Suspense>;
     case 'rewards':
       return <Suspense fallback={<LoadingFallback />}><RewardsPage /></Suspense>;
+    case 'leaderboard':
+      return <Suspense fallback={<LoadingFallback />}><LeaderboardPage /></Suspense>;
+    case 'create-transformation':
+      return <Suspense fallback={<LoadingFallback />}><CreateTransformationPage /></Suspense>;
+    case 'referral-landing':
+      return <Suspense fallback={<LoadingFallback />}><ReferralLandingPage /></Suspense>;
+    case 'mini-site':
+      return <Suspense fallback={<LoadingFallback />}><MiniSitePage /></Suspense>;
     case 'home':
       return <TabContent tab={activeTab} />;
     default: {

@@ -2,25 +2,18 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-console.log('Supabase URL:', supabaseUrl);
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-console.log('Supabase Key:', supabaseKey);
 
 export const isSupabaseConfigured = (): boolean => {
-  console.log('Checking Supabase configuration...');
   if (!supabaseUrl.startsWith('http') || supabaseUrl.length < 20 || supabaseKey.length < 20) {
-    console.log('Supabase not configured: URL or Key too short/invalid prefix.');
     return false;
   }
   if (supabaseUrl.includes('your-project') || supabaseUrl.includes('placeholder')) {
-    console.log('Supabase not configured: URL contains placeholder.');
     return false;
   }
   if (supabaseKey.includes('your_') || supabaseKey === 'placeholder') {
-    console.log('Supabase not configured: Key contains placeholder.');
     return false;
   }
-  console.log('Supabase is configured.');
   return true;
 };
 
