@@ -101,6 +101,18 @@ export default function ProfileTab() {
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
   const [loyaltySummary, setLoyaltySummary] = useState<{ points: number; tier: string }>({ points: 0, tier: 'bronze' });
+  const [pane, setPane] = useState<'profile' | 'settings'>(() => {
+    try {
+      return sessionStorage.getItem('hallaqi-profile-pane') === 'settings' ? 'settings' : 'profile';
+    } catch {
+      return 'profile';
+    }
+  });
+
+  const switchPane = (next: 'profile' | 'settings') => {
+    setPane(next);
+    try { sessionStorage.setItem('hallaqi-profile-pane', next); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     if (screenParams?.openLegal === 'terms') setSubPage('terms');
@@ -117,7 +129,13 @@ export default function ProfileTab() {
   }, [appUser]);
 
   const handleLogout = async () => {
-    try { await logout(); setSubPage('main'); } catch (err) { console.error('Logout error:', err); }
+    try {
+      await logout();
+      setSubPage('main');
+      switchPane('profile');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   // Legal / about / help are public — available before login
@@ -223,7 +241,9 @@ export default function ProfileTab() {
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold text-white truncate">{translate(settings.language, 'profile')}</h1>
+            <h1 className="text-lg font-bold text-white truncate">
+              {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
+            </h1>
             <p className="text-[10px] text-white/70 mt-0.5 truncate">
               {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
               {' · '}
@@ -243,10 +263,19 @@ export default function ProfileTab() {
                 </span>
               )}
             </button>
-            <button onClick={handleLogout} className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10" title="تسجيل الخروج"><LogOut size={16} className="text-white" /></button>
+            <button
+              type="button"
+              onClick={() => switchPane(pane === 'profile' ? 'settings' : 'profile')}
+              aria-label={pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
+              className="h-9 px-3 rounded-xl flex items-center justify-center bg-white/15 text-white text-[11px] font-bold"
+            >
+              {pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
+            </button>
           </div>
         </div>
 
+        {pane === 'profile' && (
+        <>
         <button
           type="button"
           onClick={() => { setEditSection('photos'); setSubPage('edit-profile'); }}
@@ -300,16 +329,22 @@ export default function ProfileTab() {
           </div>
         </div>
         )}
+        </>
+        )}
       </div>
 
-      {/* MVP Plus Phase 1 — Growth UI shell (mock only) */}
+      {pane === 'profile' && (
+      <>
+      {/* MVP Plus — Growth UI (live local engine) */}
       <div className="px-4 mt-4 space-y-3">
         <ProgressCard />
         <GrowthQuickActions />
         <BadgeShowcase />
       </div>
+      </>
+      )}
 
-      {(userRole === 'barber' || userRole === 'specialist') && appUser && ownProfessional && (
+      {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && appUser && ownProfessional && (
         <BarberOnboardingCard
           userId={appUser.id}
           progressInput={{
@@ -324,7 +359,7 @@ export default function ProfileTab() {
         />
       )}
 
-      {(userRole === 'barber' || userRole === 'specialist') && (
+      {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
         <div className="px-4 mt-4">
           <button
             type="button"
@@ -348,7 +383,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {appUser?.user_role === 'admin' && (
+      {pane === 'profile' && appUser?.user_role === 'admin' && (
         <div className="px-4 mt-4">
           <button
             onClick={() => navigate('admin-dashboard')}
@@ -361,7 +396,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {appUser && userRole !== 'client' && (
+      {pane === 'profile' && appUser && userRole !== 'client' && (
         <div className="px-4 mt-3">
           <button
             type="button"
@@ -380,7 +415,7 @@ export default function ProfileTab() {
       )}
 
       {/* Client: appointments moved out of bottom nav — accessible here */}
-      {(userRole === 'client' || !appUser) && (
+      {pane === 'profile' && (userRole === 'client' || !appUser) && (
         <div className="px-4 mt-4 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -422,7 +457,7 @@ export default function ProfileTab() {
       )}
 
       {/* Store / Company / Doctor — separate dashboards (no barber studio mix) */}
-      {(userRole === 'store' || userRole === 'company' || userRole === 'doctor') && (
+      {pane === 'profile' && (userRole === 'store' || userRole === 'company' || userRole === 'doctor') && (
         <div className="px-4 mt-4 grid grid-cols-1 gap-2">
           <button
             type="button"
@@ -446,7 +481,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {(userRole === 'barber' || userRole === 'specialist') && (
+      {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
         <div className="px-4 mt-4 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -475,7 +510,7 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {FEATURE_FLAGS.loyaltyEnabled && (
+      {pane === 'profile' && FEATURE_FLAGS.loyaltyEnabled && (
         <div className="px-4 mt-4">
           <button
             type="button"
@@ -495,17 +530,18 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {actionError && (
+      {pane === 'settings' && actionError && (
         <p role="alert" className="mx-4 mt-4 p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.error + '10', color: themeConfig.colors.error }}>
           {actionError}
         </p>
       )}
-      {actionMessage && (
+      {pane === 'settings' && actionMessage && (
         <p role="status" className="mx-4 mt-4 p-3 rounded-xl text-xs" style={{ backgroundColor: themeConfig.colors.success + '10', color: themeConfig.colors.success }}>
           {actionMessage}
         </p>
       )}
 
+      {pane === 'settings' && (
       <div className="px-4 mt-4 space-y-4">
         {FEATURE_FLAGS.accountTypeSwitchEnabled && appUser && (
           <button
@@ -538,7 +574,7 @@ export default function ProfileTab() {
           </button>
         )}
         {settingsSections.map((section, sectionIndex) => {
-          const visibleItems = section.items.filter(item => isSettingsItemVisible(item.id, userRole));
+          const visibleItems = section.items.filter(item => item.id !== 'logout' && isSettingsItemVisible(item.id, userRole));
           if (visibleItems.length === 0) return null;
           return (
           <div key={section.title} id={sectionIndex === 0 ? 'profile-settings' : undefined}>
@@ -551,14 +587,12 @@ export default function ProfileTab() {
                 const handleClick = async () => {
                   setActionError('');
                   setActionMessage('');
-                  if (item.id === 'logout') { handleLogout(); return; }
                   if (item.id === 'clearCache') {
                     try {
                       if ('caches' in window) {
                         const keys = await caches.keys();
                         await Promise.all(keys.map(key => caches.delete(key)));
                       }
-                      // Keep push SW alive — only clear caches, do not unregister SW
                       try { localStorage.removeItem('hallaqi-app-build-v1'); } catch { /* ignore */ }
                       setActionMessage('تم مسح الذاكرة — جاري التحديث…');
                       window.setTimeout(() => window.location.reload(), 600);
@@ -637,7 +671,22 @@ export default function ProfileTab() {
           </div>
           );
         })}
+
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          className="w-full h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 border"
+          style={{
+            backgroundColor: themeConfig.colors.error + '12',
+            borderColor: themeConfig.colors.error + '40',
+            color: themeConfig.colors.error,
+          }}
+        >
+          <LogOut size={16} />
+          تسجيل الخروج
+        </button>
       </div>
+      )}
     </div>
   );
 }

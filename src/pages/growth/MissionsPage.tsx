@@ -1,72 +1,94 @@
+import { useMemo, useState } from 'react';
 import GrowthPageShell from '@/components/growth/GrowthPageShell';
-import {
-  DAILY_MISSIONS_MOCK,
-  MONTHLY_MISSIONS_MOCK,
-  WEEKLY_MISSIONS_MOCK,
-  type GrowthMissionMock,
-} from '@/data/growthMock';
+import { missionsForPeriod, type MissionPeriod } from '@/lib/growth/engine';
+import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
+import type { GrowthMissionMock } from '@/data/growthMock';
 
-function MissionSection({
-  title,
-  missions,
-}: {
-  title: string;
-  missions: GrowthMissionMock[];
-}) {
+const PERIODS: { id: MissionPeriod; label: string }[] = [
+  { id: 'daily', label: 'يومي' },
+  { id: 'weekly', label: 'أسبوعي' },
+  { id: 'monthly', label: 'شهري' },
+];
+
+function MissionCard({ mission }: { mission: GrowthMissionMock }) {
   const { themeConfig } = useApp();
-
+  const pct = Math.min(100, Math.round((mission.progress / Math.max(mission.target, 1)) * 100));
   return (
-    <section className="mb-5">
-      <h2 className="text-sm font-black mb-2" style={{ color: themeConfig.colors.text }}>{title}</h2>
-      <div className="space-y-2">
-        {missions.map((mission) => {
-          const pct = Math.min(100, Math.round((mission.progress / Math.max(mission.target, 1)) * 100));
-          return (
-            <article
-              key={mission.id}
-              className="rounded-2xl border p-3"
-              style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="min-w-0 text-right">
-                  <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{mission.title}</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{mission.description}</p>
-                </div>
-                <span
-                  className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
-                  style={{
-                    backgroundColor: mission.done ? `${themeConfig.colors.success}18` : `${themeConfig.colors.primary}14`,
-                    color: mission.done ? themeConfig.colors.success : themeConfig.colors.primary,
-                  }}
-                >
-                  {mission.done ? 'تم' : `${mission.progress}/${mission.target}`}
-                </span>
-              </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: themeConfig.colors.border }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${pct}%`, backgroundColor: themeConfig.colors.primary }}
-                />
-              </div>
-            </article>
-          );
-        })}
+    <article
+      className="rounded-2xl border p-3"
+      style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0 text-right">
+          <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{mission.title}</p>
+          <p className="text-[11px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{mission.description}</p>
+        </div>
+        <span
+          className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
+          style={{
+            backgroundColor: mission.done ? `${themeConfig.colors.success}18` : `${themeConfig.colors.primary}14`,
+            color: mission.done ? themeConfig.colors.success : themeConfig.colors.primary,
+          }}
+        >
+          {mission.done ? 'تم ✓' : `${mission.progress}/${mission.target}`}
+        </span>
       </div>
-    </section>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: themeConfig.colors.border }}>
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: themeConfig.colors.primary }}
+        />
+      </div>
+    </article>
   );
 }
 
 export default function MissionsPage() {
   const { themeConfig } = useApp();
+  const { snapshot } = useGrowth();
+  const [period, setPeriod] = useState<MissionPeriod>('daily');
+  const missions = useMemo(() => missionsForPeriod(snapshot, period), [snapshot, period]);
+  const doneCount = missions.filter(m => m.done).length;
+
   return (
-    <GrowthPageShell title="المهمات" subtitle="Daily · Weekly · Monthly" badge="تجريبي">
-      <p className="text-[11px] mb-4 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
-        واجهة تجريبية فقط — لا يوجد تتبع حقيقي للمهمات حالياً.
+    <GrowthPageShell title="المهمات" subtitle={`${doneCount}/${missions.length} مكتملة`} badge="مباشر">
+      <div
+        role="tablist"
+        aria-label="فترة المهمات"
+        className="flex gap-1 p-1 rounded-2xl border mb-4"
+        style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+      >
+        {PERIODS.map((p) => {
+          const active = period === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setPeriod(p.id)}
+              className="flex-1 h-10 rounded-xl text-xs font-bold transition-none"
+              style={{
+                backgroundColor: active ? themeConfig.colors.primary : 'transparent',
+                color: active ? '#fff' : themeConfig.colors.textMuted,
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-[11px] mb-3 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
+        تُحدَّث تلقائياً من نشاطك في التطبيق (ملف، حجوزات، منتدى، سوق، دعوات).
       </p>
-      <MissionSection title="Daily Missions" missions={DAILY_MISSIONS_MOCK} />
-      <MissionSection title="Weekly Missions" missions={WEEKLY_MISSIONS_MOCK} />
-      <MissionSection title="Monthly Missions" missions={MONTHLY_MISSIONS_MOCK} />
+
+      <div className="space-y-2">
+        {missions.map((mission) => (
+          <MissionCard key={mission.id} mission={mission} />
+        ))}
+      </div>
     </GrowthPageShell>
   );
 }

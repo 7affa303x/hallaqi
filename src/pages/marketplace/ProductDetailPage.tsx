@@ -27,6 +27,8 @@ export default function ProductDetailPage() {
       trackMarketplaceEvent('view', { productId: p.id, sellerId: p.sellerId, categoryId: p.categoryId, wilaya: p.wilaya });
       if (p.isFeatured) trackMarketplaceEvent('featured_impression', { productId: p.id, sellerId: p.sellerId });
       if (p.isProductOfTheDay) trackMarketplaceEvent('product_of_day_view', { productId: p.id, sellerId: p.sellerId });
+      const { recordMarketplaceProductView } = await import('@/lib/growth/storage');
+      recordMarketplaceProductView(undefined, p.id);
       const s = await getMarketplaceSellerById(p.sellerId);
       if (s) setSeller(s);
       setSaved(isMarketplaceSaved(p.id));

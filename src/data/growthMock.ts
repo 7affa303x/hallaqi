@@ -1,6 +1,6 @@
 /**
- * MVP Plus Phase 1 — Growth UI mock data only.
- * No XP engine, streak logic, referral tracking, or backend.
+ * Growth catalog templates (missions / badges / referral code).
+ * Live progress is computed by src/lib/growth/engine.ts + device storage.
  */
 
 export interface GrowthProgressMock {
