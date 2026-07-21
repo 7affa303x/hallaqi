@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildGrowthSignals, evaluateGrowth } from '@/lib/growth/engine';
-import { loadGrowthState, saveGrowthState } from '@/lib/growth/storage';
+import { ProgressionService } from '@/lib/progression';
 
-describe('growth engine (local)', () => {
+describe('growth façade → progression engine', () => {
   afterEach(() => {
     localStorage.clear();
   });
 
-  it('awards streak and unlocks early badge when profile is complete', () => {
+  it('awards streak and completes avatar mission', () => {
     const signals = buildGrowthSignals({
       userId: 'u1',
       fullName: 'أحمد',
@@ -19,16 +19,12 @@ describe('growth engine (local)', () => {
     const snap = evaluateGrowth(signals);
     expect(snap.streakDays).toBeGreaterThanOrEqual(1);
     expect(snap.level).toBeGreaterThanOrEqual(1);
-    expect(snap.daily.find(m => m.id === 'd3')?.done).toBe(true);
-    expect(snap.daily.find(m => m.id === 'd1')?.done).toBe(true);
-    expect(snap.badges.find(b => b.id === 'b8')?.locked).toBe(false);
+    expect(snap.daily.find(m => m.id === 'daily_photo')?.done).toBe(true);
   });
 
-  it('counts referral shares from storage', () => {
-    saveGrowthState('u2', {
-      ...loadGrowthState('u2'),
-      referralShares: 2,
-    });
+  it('counts referral shares', () => {
+    ProgressionService.recordReferralShare('u2', 'customer');
+    ProgressionService.recordReferralShare('u2', 'customer');
     const signals = buildGrowthSignals({
       userId: 'u2',
       fullName: 'سارة',
@@ -38,7 +34,7 @@ describe('growth engine (local)', () => {
       forumPosts: [],
     });
     const snap = evaluateGrowth(signals);
-    expect(snap.weekly.find(m => m.id === 'w2')?.done).toBe(true);
+    expect(snap.weekly.find(m => m.id === 'weekly_invite')?.done).toBe(true);
     expect(snap.invitedUsers).toBe(2);
   });
 });

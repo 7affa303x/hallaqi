@@ -2,7 +2,9 @@ import { Gift, Sparkles } from 'lucide-react';
 import GrowthPageShell from '@/components/growth/GrowthPageShell';
 import { useApp } from '@/contexts/useApp';
 
-/** Rewards placeholder — beautiful UI only, no reward logic. */
+/** Rewards placeholder — beautiful UI only, no reward logic.
+ * TODO(coins): Reward Store + coins redemption — do not implement yet.
+ */
 export default function RewardsPage() {
   const { themeConfig } = useApp();
   const accent = themeConfig.colors.primary;

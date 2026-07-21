@@ -5,13 +5,40 @@ import { useApp } from '@/contexts/useApp';
 export default function AchievementsPage() {
   const { themeConfig } = useApp();
   const { snapshot } = useGrowth();
+  const earnedAchievements = snapshot.achievements.filter(a => a.earned).length;
 
   return (
     <GrowthPageShell
       title="الإنجازات"
-      subtitle={`${snapshot.badgeCount} شارة مفتوحة`}
+      subtitle={`${snapshot.badgeCount} شارة · ${earnedAchievements} إنجاز`}
       badge="مباشر"
     >
+      <h3 className="text-sm font-bold mb-2" style={{ color: themeConfig.colors.text }}>الإنجازات</h3>
+      <div className="space-y-2 mb-6">
+        {snapshot.achievements.map((a) => {
+          const pct = Math.min(100, Math.round((a.progress / Math.max(a.target, 1)) * 100));
+          return (
+            <article
+              key={a.id}
+              className="rounded-2xl border p-3 text-right"
+              style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{a.title}</p>
+                <span className="text-[10px] font-bold" style={{ color: a.earned ? themeConfig.colors.success : themeConfig.colors.textMuted }}>
+                  {a.earned ? 'مكتمل' : `${a.progress}/${a.target}`}
+                </span>
+              </div>
+              <p className="text-[11px] mb-2" style={{ color: themeConfig.colors.textMuted }}>{a.description}</p>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: themeConfig.colors.border }}>
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: themeConfig.colors.primary }} />
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <h3 className="text-sm font-bold mb-2" style={{ color: themeConfig.colors.text }}>الشارات</h3>
       <p className="text-[11px] mb-4 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
         تُفتح الشارات تلقائياً عند إكمال الشروط من نشاطك الحقيقي في التطبيق.
       </p>
@@ -39,7 +66,7 @@ export default function AchievementsPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{badge.name}</p>
                 <p className="text-[10px] font-bold mt-0.5" style={{ color: badge.locked ? themeConfig.colors.textMuted : themeConfig.colors.success }}>
-                  {badge.locked ? 'مقفلة' : 'مفتوحة'}
+                  {badge.locked ? 'مقفلة' : badge.isPinned ? 'مثبتة' : 'مفتوحة'}
                 </p>
               </div>
             </div>
