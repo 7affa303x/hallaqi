@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { addForumComment, getPostComments, reportForumContent, toggleForumLike } from '@/supabase/database';
+import { addMemeComment, setPostMemeCommentsEnabled } from '@/supabase/community';
+import MemeCommentBar from '@/components/community/MemeCommentBar';
 import { mapForumComments } from '@/lib/mappers';
 import { isForumBookmarked, toggleForumBookmark } from '@/lib/deviceStorage';
 import type { ForumComment } from '@/types';
@@ -27,8 +29,13 @@ export default function PostDetailPage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const [isBookmarked, setIsBookmarked] = useState(() => isForumBookmarked(screenParams?.postId || ''));
+  const [allowMemeComments, setAllowMemeComments] = useState(false);
 
   const post = forumPosts.find(p => p.id === screenParams?.postId);
+
+  useEffect(() => {
+    if (post?.allowMemeComments) setAllowMemeComments(true);
+  }, [post?.allowMemeComments]);
 
   const loadComments = useCallback(async () => {
     if (!screenParams?.postId) return;
@@ -41,6 +48,34 @@ export default function PostDetailPage() {
   }, [screenParams?.postId]);
 
   useEffect(() => { void loadComments(); }, [loadComments]);
+
+  const handleMemeComment = async (sticker: string, packId: string) => {
+    if (!appUser || !post) return;
+    setIsSending(true);
+    setError('');
+    try {
+      await addMemeComment({
+        postId: post.id,
+        authorId: appUser.id,
+        mediaUrl: sticker,
+        memePackId: packId,
+        parentId: replyTo || undefined,
+      });
+      recordForumComment(appUser.id);
+      await loadComments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر إرسال الميم');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const toggleMemeComments = async () => {
+    if (!appUser || !post || post.authorId !== appUser.id) return;
+    const next = !allowMemeComments;
+    await setPostMemeCommentsEnabled(post.id, appUser.id, next);
+    setAllowMemeComments(next);
+  };
 
   if (!post) {
     return (
@@ -226,6 +261,16 @@ export default function PostDetailPage() {
       {/* Comments */}
       <div className="px-4 mt-2">
         <h3 className="text-sm font-bold mb-3" style={{ color: themeConfig.colors.text }}>التعليقات ({comments.length})</h3>
+        {post.authorId === appUser?.id && (
+          <button
+            type="button"
+            onClick={() => void toggleMemeComments()}
+            className="text-[10px] font-bold mb-3 px-2 py-1 rounded-lg border"
+            style={{ borderColor: themeConfig.colors.border, color: allowMemeComments ? themeConfig.colors.primary : themeConfig.colors.textMuted }}
+          >
+            {allowMemeComments ? '✓ تعليقات الميم مفعّلة' : 'تفعيل تعليقات الميم'}
+          </button>
+        )}
         {error && <p role="alert" className="text-xs mb-3 p-2 rounded-lg" style={{ color: themeConfig.colors.error, backgroundColor: themeConfig.colors.error + '10' }}>{error}</p>}
         <div className="space-y-3">
           {comments.map(comment => (
@@ -271,7 +316,9 @@ export default function PostDetailPage() {
       {/* Comment Input */}
       <div className="fixed bottom-0 left-0 right-0 p-3 border-t backdrop-blur-lg z-40"
         style={{ backgroundColor: `${themeConfig.colors.surface}ee`, borderColor: themeConfig.colors.border }}>
-        <div className="max-w-lg mx-auto flex items-center gap-2">
+        <div className="max-w-lg mx-auto">
+          <MemeCommentBar enabled={allowMemeComments} onSubmit={(s, p) => void handleMemeComment(s, p)} />
+          <div className="flex items-center gap-2 mt-2">
           <div className="flex-1 relative">
             <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)}
               placeholder={replyTo ? 'اكتب رداً...' : 'اكتب تعليقاً...'}
@@ -288,6 +335,7 @@ export default function PostDetailPage() {
             style={{ backgroundColor: commentText.trim() ? themeConfig.colors.primary : themeConfig.colors.border }}>
             <Send size={16} className={commentText.trim() ? 'text-white' : ''} style={{ color: commentText.trim() ? '#fff' : themeConfig.colors.textMuted }} />
           </button>
+          </div>
         </div>
       </div>
 

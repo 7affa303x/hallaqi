@@ -22,6 +22,11 @@ export default function CreateForumPostPage() {
   const [categories, setCategories] = useState<DatabaseForumCategory[]>([]);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [isBeforeAfter, setIsBeforeAfter] = useState(false);
+  const [beforeImage, setBeforeImage] = useState<File | null>(null);
+  const [afterImage, setAfterImage] = useState<File | null>(null);
+  const [beforePreview, setBeforePreview] = useState('');
+  const [afterPreview, setAfterPreview] = useState('');
   const [error, setError] = useState('');
 
   const {
@@ -41,9 +46,11 @@ export default function CreateForumPostPage() {
 
   useEffect(() => () => {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
-  }, [imagePreview]);
+    if (beforePreview) URL.revokeObjectURL(beforePreview);
+    if (afterPreview) URL.revokeObjectURL(afterPreview);
+  }, [imagePreview, beforePreview, afterPreview]);
 
-  const chooseImage = async (file?: File) => {
+  const chooseImage = async (file?: File, slot?: 'single' | 'before' | 'after') => {
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('اختر صورة JPG أو PNG أو WebP');
@@ -54,10 +61,21 @@ export default function CreateForumPostPage() {
       setError(limitError);
       return;
     }
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
     const compressed = await compressImageFile(file, { maxBytes: UPLOAD_LIMITS.forumImageMaxBytes });
-    setImage(compressed);
-    setImagePreview(URL.createObjectURL(compressed));
+    const target = slot || 'single';
+    if (target === 'single') {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImage(compressed);
+      setImagePreview(URL.createObjectURL(compressed));
+    } else if (target === 'before') {
+      if (beforePreview) URL.revokeObjectURL(beforePreview);
+      setBeforeImage(compressed);
+      setBeforePreview(URL.createObjectURL(compressed));
+    } else {
+      if (afterPreview) URL.revokeObjectURL(afterPreview);
+      setAfterImage(compressed);
+      setAfterPreview(URL.createObjectURL(compressed));
+    }
     setError('');
   };
 
@@ -78,17 +96,35 @@ export default function CreateForumPostPage() {
     }
     setError('');
     try {
-      const imageUrl = image ? await uploadForumImage(appUser.id, image) : null;
+      let imageUrl: string | null = null;
+      let beforeImageUrl: string | null = null;
+      let afterImageUrl: string | null = null;
+
+      if (isBeforeAfter) {
+        if (!beforeImage || !afterImage) {
+          setError('أضف صورتي قبل وبعد');
+          return;
+        }
+        [beforeImageUrl, afterImageUrl] = await Promise.all([
+          uploadForumImage(appUser.id, beforeImage),
+          uploadForumImage(appUser.id, afterImage),
+        ]);
+      } else {
+        imageUrl = image ? await uploadForumImage(appUser.id, image) : null;
+      }
+
       const post = await addForumPost({
         author_id: appUser.id,
         category_id: data.categoryId,
         title: data.title,
         content: data.content,
         image_url: imageUrl,
-        type: 'discussion',
+        before_image_url: beforeImageUrl,
+        after_image_url: afterImageUrl,
+        type: isBeforeAfter ? 'transformation' : 'discussion',
         is_pinned: false,
         is_locked: false,
-      });
+      } as never);
       recordForumPost(appUser.id);
       if (competitionId && post?.id) {
         try {
@@ -172,7 +208,58 @@ export default function CreateForumPostPage() {
           {errors.content && <p className="text-[11px] mt-1" style={{ color: themeConfig.colors.error }}>{errors.content.message}</p>}
         </div>
 
-        {imagePreview ? (
+        <div className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: themeConfig.colors.border }}>
+          <span className="text-xs font-bold" style={{ color: themeConfig.colors.text }}>منشور قبل/بعد</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isBeforeAfter}
+            onClick={() => setIsBeforeAfter(v => !v)}
+            className="w-11 h-6 rounded-full relative transition-colors"
+            style={{ backgroundColor: isBeforeAfter ? themeConfig.colors.primary : themeConfig.colors.border }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+              style={{ right: isBeforeAfter ? '2px' : '22px' }}
+            />
+          </button>
+        </div>
+
+        {isBeforeAfter ? (
+          <div className="grid grid-cols-2 gap-2">
+            {(['before', 'after'] as const).map(slot => {
+              const preview = slot === 'before' ? beforePreview : afterPreview;
+              const label = slot === 'before' ? 'قبل' : 'بعد';
+              return preview ? (
+                <div key={slot} className="relative rounded-2xl overflow-hidden">
+                  <img src={preview} alt={label} className="w-full aspect-square object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (slot === 'before') { setBeforeImage(null); setBeforePreview(''); }
+                      else { setAfterImage(null); setAfterPreview(''); }
+                    }}
+                    aria-label={`إزالة ${label}`}
+                    className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  key={slot}
+                  htmlFor={`forum-${slot}`}
+                  className="aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer"
+                  style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}
+                >
+                  <ImagePlus size={20} />
+                  <span className="text-[10px] mt-1">{label}</span>
+                  <input id={`forum-${slot}`} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => void chooseImage(e.target.files?.[0], slot)} />
+                </label>
+              );
+            })}
+          </div>
+        ) : imagePreview ? (
           <div className="relative rounded-2xl overflow-hidden">
             <img src={imagePreview} alt="معاينة صورة المنشور" className="w-full max-h-64 object-cover" />
             <button
@@ -192,7 +279,7 @@ export default function CreateForumPostPage() {
           >
             <ImagePlus size={22} />
             <span className="text-xs mt-1">إضافة صورة اختيارية</span>
-            <input id="forum-image" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => void chooseImage(event.target.files?.[0])} />
+            <input id="forum-image" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => void chooseImage(e.target.files?.[0], 'single')} />
           </label>
         )}
 

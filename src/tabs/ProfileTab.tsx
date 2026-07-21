@@ -29,6 +29,11 @@ import GrowthQuickActions from '@/components/growth/GrowthQuickActions';
 import BadgeShowcase from '@/components/growth/BadgeShowcase';
 import ProfileMissionsStrip from '@/components/growth/ProfileMissionsStrip';
 import ProfileAchievementsStrip from '@/components/growth/ProfileAchievementsStrip';
+import PendingTagsBanner from '@/components/community/PendingTagsBanner';
+import { TransformationPendingBanner } from '@/components/community/ShareExperienceWatcher';
+import TransformationGallery from '@/components/community/TransformationGallery';
+import LocalRankCard from '@/components/community/LocalRankCard';
+import CommunityStatsCard from '@/components/community/CommunityStatsCard';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL, isSettingsItemVisible, canAccessMfaSettings } from '@/lib/featureFlags';
 import type { OnboardingStepId } from '@/lib/barberOnboarding';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
@@ -337,10 +342,15 @@ export default function ProfileTab() {
 
       {pane === 'profile' && (
       <>
-      {/* Progression Engine — XP / missions / badges / achievements (no redesign) */}
+      {/* Progression + Community (no redesign) */}
+      <PendingTagsBanner />
+      <TransformationPendingBanner />
       <div className="px-4 mt-4 space-y-3">
         <ProgressCard />
         <GrowthQuickActions />
+        <LocalRankCard />
+        <CommunityStatsCard />
+        <TransformationGallery />
         <ProfileMissionsStrip />
         <BadgeShowcase />
         <ProfileAchievementsStrip />
