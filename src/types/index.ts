@@ -413,6 +413,10 @@ export type ScreenName =
   | 'seller-profile-edit'
   | 'marketplace-analytics'
   | 'ai-listing-tools'
+  | 'missions'
+  | 'referrals'
+  | 'achievements'
+  | 'rewards'
   | 'coming-soon';
 
 export interface ScreenParams {

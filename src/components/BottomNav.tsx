@@ -178,21 +178,34 @@ export default function BottomNav() {
         onClose={() => setRadialOpen(false)}
         onSelect={(action) => {
           if (action === 'ai') {
-            // Stay in tabs shell — keeps bottom nav visible
             setActiveTab('ai-hub');
-          } else if (action === 'messages') {
-            if (!isAuthenticated) {
-              navigate('login', { redirectScreen: 'messages' });
-              return;
-            }
-            navigate('messages');
-          } else if (action === 'qr') {
-            navigate('ai-hub-tool', { tool: 'qr' });
-          } else if (action === 'camera') {
-            navigate('ai-hub-tool', { tool: 'camera' });
-          } else {
-            navigate('ai-hub-tool', { tool: 'gallery' });
+            return;
           }
+          if (action === 'qr') {
+            navigate('ai-hub-tool', { tool: 'qr' });
+            return;
+          }
+          if (action === 'camera') {
+            navigate('ai-hub-tool', { tool: 'camera' });
+            return;
+          }
+          if (action === 'gallery') {
+            navigate('ai-hub-tool', { tool: 'gallery' });
+            return;
+          }
+          if (action === 'missions') {
+            navigate('missions');
+            return;
+          }
+          if (action === 'referrals') {
+            navigate('referrals');
+            return;
+          }
+          if (action === 'achievements') {
+            navigate('achievements');
+            return;
+          }
+          navigate('rewards');
         }}
       />
     </>

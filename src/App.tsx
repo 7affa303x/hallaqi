@@ -53,6 +53,10 @@ const SellerPlacementsPage = lazy(() => import('@/pages/store/SellerPlacementsPa
 const SellerProfileEditPage = lazy(() => import('@/pages/store/SellerProfileEditPage'));
 const MarketplaceAnalyticsPage = lazy(() => import('@/pages/analytics/MarketplaceAnalyticsPage'));
 const AiListingToolsPage = lazy(() => import('@/pages/marketplace/AiListingToolsPage'));
+const MissionsPage = lazy(() => import('@/pages/growth/MissionsPage'));
+const ReferralsPage = lazy(() => import('@/pages/growth/ReferralsPage'));
+const AchievementsPage = lazy(() => import('@/pages/growth/AchievementsPage'));
+const RewardsPage = lazy(() => import('@/pages/growth/RewardsPage'));
 
 function TabContent({ tab }: { tab: string }) {
   // Keep primary tabs mounted so auth/UI state does not remount and flash Login CTAs.
@@ -163,6 +167,14 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><MarketplaceAnalyticsPage /></Suspense>;
     case 'ai-listing-tools':
       return <Suspense fallback={<LoadingFallback />}><AiListingToolsPage /></Suspense>;
+    case 'missions':
+      return <Suspense fallback={<LoadingFallback />}><MissionsPage /></Suspense>;
+    case 'referrals':
+      return <Suspense fallback={<LoadingFallback />}><ReferralsPage /></Suspense>;
+    case 'achievements':
+      return <Suspense fallback={<LoadingFallback />}><AchievementsPage /></Suspense>;
+    case 'rewards':
+      return <Suspense fallback={<LoadingFallback />}><RewardsPage /></Suspense>;
     case 'home':
       return <TabContent tab={activeTab} />;
     default: {
