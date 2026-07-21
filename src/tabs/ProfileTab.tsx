@@ -24,6 +24,9 @@ import ServicesManagement from '@/components/ServicesManagement';
 import PausedFeatureBanner from '@/components/PausedFeatureBanner';
 import SavedItemsPage from '@/components/SavedItemsPage';
 import BarberOnboardingCard from '@/components/BarberOnboardingCard';
+import ProgressCard from '@/components/growth/ProgressCard';
+import GrowthQuickActions from '@/components/growth/GrowthQuickActions';
+import BadgeShowcase from '@/components/growth/BadgeShowcase';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL, isSettingsItemVisible, canAccessMfaSettings } from '@/lib/featureFlags';
 import type { OnboardingStepId } from '@/lib/barberOnboarding';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
@@ -297,6 +300,13 @@ export default function ProfileTab() {
           </div>
         </div>
         )}
+      </div>
+
+      {/* MVP Plus Phase 1 — Growth UI shell (mock only) */}
+      <div className="px-4 mt-4 space-y-3">
+        <ProgressCard />
+        <GrowthQuickActions />
+        <BadgeShowcase />
       </div>
 
       {(userRole === 'barber' || userRole === 'specialist') && appUser && ownProfessional && (
