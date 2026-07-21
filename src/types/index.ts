@@ -422,6 +422,8 @@ export type ScreenName =
   | 'rewards'
   | 'leaderboard'
   | 'create-transformation'
+  | 'referral-landing'
+  | 'mini-site'
   | 'coming-soon';
 
 export interface ScreenParams {

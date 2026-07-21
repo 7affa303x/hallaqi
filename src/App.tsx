@@ -59,6 +59,8 @@ const AchievementsPage = lazy(() => import('@/pages/growth/AchievementsPage'));
 const RewardsPage = lazy(() => import('@/pages/growth/RewardsPage'));
 const LeaderboardPage = lazy(() => import('@/pages/community/LeaderboardPage'));
 const CreateTransformationPage = lazy(() => import('@/pages/community/CreateTransformationPage'));
+const ReferralLandingPage = lazy(() => import('@/pages/growth/ReferralLandingPage'));
+const MiniSitePage = lazy(() => import('@/pages/growth/MiniSitePage'));
 
 function TabContent({ tab }: { tab: string }) {
   // Keep primary tabs mounted so auth/UI state does not remount and flash Login CTAs.
@@ -181,6 +183,10 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><LeaderboardPage /></Suspense>;
     case 'create-transformation':
       return <Suspense fallback={<LoadingFallback />}><CreateTransformationPage /></Suspense>;
+    case 'referral-landing':
+      return <Suspense fallback={<LoadingFallback />}><ReferralLandingPage /></Suspense>;
+    case 'mini-site':
+      return <Suspense fallback={<LoadingFallback />}><MiniSitePage /></Suspense>;
     case 'home':
       return <TabContent tab={activeTab} />;
     default: {

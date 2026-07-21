@@ -3,39 +3,40 @@ import GrowthPageShell from '@/components/growth/GrowthPageShell';
 import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  RANKING_METRICS,
-  RANKING_METRIC_LABELS,
-  RankingService,
-  type LeaderboardSnapshot,
-  type RankingMetric,
-  type RankingScope,
-} from '@/lib/community';
-import { RANKING_SCOPE_LABELS } from '@/lib/community/config';
+  GROWTH_RANKING_METRICS,
+  GROWTH_RANKING_METRIC_LABELS,
+  GrowthLeaderboardService,
+  type GrowthRankingMetric,
+} from '@/lib/growth-layer';
+import type { LeaderboardSnapshot } from '@/lib/community/types';
+import { RANKING_SCOPE_LABELS, type RankingScope } from '@/lib/community/config';
+import { GrowthAnalyticsService } from '@/lib/growth-layer';
 
 export default function LeaderboardPage() {
   const { themeConfig } = useApp();
   const { appUser } = useAuth();
-  const [metric, setMetric] = useState<RankingMetric>('xp');
+  const [metric, setMetric] = useState<GrowthRankingMetric>('xp');
   const [scope, setScope] = useState<{ type: RankingScope; value: string }>({ type: 'city', value: appUser?.city || 'Algeria' });
   const [board, setBoard] = useState<LeaderboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const scopes = RankingService.defaultScopesForProfile(appUser?.city, appUser?.country);
+    const scopes = GrowthLeaderboardService.defaultScopes(appUser?.city, appUser?.country);
     if (scopes[0]) setScope(scopes[0]);
   }, [appUser?.city, appUser?.country]);
 
   useEffect(() => {
     setLoading(true);
-    RankingService.getLeaderboard(scope.type, scope.value, metric, 'monthly', appUser?.id)
+    GrowthLeaderboardService.get(scope.type, scope.value, metric, 'monthly', appUser?.id)
       .then(setBoard)
       .finally(() => setLoading(false));
+    void GrowthAnalyticsService.track('leaderboard_viewed', { metric, scope: scope.type });
   }, [scope, metric, appUser?.id]);
 
   return (
-    <GrowthPageShell title="الترتيب المحلي" subtitle={`${RANKING_SCOPE_LABELS[scope.type]}: ${scope.value}`} badge="مجتمع">
+    <GrowthPageShell title="الترتيب المحلي" subtitle={`${RANKING_SCOPE_LABELS[scope.type]}: ${scope.value}`} badge="نمو">
       <div className="flex gap-1 p-1 rounded-2xl border mb-3 overflow-x-auto no-scrollbar" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-        {RANKING_METRICS.map(m => (
+        {GROWTH_RANKING_METRICS.map(m => (
           <button
             key={m}
             type="button"
@@ -46,13 +47,13 @@ export default function LeaderboardPage() {
               color: metric === m ? '#fff' : themeConfig.colors.textMuted,
             }}
           >
-            {RANKING_METRIC_LABELS[m]}
+            {GROWTH_RANKING_METRIC_LABELS[m]}
           </button>
         ))}
       </div>
 
       <div className="flex gap-1 mb-4 overflow-x-auto no-scrollbar">
-        {RankingService.defaultScopesForProfile(appUser?.city, appUser?.country).map(s => (
+        {GrowthLeaderboardService.defaultScopes(appUser?.city, appUser?.country).map(s => (
           <button
             key={`${s.type}-${s.value}`}
             type="button"
@@ -87,7 +88,7 @@ export default function LeaderboardPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{entry.displayName}</p>
-                <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{entry.value} {RANKING_METRIC_LABELS[metric]}</p>
+                <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>{entry.value} {GROWTH_RANKING_METRIC_LABELS[metric]}</p>
               </div>
             </div>
           ))}

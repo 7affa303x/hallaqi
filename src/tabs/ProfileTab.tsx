@@ -29,6 +29,8 @@ import GrowthQuickActions from '@/components/growth/GrowthQuickActions';
 import BadgeShowcase from '@/components/growth/BadgeShowcase';
 import ProfileMissionsStrip from '@/components/growth/ProfileMissionsStrip';
 import ProfileAchievementsStrip from '@/components/growth/ProfileAchievementsStrip';
+import MiniSiteCard from '@/components/growth/MiniSiteCard';
+import AmbassadorCard from '@/components/growth/AmbassadorCard';
 import PendingTagsBanner from '@/components/community/PendingTagsBanner';
 import { TransformationPendingBanner } from '@/components/community/ShareExperienceWatcher';
 import TransformationGallery from '@/components/community/TransformationGallery';
@@ -351,6 +353,8 @@ export default function ProfileTab() {
         <LocalRankCard />
         <CommunityStatsCard />
         <TransformationGallery />
+        <MiniSiteCard />
+        <AmbassadorCard />
         <ProfileMissionsStrip />
         <BadgeShowcase />
         <ProfileAchievementsStrip />
