@@ -21,7 +21,7 @@ const OVERRIDES: Record<string, Partial<RewardStoreItem> & { title: string; desc
   gift_card: {
     title: 'حلاقة مجانية',
     description: `حلاقة مجانية حتى ${FREE_HAIRCUT_MAX_DZD.toLocaleString('ar-DZ')} دج — فوق ذلك يُطبَّق تخفيض`,
-    coinCost: 400,
+    coinCost: 1000,
     category: 'gift_card',
     imageEmoji: '💈',
   },

@@ -109,7 +109,7 @@ export default function SavedItemsPage({ onBack }: { onBack: () => void }) {
                   style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
                 >
                   <img
-                    src={p.imageUrls[0] || '/logo-icon.png'}
+                    src={p.imageUrls[0] || '/logo-icon.svg'}
                     alt=""
                     loading="lazy"
                     decoding="async"

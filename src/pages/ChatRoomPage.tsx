@@ -59,7 +59,7 @@ export default function ChatRoomPage() {
   if (!conversationId || !appUser) {
     return (
       <div className="h-screen flex flex-col items-center justify-center" style={{ backgroundColor: themeConfig.colors.background }}>
-        <img src="/logo-icon.png" alt="Hallaqi" className="w-16 h-16 mb-4 opacity-30" />
+        <img src="/logo-icon.svg" alt="Hallaqi" className="w-16 h-16 mb-4 opacity-30" />
         <p style={{ color: themeConfig.colors.textMuted }}>الدردشة غير متاحة</p>
         <button onClick={goBack} className="mt-4 px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>رجوع</button>
       </div>

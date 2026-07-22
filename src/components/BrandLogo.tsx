@@ -5,9 +5,9 @@ interface BrandLogoProps {
 }
 
 const sources = {
-  symbol: '/logo-symbol.png',
-  wordmark: '/logo-wordmark.png',
-  icon: '/logo-icon.png',
+  symbol: '/logo-symbol.svg',
+  wordmark: '/logo-wordmark.svg',
+  icon: '/logo-icon.svg',
 };
 
 export default function BrandLogo({
@@ -19,7 +19,7 @@ export default function BrandLogo({
     <img
       src={sources[variant]}
       alt="Hallaqi"
-      className={`object-contain bg-white ${variant === 'wordmark' ? 'rounded-xl' : 'rounded-lg'} ${className}`}
+      className={`object-contain ${variant === 'wordmark' ? 'rounded-xl' : 'rounded-lg'} ${className}`}
       loading={priority ? 'eager' : 'lazy'}
       decoding="async"
     />

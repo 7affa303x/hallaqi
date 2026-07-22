@@ -103,7 +103,7 @@ export default function AiRadialMenu({ open, onClose, onSelect }: Props) {
             </button>
           </div>
           <p className="absolute bottom-14 text-xs text-white/90 font-semibold px-4 text-center">
-            ابحث عن أي شيء — أو اضغط مطولاً لفتح المساعد
+            اختر إجراءاً — اضغط في المنتصف للإغلاق
           </p>
         </motion.div>
       )}

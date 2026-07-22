@@ -1,18 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Hallaqi app icon">
-  <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#16A394"/>
-      <stop offset="0.58" stop-color="#0F766E"/>
-      <stop offset="1" stop-color="#164E63"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="#ffffff"/>
-  <rect x="32" y="32" width="960" height="960" rx="230" fill="#ffffff"/>
-  <rect x="86" y="86" width="852" height="852" rx="190" fill="url(#background)"/>
-  <g fill="none" stroke="#ffffff" stroke-width="90" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M470 268 268 470c-37 37-37 98 0 135l125 125c37 37 98 37 135 0l53-53"/>
-    <path d="m554 268 202 202c37 37 37 98 0 135L631 730c-37 37-98 37-135 0l-53-53"/>
-    <path d="m428 526 84-84 84 84"/>
-    <path d="m596 498-84 84-84-84"/>
+  <rect width="1024" height="1024" rx="220" fill="#D4940A"/>
+  <g fill="none" stroke="#ffffff" stroke-width="68" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="176" y="352" width="240" height="240" rx="44" transform="rotate(45 296 472)"/>
+    <rect x="608" y="352" width="240" height="240" rx="44" transform="rotate(45 728 472)"/>
   </g>
 </svg>

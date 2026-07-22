@@ -78,7 +78,7 @@ export function mapBookingRow(value: unknown): Booking {
     barberName: asString(professional.business_name)
       || asString(professionalProfile.full_name)
       || 'حلاق',
-    barberAvatar: asString(professionalProfile.avatar_url, '/logo-icon.png'),
+    barberAvatar: asString(professionalProfile.avatar_url, '/logo-icon.svg'),
     services: bookingServices.length > 0 ? bookingServices : service ? [service] : [],
     date,
     time,
@@ -130,7 +130,7 @@ export function mapForumPost(value: unknown, isLiked = false): ForumPost {
     id: asString(row.id),
     authorId: asString(row.author_id),
     authorName: asString(profile.full_name, 'مستخدم'),
-    authorAvatar: asString(profile.avatar_url, '/logo-icon.png'),
+    authorAvatar: asString(profile.avatar_url, '/logo-icon.svg'),
     authorRole: appRole(profile.user_role),
     isVerified: profile.verification_status === 'verified'
       || profile.verification_status === 'premium',
@@ -159,7 +159,7 @@ function mapForumCommentRow(value: unknown): ForumComment {
     id: asString(row.id),
     authorId: asString(row.author_id),
     authorName: asString(profile.full_name, 'مستخدم'),
-    authorAvatar: asString(profile.avatar_url, '/logo-icon.png'),
+    authorAvatar: asString(profile.avatar_url, '/logo-icon.svg'),
     authorRole: appRole(profile.user_role),
     isVerified: profile.verification_status === 'verified'
       || profile.verification_status === 'premium',
@@ -196,7 +196,7 @@ export function mapReviewRow(value: unknown): Review {
     id: asString(row.id),
     authorId: asString(row.reviewer_id),
     authorName: asString(profile.full_name, 'عميل'),
-    authorAvatar: asString(profile.avatar_url, '/logo-icon.png'),
+    authorAvatar: asString(profile.avatar_url, '/logo-icon.svg'),
     rating: asNumber(row.rating),
     comment: asString(row.comment),
     date: asString(row.created_at, new Date(0).toISOString()),

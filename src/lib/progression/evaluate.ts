@@ -3,11 +3,12 @@
  * from app activity signals — without mutating booking/auth/forum modules.
  */
 
-import { ACHIEVEMENT_CATALOG } from '@/lib/progression/config/achievements';
+import { achievementsForRole } from '@/lib/progression/config/achievements';
 import { badgeCatalogForRole } from '@/lib/progression/badgeAudience';
 import { getMissionCatalogSync } from '@/lib/progression/missionCatalog';
 import { getLevelProgress } from '@/lib/progression/config/levels';
 import { evaluateNewAchievements, toAchievementViews } from '@/lib/progression/engines/achievementEngine';
+import { criteriaProgress } from '@/lib/progression/engines/criteria';
 import { evaluateNewBadges, pinnedBadgeViews, toBadgeViews } from '@/lib/progression/engines/badgeEngine';
 import {
   buildMissionViews,
@@ -86,7 +87,7 @@ export function buildProgressionSignals(input: {
 
   return {
     userId: input.userId,
-    hasAvatar: Boolean(input.avatarUrl && !String(input.avatarUrl).endsWith('/logo-icon.png')),
+    hasAvatar: Boolean(input.avatarUrl && !String(input.avatarUrl).endsWith('/logo-icon.svg')),
     hasCompleteProfile: Boolean(
       (input.fullName || '').trim().length >= 2 && (input.city || '').trim().length >= 2,
     ),
@@ -159,21 +160,13 @@ export function evaluateProgression(signals: ProgressionSignals, userRole?: stri
     void ProgressionService.unlockBadge(signals.userId, b.id);
   }
 
-  // Achievements
+  // Achievements — bronze / silver / gold tiers (2 / 5 / 10)
+  const roleAchievements = achievementsForRole(userRole);
   local = ProgressionService.load(signals.userId);
-  const newAch = evaluateNewAchievements(signals, local.streak, local.achievements, ACHIEVEMENT_CATALOG);
+  const newAch = evaluateNewAchievements(signals, local.streak, local.achievements, roleAchievements);
   for (const a of newAch) {
-    void ProgressionService.unlockAchievement(
-      signals.userId,
-      a.id,
-      a.xpReward,
-      a.criteria.completedBookings
-        ?? a.criteria.reviews
-        ?? a.criteria.forumPosts
-        ?? a.criteria.forumComments
-        ?? a.criteria.referralShares
-        ?? 1,
-    );
+    const progress = criteriaProgress(a.criteria, signals, local.streak);
+    void ProgressionService.syncAchievementTiers(signals.userId, a.id, progress);
   }
 
   local = ProgressionService.load(signals.userId);
@@ -201,7 +194,7 @@ export function evaluateProgression(signals: ProgressionSignals, userRole?: stri
   const refreshedMissions = buildMissionViews(signals, local.missions, missionCatalog);
   const level = getLevelProgress(local.progress.totalXp);
   const badges = toBadgeViews(roleCatalog, local.badges);
-  const achievements = toAchievementViews(ACHIEVEMENT_CATALOG, local.achievements, signals, local.streak);
+  const achievements = toAchievementViews(roleAchievements, local.achievements, signals, local.streak);
   const pinned = pinnedBadgeViews(badges);
 
   return {

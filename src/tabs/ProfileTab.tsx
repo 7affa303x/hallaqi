@@ -64,8 +64,8 @@ import {
 } from '@/lib/push-notifications';
 import { translate } from '@/lib/i18n';
 import { WORLD_COUNTRIES, countryLabel } from '@/lib/locale/countries';
-import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol, findCurrency } from '@/lib/locale/currencies';
-import { saveProfileScrollPosition, restoreProfileScrollPosition } from '@/lib/scroll';
+import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol } from '@/lib/locale/currencies';
+import { saveProfileScrollPosition, restoreProfileScrollPosition, markProfileScrollRestore } from '@/lib/scroll';
 import { useScrollToTopOnMount } from '@/hooks/useScrollToTopOnMount';
 
 interface UserStats {
@@ -126,6 +126,7 @@ export default function ProfileTab() {
 
   const openSubPage = useCallback((page: ProfileSubPage) => {
     saveProfileScrollPosition();
+    markProfileScrollRestore();
     setSubPage(page);
   }, []);
 
@@ -133,6 +134,10 @@ export default function ProfileTab() {
     setSubPage('main');
     restoreProfileScrollPosition();
   }, []);
+
+  useEffect(() => {
+    if (subPage === 'main') restoreProfileScrollPosition();
+  }, [subPage]);
 
   useEffect(() => {
     if (screenParams?.openLegal === 'terms') setSubPage('terms');
@@ -200,7 +205,7 @@ export default function ProfileTab() {
   const userName = appUser?.full_name || appUser?.username || user?.email?.split('@')[0] || 'مستخدم';
   const userEmail = user?.email || '';
   const userPhone = appUser?.phone_number || '';
-  const userAvatar = appUser?.avatar_url || '/logo-icon.png';
+  const userAvatar = appUser?.avatar_url || '/logo-icon.svg';
   const isVerified = appUser?.verification_status === 'verified' || appUser?.verification_status === 'premium';
   const isIdVerified = isVerified;
   const userRole = String(appUser?.user_role || 'client');
@@ -258,65 +263,68 @@ export default function ProfileTab() {
 
   return (
     <div className="pb-20 overflow-x-hidden max-w-full">
-      <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <div className="flex flex-col gap-1.5 shrink-0">
+      <div className="px-4 pt-3 pb-4" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 1.5rem 1.5rem' }}>
+        <div className="flex items-start gap-2 mb-2">
+          <div className="flex-1 min-w-0 text-right">
+            <h1 className="text-lg font-bold text-white truncate">
+              {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
+            </h1>
+          </div>
+          <div className="w-px self-stretch bg-white/20 mx-0.5 my-0.5 shrink-0" aria-hidden />
+          <div className="flex flex-col items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => navigate('notifications')}
+                aria-label="الإشعارات"
+                className="relative w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+              >
+                <Bell size={16} className="text-white" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center">
+                    {Math.min(unreadCount, 99)}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => openSubPage('saves')}
+                aria-label="المحفوظات"
+                className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+              >
+                <Bookmark size={15} className="text-white" />
+              </button>
+              <button
+                type="button"
+                onClick={() => switchPane(pane === 'profile' ? 'settings' : 'profile')}
+                aria-label={pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
+                className="h-9 px-3 rounded-xl flex items-center justify-center bg-white/15 text-white text-[11px] font-bold"
+              >
+                {pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
+              </button>
+            </div>
             {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
-              <>
+              <div className="flex flex-col gap-1 w-full">
                 <button
                   type="button"
                   onClick={() => openSubPage('services')}
-                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/15 text-white mx-auto"
+                  title="الخدمات"
+                  aria-label="الخدمات"
                 >
-                  <Scissors size={12} /> الخدمات
+                  <Scissors size={15} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('appointments')}
-                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/15 text-white mx-auto"
+                  title="استوديو العمل"
+                  aria-label="استوديو العمل"
                 >
-                  <CalendarDays size={12} /> الاستوديو
+                  <CalendarDays size={14} />
                 </button>
-              </>
+              </div>
             )}
-          </div>
-          <div className="min-w-0 flex-1 text-center px-1">
-            <h1 className="text-lg font-bold text-white truncate">
-              {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
-            </h1>
-            <p className="text-[10px] text-white/70 mt-0.5 truncate">
-              {findCurrency(settings.currencyCode).code}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={() => navigate('notifications')}
-              aria-label="الإشعارات"
-              className="relative w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
-            >
-              <Bell size={16} className="text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -left-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center">
-                  {Math.min(unreadCount, 99)}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => openSubPage('saves')}
-              aria-label="المحفوظات"
-              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
-            >
-              <Bookmark size={15} className="text-white" />
-            </button>
-            <button
-              type="button"
-              onClick={() => switchPane(pane === 'profile' ? 'settings' : 'profile')}
-              aria-label={pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
-              className="h-9 px-3 rounded-xl flex items-center justify-center bg-white/15 text-white text-[11px] font-bold"
-            >
-              {pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
-            </button>
+            <div className="w-9 h-px bg-white/25 mt-0.5" aria-hidden />
           </div>
         </div>
 
@@ -404,7 +412,7 @@ export default function ProfileTab() {
           progressInput={{
             hasNameAndBio: Boolean(ownProfessional.name && ownProfessional.bio),
             hasServices: ownProfessional.services.length > 0,
-            hasCover: Boolean(ownProfessional.coverImage && !ownProfessional.coverImage.endsWith('/logo-wordmark.png')),
+            hasCover: Boolean(ownProfessional.coverImage && !ownProfessional.coverImage.endsWith('/logo-wordmark.svg')),
             hasPortfolio: ownProfessional.portfolio.length > 0,
             isVerified: ownProfessional.idCardVerified || ownProfessional.isVerified,
           }}
@@ -1074,7 +1082,7 @@ function InformationPage({ onBack, kind }: { onBack: () => void; kind: 'help' | 
         ) : (
           <>
             <div className="rounded-2xl border p-5 text-center" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-              <img src="/logo-icon.png" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
+              <img src="/logo-icon.svg" alt="Hallaqi" className="w-20 h-20 rounded-2xl mx-auto" />
               <h3 className="font-black text-lg mt-3" style={{ color: themeConfig.colors.text }}>Hallaqi — حلاقي</h3>
               <p className="text-xs mt-2 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>منصة جزائرية للحجز والسوق والمنتدى ومساعد AI — تربط العملاء بالحلاقين والمتاجر والشركات والأطباء.</p>
               <p className="text-[11px] mt-4" style={{ color: themeConfig.colors.textMuted }}>الإصدار 12.1.0 · إطلاق ناعم في الجزائر</p>

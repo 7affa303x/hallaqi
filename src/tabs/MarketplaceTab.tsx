@@ -638,7 +638,7 @@ function ProductCard({
   const { themeConfig, settings } = useApp();
   const pct = discountPercent(product.priceDzd, product.compareAtPriceDzd);
   const reduceMotion = settings.accessibility.reduceMotion;
-  const src = product.imageUrls[0] || '/logo-icon.png';
+  const src = product.imageUrls[0] || '/logo-icon.svg';
 
   return (
     <motion.button

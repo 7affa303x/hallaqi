@@ -377,7 +377,7 @@ export default function BarberDetailPage() {
             </div>
             <div className="p-3 rounded-2xl inline-block" style={{ backgroundColor: themeConfig.colors.background }}>
               <QRCodeSVG value={`https://www.hallaqi.app/barber/${barber.id}`} size={180} bgColor="#FFFFFF" fgColor={themeConfig.colors.primary} level="H"
-                imageSettings={{ src: '/logo-symbol.png', height: 36, width: 36, excavate: true }} />
+                imageSettings={{ src: '/logo-symbol.svg', height: 36, width: 36, excavate: true }} />
             </div>
             <h3 className="text-base font-bold mt-3" style={{ color: themeConfig.colors.text }}>{barber.name}</h3>
             <p className="text-xs mt-1" style={{ color: themeConfig.colors.textMuted }}>امسح للوصول للبروفايل</p>

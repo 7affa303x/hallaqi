@@ -105,7 +105,7 @@ export default function EditBarberProfile({ onBack, userRole, initialSection }: 
         loadPortfolioItems(appUser.id);
         void getProfessionalById(appUser.id)
           .then(pro => {
-            if (pro?.coverImage && !pro.coverImage.endsWith('/logo-wordmark.png')) {
+            if (pro?.coverImage && !pro.coverImage.endsWith('/logo-wordmark.svg')) {
               setCoverPreviewUrl(pro.coverImage);
             }
           })

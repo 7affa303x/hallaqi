@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/contexts/useApp';
 import type { TabName } from '@/types';
@@ -30,22 +30,18 @@ export default function BottomNav() {
   const [radialOpen, setRadialOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const openRadial = useCallback(() => setRadialOpen(true), []);
-  const longPress = useLongPress(openRadial);
+  const handleSpecialTabLongPress = () => {
+    setActiveTab('ai-hub');
+  };
+
+  const longPress = useLongPress(handleSpecialTabLongPress);
 
   const handleTabClick = (tab: typeof tabs[0]) => {
-    // Always stay in the tabs shell — never navigate away (that hid the bottom nav)
     setActiveTab(tab.key);
   };
 
   const handleSpecialTabClick = () => {
-    // Normal tap: show radial menu
     setRadialOpen(true);
-  };
-
-  const handleSpecialTabLongPress = () => {
-    // Long press: navigate to AI page
-    setActiveTab('ai-hub');
   };
 
   return (
@@ -72,7 +68,7 @@ export default function BottomNav() {
                 <button
                   key={tab.key}
                   type="button"
-                  aria-label={`${label} — اضغط لعرض القائمة السريعة، اضغط مطولاً للذهاب إلى الذكاء الاصطناعي`}
+                  aria-label={`${label} — اضغط للقائمة السريعة، اضغط مطولاً للمساعد`}
                   className="relative flex flex-col items-center justify-center w-16 h-14 -mt-5"
                   onPointerDown={longPress.onPointerDown}
                   onPointerUp={longPress.onPointerUp}

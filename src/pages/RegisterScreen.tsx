@@ -213,7 +213,7 @@ export default function RegisterScreen() {
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: themeConfig.colors.primary + '12' }}
           >
-            <img src="/logo-icon.png" alt="Hallaqi" className="w-10 h-10 rounded-xl" />
+            <img src="/logo-icon.svg" alt="Hallaqi" className="w-10 h-10 rounded-xl" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight" style={{ color: themeConfig.colors.text }}>Hallaqi</h1>

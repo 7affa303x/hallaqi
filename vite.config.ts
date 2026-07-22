@@ -22,7 +22,7 @@ export default defineConfig({
         enabled: false,
       },
       manifest: false,
-      includeAssets: ["logo-icon.png", "logo-symbol.png", "logo-wordmark.png", "push-handler.js", "sw.js", "offline.html", "robots.txt", "auth-shell.js", "oauth-guard.js", "sw-register.js"],
+      includeAssets: ["logo-icon.svg", "logo-symbol.svg", "logo-wordmark.svg", "push-handler.js", "sw.js", "offline.html", "robots.txt", "auth-shell.js", "oauth-guard.js", "sw-register.js"],
     }),
   ],
   server: {

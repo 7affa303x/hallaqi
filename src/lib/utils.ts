@@ -150,8 +150,8 @@ export function transformToBarber(professional: RawProfessional): Barber {
   return {
     id: professional.id,
     name: professional.business_name?.trim() || profile?.full_name?.trim() || 'حلاق',
-    avatar: profile?.avatar_url || '/logo-icon.png',
-    coverImage: professional.cover_image_url || '/logo-wordmark.png',
+    avatar: profile?.avatar_url || '/logo-icon.svg',
+    coverImage: professional.cover_image_url || '/logo-wordmark.svg',
     rating: professional.average_rating || 0,
     reviewCount: professional.review_count || 0,
     location: address || city || 'عنوان غير محدد',

@@ -270,7 +270,7 @@ export default function CameraTab({ isActive = true, initialMode = 'scanner', co
             style={{ backgroundColor: themeConfig.colors.background }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <img src="/logo-symbol.png" alt="Hallaqi" className="w-7 h-7" />
+              <img src="/logo-symbol.svg" alt="Hallaqi" className="w-7 h-7" />
               <span className="text-base font-bold" style={{ color: themeConfig.colors.primary }}>HALLAQI</span>
             </div>
 
@@ -283,7 +283,7 @@ export default function CameraTab({ isActive = true, initialMode = 'scanner', co
                 fgColor={themeConfig.colors.primary}
                 level="H"
                 imageSettings={{
-                  src: '/logo-symbol.png',
+                  src: '/logo-symbol.svg',
                   height: 32,
                   width: 32,
                   excavate: true,
@@ -381,7 +381,7 @@ export default function CameraTab({ isActive = true, initialMode = 'scanner', co
 
         {!cameraActive && (mode === 'scanner' || mode === 'camera') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ backgroundColor: themeConfig.colors.background }}>
-            <img src="/logo-icon.png" alt="Hallaqi" className="w-14 h-14 mb-2 rounded-2xl" />
+            <img src="/logo-icon.svg" alt="Hallaqi" className="w-14 h-14 mb-2 rounded-2xl" />
             <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>
               {mode === 'scanner' ? 'ماسح QR' : 'الكاميرا'}
             </p>

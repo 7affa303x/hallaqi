@@ -109,7 +109,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/icon.png", "destination": "/logo-icon.png" },
+    { "source": "/icon.png", "destination": "/logo-icon.svg" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/((?!api/)(?!.*\\.).*)", "destination": "/index.html" }
   ]
