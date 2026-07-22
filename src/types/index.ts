@@ -419,6 +419,7 @@ export type ScreenName =
   | 'missions'
   | 'referrals'
   | 'achievements'
+  | 'badge-manager'
   | 'rewards'
   | 'leaderboard'
   | 'create-transformation'

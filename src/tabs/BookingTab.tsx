@@ -414,61 +414,63 @@ export default function BookingTab() {
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
+        {/* Fixed top row — logo + actions */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BrandLogo className="w-9 h-9 shadow-sm" priority />
+              <div>
+                <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>HALLAQI</h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => requestLocation(false)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
+                style={{ backgroundColor: themeConfig.colors.success + '12', borderColor: themeConfig.colors.success + '40', color: themeConfig.colors.success }}
+                title={tx('useMyLocation')}
+              >
+                <Crosshair size={14} />
+                <span className="hidden sm:inline">{tx('useMyLocation')}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('marketplace')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
+                style={{ backgroundColor: themeConfig.colors.primary + '12', borderColor: themeConfig.colors.primary + '40', color: themeConfig.colors.primary }}
+              >
+                <ShoppingBag size={14} />
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
+                style={{
+                  backgroundColor: showFilters || activeFilterCount ? themeConfig.colors.primary : themeConfig.colors.surface,
+                  color: showFilters || activeFilterCount ? '#fff' : themeConfig.colors.text,
+                  borderColor: themeConfig.colors.border,
+                }}
+              >
+                <SlidersHorizontal size={16} />
+                <span>{tx('filters')}</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold bg-red-500 text-white flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Collapsible: search + appointments */}
         <div
           ref={collapsibleRef}
-          className="px-4 pt-3 overflow-hidden will-change-transform"
+          className="px-4 overflow-hidden will-change-transform"
           style={{
             transform: `translateY(-${hiddenHeaderPx}px)`,
             marginBottom: `-${hiddenHeaderPx}px`,
           }}
         >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <BrandLogo className="w-9 h-9 shadow-sm" priority />
-            <div>
-              <h1 className="text-lg font-bold leading-tight" style={{ color: themeConfig.colors.text }}>HALLAQI</h1>
-              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>حلاقي</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => requestLocation(false)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
-              style={{ backgroundColor: themeConfig.colors.success + '12', borderColor: themeConfig.colors.success + '40', color: themeConfig.colors.success }}
-              title={tx('useMyLocation')}
-            >
-              <Crosshair size={14} />
-              <span className="hidden sm:inline">{tx('useMyLocation')}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('marketplace')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
-              style={{ backgroundColor: themeConfig.colors.primary + '12', borderColor: themeConfig.colors.primary + '40', color: themeConfig.colors.primary }}
-            >
-              <ShoppingBag size={14} />
-            </button>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all border"
-              style={{
-                backgroundColor: showFilters || activeFilterCount ? themeConfig.colors.primary : themeConfig.colors.surface,
-                color: showFilters || activeFilterCount ? '#fff' : themeConfig.colors.text,
-                borderColor: themeConfig.colors.border,
-              }}
-            >
-              <SlidersHorizontal size={16} />
-              <span>{tx('filters')}</span>
-              {activeFilterCount > 0 && (
-                <span className="absolute -top-1 -left-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold bg-red-500 text-white flex items-center justify-center">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Search */}
         <div className="relative mb-2">
           <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: themeConfig.colors.textMuted }} />
           <input
@@ -764,9 +766,9 @@ export default function BookingTab() {
           </div>
         )}
         {locationMessage && (
-          <p role="status" className="text-[10px] mt-2 text-center" style={{ color: themeConfig.colors.textMuted }}>{locationMessage}</p>
+          <p role="status" className="text-[10px] mt-1 text-center" style={{ color: themeConfig.colors.textMuted }}>{locationMessage}</p>
         )}
-        <p className="text-[10px] mt-1 text-center" style={{ color: themeConfig.colors.textMuted }}>
+        <p className="text-[10px] mt-0.5 mb-0 text-center" style={{ color: themeConfig.colors.textMuted }}>
           {filteredBarbers.length} نتيجة
           {selectedWilaya ? ` · ${selectedWilaya}` : ''}
           {userCoordinates ? ' · GPS' : ''}
@@ -775,7 +777,7 @@ export default function BookingTab() {
       </div>
 
       {isLoggedIn && !searchQuery && selectedTags.length === 0 && recommendations.length > 0 && (
-        <section className="px-4 mt-1" aria-labelledby="recommended-title">
+        <section className="px-4 mt-0" aria-labelledby="recommended-title">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
             <div>

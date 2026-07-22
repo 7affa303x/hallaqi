@@ -1,4 +1,5 @@
 const PROFILE_SCROLL_KEY = 'hallaqi-profile-scroll-y';
+const PROFILE_RESTORE_FLAG = 'hallaqi-restore-profile-scroll';
 
 export function saveProfileScrollPosition(): void {
   try {
@@ -8,13 +9,40 @@ export function saveProfileScrollPosition(): void {
   }
 }
 
+export function markProfileScrollRestore(): void {
+  try {
+    sessionStorage.setItem(PROFILE_RESTORE_FLAG, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+export function shouldRestoreProfileScroll(): boolean {
+  try {
+    return sessionStorage.getItem(PROFILE_RESTORE_FLAG) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearProfileScrollRestore(): void {
+  try {
+    sessionStorage.removeItem(PROFILE_RESTORE_FLAG);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function restoreProfileScrollPosition(): void {
   try {
     const y = Number.parseInt(sessionStorage.getItem(PROFILE_SCROLL_KEY) || '0', 10);
     if (!Number.isFinite(y) || y <= 0) return;
-    requestAnimationFrame(() => {
+    const apply = () => {
       window.scrollTo({ top: y, left: 0, behavior: 'instant' });
-    });
+      document.documentElement.scrollTop = y;
+      document.body.scrollTop = y;
+    };
+    requestAnimationFrame(() => requestAnimationFrame(apply));
   } catch {
     /* ignore */
   }

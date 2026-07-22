@@ -25,11 +25,12 @@ describe('level engine', () => {
 
 describe('xp engine daily limits', () => {
   it('blocks duplicate create_comment same day', () => {
+    const day = new Date().toISOString().slice(0, 10);
     let state = { totalXp: 0, ledger: [] as ReturnType<typeof applyXpAward>['state']['ledger'] };
-    const first = applyXpAward(state, 'create_comment', { dedupeKey: 'create_comment:2026-07-21', at: '2026-07-21T10:00:00.000Z' });
+    const first = applyXpAward(state, 'create_comment', { dedupeKey: `create_comment:${day}`, at: `${day}T10:00:00.000Z` });
     expect(first.result.ok).toBe(true);
     state = first.state;
-    const second = applyXpAward(state, 'create_comment', { at: '2026-07-21T18:00:00.000Z' });
+    const second = applyXpAward(state, 'create_comment', { at: `${day}T18:00:00.000Z` });
     expect(second.result.ok).toBe(false);
     expect(second.result.reason).toBe('daily_limit');
   });

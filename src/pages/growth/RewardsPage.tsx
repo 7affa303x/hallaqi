@@ -5,7 +5,6 @@ import { useApp } from '@/contexts/useApp';
 import { useAuth } from '@/hooks/useAuth';
 import { useGrowthLayer } from '@/hooks/useGrowthLayer';
 import { CoinsService, type RewardStoreItem } from '@/lib/growth-layer';
-import { REWARD_CATEGORY_LABELS } from '@/lib/growth-layer/config';
 
 /** Reward Store — display only. Coins architecture ready; purchasing not implemented. */
 export default function RewardsPage() {
@@ -49,14 +48,14 @@ export default function RewardsPage() {
             style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
             dir="rtl"
           >
+            <span className="text-lg font-black shrink-0 tabular-nums" style={{ color: themeConfig.colors.accent }}>
+              {item.coinCost}
+            </span>
             <span className="text-2xl">{item.imageEmoji}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate" style={{ color: themeConfig.colors.text }}>{item.title}</p>
-              <p className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>
-                {REWARD_CATEGORY_LABELS[item.category]} · {item.coinCost} عملة
-              </p>
               {item.description && (
-                <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: themeConfig.colors.textMuted }}>{item.description}</p>
+                <p className="text-[10px] mt-0.5 line-clamp-2" style={{ color: themeConfig.colors.textMuted }}>{item.description}</p>
               )}
             </div>
             <span

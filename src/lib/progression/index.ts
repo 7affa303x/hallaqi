@@ -10,7 +10,7 @@ export { XP_REWARDS, XP_EVENT_TYPES, type XpEventType } from '@/lib/progression/
 export { LEVEL_THRESHOLDS, getLevelProgress, levelFromXp } from '@/lib/progression/config/levels';
 export { LEVEL_UNLOCKS, unlocksForLevel, nextUnlock } from '@/lib/progression/config/unlocks';
 export { BADGE_CATALOG, MAX_PINNED_BADGES } from '@/lib/progression/config/badges';
-export { ACHIEVEMENT_CATALOG } from '@/lib/progression/config/achievements';
+export { ACHIEVEMENT_CATALOG, ACHIEVEMENT_CATEGORY_LABELS } from '@/lib/progression/config/achievements';
 export { MISSION_CATALOG, missionsByType } from '@/lib/progression/config/missions';
 export {
   buildProgressionSignals,
@@ -24,5 +24,6 @@ export type {
   MissionView,
   BadgeView,
   AchievementView,
+  AchievementCategory,
   MissionType,
 } from '@/lib/progression/models/types';

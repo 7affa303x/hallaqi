@@ -72,7 +72,7 @@ export default function BottomNav() {
                 <button
                   key={tab.key}
                   type="button"
-                  aria-label={`${label} — اضغط لعرض القائمة السريعة، اضغط مطولاً للذهاب إلى الذكاء الاصطناعي`}
+                  aria-label={`${label} — اضغط للقائمة السريعة، اضغط مطولاً للمساعد`}
                   className="relative flex flex-col items-center justify-center w-16 h-14 -mt-5"
                   onPointerDown={longPress.onPointerDown}
                   onPointerUp={longPress.onPointerUp}

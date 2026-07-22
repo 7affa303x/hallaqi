@@ -64,8 +64,8 @@ import {
 } from '@/lib/push-notifications';
 import { translate } from '@/lib/i18n';
 import { WORLD_COUNTRIES, countryLabel } from '@/lib/locale/countries';
-import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol, findCurrency } from '@/lib/locale/currencies';
-import { saveProfileScrollPosition, restoreProfileScrollPosition } from '@/lib/scroll';
+import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol } from '@/lib/locale/currencies';
+import { saveProfileScrollPosition, restoreProfileScrollPosition, markProfileScrollRestore } from '@/lib/scroll';
 import { useScrollToTopOnMount } from '@/hooks/useScrollToTopOnMount';
 
 interface UserStats {
@@ -126,6 +126,7 @@ export default function ProfileTab() {
 
   const openSubPage = useCallback((page: ProfileSubPage) => {
     saveProfileScrollPosition();
+    markProfileScrollRestore();
     setSubPage(page);
   }, []);
 
@@ -133,6 +134,10 @@ export default function ProfileTab() {
     setSubPage('main');
     restoreProfileScrollPosition();
   }, []);
+
+  useEffect(() => {
+    if (subPage === 'main') restoreProfileScrollPosition();
+  }, [subPage]);
 
   useEffect(() => {
     if (screenParams?.openLegal === 'terms') setSubPage('terms');
@@ -258,36 +263,8 @@ export default function ProfileTab() {
 
   return (
     <div className="pb-20 overflow-x-hidden max-w-full">
-      <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <div className="flex flex-col gap-1.5 shrink-0">
-            {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => openSubPage('services')}
-                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
-                >
-                  <Scissors size={12} /> الخدمات
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('appointments')}
-                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
-                >
-                  <CalendarDays size={12} /> الاستوديو
-                </button>
-              </>
-            )}
-          </div>
-          <div className="min-w-0 flex-1 text-center px-1">
-            <h1 className="text-lg font-bold text-white truncate">
-              {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
-            </h1>
-            <p className="text-[10px] text-white/70 mt-0.5 truncate">
-              {findCurrency(settings.currencyCode).code}
-            </p>
-          </div>
+      <div className="px-4 pt-3 pb-4" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 1.5rem 1.5rem' }}>
+        <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => navigate('notifications')}
@@ -317,6 +294,35 @@ export default function ProfileTab() {
             >
               {pane === 'profile' ? 'الإعدادات' : 'البروفايل'}
             </button>
+          </div>
+          <div className="min-w-0 flex-1 text-right px-1">
+            <h1 className="text-lg font-bold text-white truncate">
+              {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
+            </h1>
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openSubPage('services')}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/15 text-white"
+                  title="الخدمات"
+                  aria-label="الخدمات"
+                >
+                  <Scissors size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('appointments')}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/15 text-white"
+                  title="استوديو العمل"
+                  aria-label="استوديو العمل"
+                >
+                  <CalendarDays size={14} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 

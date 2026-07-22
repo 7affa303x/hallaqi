@@ -38,8 +38,15 @@ export default function ProfileAchievementsStrip() {
           return (
             <div key={a.id} className="rounded-2xl border p-2.5" style={{ backgroundColor: themeConfig.colors.background, borderColor: themeConfig.colors.border }}>
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="text-[11px] font-bold" style={{ color: themeConfig.colors.text }}>{a.title}</p>
-                <span className="text-[9px] font-bold" style={{ color: a.earned ? themeConfig.colors.success : themeConfig.colors.textMuted }}>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-[11px] font-bold truncate" style={{ color: themeConfig.colors.text }}>{a.title}</p>
+                  {!a.earned && (
+                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: `${themeConfig.colors.primary}14`, color: themeConfig.colors.primary }}>
+                      م{a.activeTier}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold shrink-0" style={{ color: a.earned ? themeConfig.colors.success : themeConfig.colors.textMuted }}>
                   {a.earned ? 'تم' : `${a.progress}/${a.target}`}
                 </span>
               </div>

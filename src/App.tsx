@@ -56,6 +56,7 @@ const AiListingToolsPage = lazy(() => import('@/pages/marketplace/AiListingTools
 const MissionsPage = lazy(() => import('@/pages/growth/MissionsPage'));
 const ReferralsPage = lazy(() => import('@/pages/growth/ReferralsPage'));
 const AchievementsPage = lazy(() => import('@/pages/growth/AchievementsPage'));
+const PinBadgesPage = lazy(() => import('@/pages/growth/PinBadgesPage'));
 const RewardsPage = lazy(() => import('@/pages/growth/RewardsPage'));
 const LeaderboardPage = lazy(() => import('@/pages/community/LeaderboardPage'));
 const CreateTransformationPage = lazy(() => import('@/pages/community/CreateTransformationPage'));
@@ -177,6 +178,8 @@ function ScreenRouter() {
       return <Suspense fallback={<LoadingFallback />}><ReferralsPage /></Suspense>;
     case 'achievements':
       return <Suspense fallback={<LoadingFallback />}><AchievementsPage /></Suspense>;
+    case 'badge-manager':
+      return <Suspense fallback={<LoadingFallback />}><PinBadgesPage /></Suspense>;
     case 'rewards':
       return <Suspense fallback={<LoadingFallback />}><RewardsPage /></Suspense>;
     case 'leaderboard':
