@@ -27,6 +27,14 @@ import BarberOnboardingCard from '@/components/BarberOnboardingCard';
 import ProgressCard from '@/components/growth/ProgressCard';
 import GrowthQuickActions from '@/components/growth/GrowthQuickActions';
 import BadgeShowcase from '@/components/growth/BadgeShowcase';
+import ProfileMissionsStrip from '@/components/growth/ProfileMissionsStrip';
+import ProfileAchievementsStrip from '@/components/growth/ProfileAchievementsStrip';
+import AmbassadorCard from '@/components/growth/AmbassadorCard';
+import PendingTagsBanner from '@/components/community/PendingTagsBanner';
+import { TransformationPendingBanner } from '@/components/community/ShareExperienceWatcher';
+import TransformationGallery from '@/components/community/TransformationGallery';
+import LocalRankCard from '@/components/community/LocalRankCard';
+import CommunityStatsCard from '@/components/community/CommunityStatsCard';
 import { FEATURE_FLAGS, isWebPushConfigured, isWhatsAppSupportConfigured, getSupportWhatsAppUrl, PAUSED_LABEL, COMING_SOON_LABEL, isSettingsItemVisible, canAccessMfaSettings } from '@/lib/featureFlags';
 import type { OnboardingStepId } from '@/lib/barberOnboarding';
 import { CANCEL_POLICY } from '@/lib/cancelPolicy';
@@ -55,8 +63,10 @@ import {
   isWebPushSupported,
 } from '@/lib/push-notifications';
 import { translate } from '@/lib/i18n';
-import { WORLD_COUNTRIES, countryLabel, findCountry } from '@/lib/locale/countries';
+import { WORLD_COUNTRIES, countryLabel } from '@/lib/locale/countries';
 import { DISPLAY_CURRENCIES, currencyLabel, currencySymbol, findCurrency } from '@/lib/locale/currencies';
+import { saveProfileScrollPosition, restoreProfileScrollPosition } from '@/lib/scroll';
+import { useScrollToTopOnMount } from '@/hooks/useScrollToTopOnMount';
 
 interface UserStats {
   totalBookings?: number;
@@ -114,6 +124,16 @@ export default function ProfileTab() {
     try { sessionStorage.setItem('hallaqi-profile-pane', next); } catch { /* ignore */ }
   };
 
+  const openSubPage = useCallback((page: ProfileSubPage) => {
+    saveProfileScrollPosition();
+    setSubPage(page);
+  }, []);
+
+  const backToMain = useCallback(() => {
+    setSubPage('main');
+    restoreProfileScrollPosition();
+  }, []);
+
   useEffect(() => {
     if (screenParams?.openLegal === 'terms') setSubPage('terms');
     if (screenParams?.openLegal === 'privacy') setSubPage('privacy-policy');
@@ -139,11 +159,11 @@ export default function ProfileTab() {
   };
 
   // Legal / about / help are public — available before login
-  if (subPage === 'help') return <InformationPage onBack={() => setSubPage('main')} kind="help" />;
-  if (subPage === 'about') return <InformationPage onBack={() => setSubPage('main')} kind="about" />;
-  if (subPage === 'privacy-policy') return <LegalPage onBack={() => setSubPage('main')} kind="privacy" />;
-  if (subPage === 'terms') return <LegalPage onBack={() => setSubPage('main')} kind="terms" />;
-  if (subPage === 'licenses') return <LegalPage onBack={() => setSubPage('main')} kind="licenses" />;
+  if (subPage === 'help') return <InformationPage onBack={backToMain} kind="help" />;
+  if (subPage === 'about') return <InformationPage onBack={backToMain} kind="about" />;
+  if (subPage === 'privacy-policy') return <LegalPage onBack={backToMain} kind="privacy" />;
+  if (subPage === 'terms') return <LegalPage onBack={backToMain} kind="terms" />;
+  if (subPage === 'licenses') return <LegalPage onBack={backToMain} kind="licenses" />;
 
   if (authLoading) {
     return (
@@ -185,26 +205,26 @@ export default function ProfileTab() {
   const isIdVerified = isVerified;
   const userRole = String(appUser?.user_role || 'client');
 
-  if (subPage === 'theme') return <ThemeSelector onBack={() => setSubPage('main')} />;
-  if (subPage === 'animation') return <AnimationSelector onBack={() => setSubPage('main')} />;
-  if (subPage === 'language') return <LanguageSelector onBack={() => setSubPage('main')} />;
-  if (subPage === 'country') return <CountrySelector onBack={() => setSubPage('main')} />;
-  if (subPage === 'currency') return <CurrencySelector onBack={() => setSubPage('main')} />;
-  if (subPage === 'notifications') return <NotificationsSettings onBack={() => setSubPage('main')} />;
-  if (subPage === 'privacy') return <PrivacySettings onBack={() => setSubPage('main')} />;
-  if (subPage === 'subscription') return <SubscriptionPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'payment') return <PaymentMethods onBack={() => setSubPage('main')} />;
-  if (subPage === 'id-verification') return <IDVerification onBack={() => setSubPage('main')} />;
-  if (subPage === 'linked-accounts') return <LinkedAccounts onBack={() => setSubPage('main')} />;
-  if (subPage === 'badges') return <BadgesPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'stats') return <StatsPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'loyalty') return <LoyaltyPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'accessibility') return <AccessibilitySettings onBack={() => setSubPage('main')} />;
-  if (subPage === 'security') return <SecuritySettings onBack={() => setSubPage('main')} />;
-  if (subPage === 'saves') return <SavedItemsPage onBack={() => setSubPage('main')} />;
-  if (subPage === 'account-type') return <AccountTypeSwitcher onBack={() => setSubPage('main')} currentRole={userRole} />;
-  if (subPage === 'edit-profile') return <EditBarberProfile onBack={() => setSubPage('main')} userRole={userRole} initialSection={editSection} />;
-  if (subPage === 'services') return <ServicesManagement onBack={() => setSubPage('main')} />;
+  if (subPage === 'theme') return <ThemeSelector onBack={backToMain} />;
+  if (subPage === 'animation') return <AnimationSelector onBack={backToMain} />;
+  if (subPage === 'language') return <LanguageSelector onBack={backToMain} />;
+  if (subPage === 'country') return <CountrySelector onBack={backToMain} />;
+  if (subPage === 'currency') return <CurrencySelector onBack={backToMain} />;
+  if (subPage === 'notifications') return <NotificationsSettings onBack={backToMain} />;
+  if (subPage === 'privacy') return <PrivacySettings onBack={backToMain} />;
+  if (subPage === 'subscription') return <SubscriptionPage onBack={backToMain} />;
+  if (subPage === 'payment') return <PaymentMethods onBack={backToMain} />;
+  if (subPage === 'id-verification') return <IDVerification onBack={backToMain} />;
+  if (subPage === 'linked-accounts') return <LinkedAccounts onBack={backToMain} />;
+  if (subPage === 'badges') return <BadgesPage onBack={backToMain} />;
+  if (subPage === 'stats') return <StatsPage onBack={backToMain} />;
+  if (subPage === 'loyalty') return <LoyaltyPage onBack={backToMain} />;
+  if (subPage === 'accessibility') return <AccessibilitySettings onBack={backToMain} />;
+  if (subPage === 'security') return <SecuritySettings onBack={backToMain} />;
+  if (subPage === 'saves') return <SavedItemsPage onBack={backToMain} />;
+  if (subPage === 'account-type') return <AccountTypeSwitcher onBack={backToMain} currentRole={userRole} />;
+  if (subPage === 'edit-profile') return <EditBarberProfile onBack={backToMain} userRole={userRole} initialSection={editSection} />;
+  if (subPage === 'services') return <ServicesManagement onBack={backToMain} />;
 
   const storedStats = (appUser as unknown as { stats?: UserStats })?.stats;
   const stats = {
@@ -219,38 +239,56 @@ export default function ProfileTab() {
   const followers = ownProfessional?.followers || 0;
 
   const openOnboardingStep = (stepId: OnboardingStepId) => {
-    if (stepId === 'services') setSubPage('services');
-    else if (stepId === 'verification') setSubPage('id-verification');
+    if (stepId === 'services') openSubPage('services');
+    else if (stepId === 'verification') openSubPage('id-verification');
     else if (stepId === 'portfolio') {
       setEditSection('portfolio');
-      setSubPage('edit-profile');
+      openSubPage('edit-profile');
     } else if (stepId === 'cover') {
       setEditSection('photos');
-      setSubPage('edit-profile');
+      openSubPage('edit-profile');
     } else if (stepId === 'info') {
       setEditSection('business');
-      setSubPage('edit-profile');
+      openSubPage('edit-profile');
     } else {
       setEditSection('personal');
-      setSubPage('edit-profile');
+      openSubPage('edit-profile');
     }
   };
 
   return (
     <div className="pb-20 overflow-x-hidden max-w-full">
       <div className="px-4 pt-4 pb-6" style={{ backgroundColor: themeConfig.colors.primary, borderRadius: '0 0 2rem 2rem' }}>
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex flex-col gap-1.5 shrink-0">
+            {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openSubPage('services')}
+                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
+                >
+                  <Scissors size={12} /> الخدمات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('appointments')}
+                  className="h-8 px-2.5 rounded-lg flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold"
+                >
+                  <CalendarDays size={12} /> الاستوديو
+                </button>
+              </>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 text-center px-1">
             <h1 className="text-lg font-bold text-white truncate">
               {pane === 'settings' ? 'الإعدادات' : translate(settings.language, 'profile')}
             </h1>
             <p className="text-[10px] text-white/70 mt-0.5 truncate">
-              {findCountry(settings.countryCode) ? countryLabel(findCountry(settings.countryCode)!, settings.language) : settings.countryCode}
-              {' · '}
               {findCurrency(settings.currencyCode).code}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => navigate('notifications')}
               aria-label="الإشعارات"
@@ -262,6 +300,14 @@ export default function ProfileTab() {
                   {Math.min(unreadCount, 99)}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => openSubPage('saves')}
+              aria-label="المحفوظات"
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/10"
+            >
+              <Bookmark size={15} className="text-white" />
             </button>
             <button
               type="button"
@@ -278,7 +324,7 @@ export default function ProfileTab() {
         <>
         <button
           type="button"
-          onClick={() => { setEditSection('photos'); setSubPage('edit-profile'); }}
+          onClick={() => { setEditSection('photos'); openSubPage('edit-profile'); }}
           className="w-full flex items-center gap-3 text-right rounded-2xl p-1 -mx-1 active:bg-white/10 transition-colors"
           aria-label="تعديل البروفايل"
         >
@@ -315,10 +361,10 @@ export default function ProfileTab() {
 
         {FEATURE_FLAGS.gamificationSurfacesEnabled && (
         <div className="flex gap-3 mt-4">
-          <button onClick={() => setSubPage("stats")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
+          <button onClick={() => openSubPage("stats")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-white">{stats.totalBookings}</p><p className="text-[10px] text-white/60">حجوزات</p>
           </button>
-          <button onClick={() => setSubPage("badges")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
+          <button onClick={() => openSubPage("badges")} className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
             <p className="text-lg font-bold text-white">{badges.length}</p><p className="text-[10px] text-white/60">شارات</p>
           </button>
           <div className="flex-1 bg-white/10 rounded-xl p-2.5 text-center">
@@ -335,11 +381,19 @@ export default function ProfileTab() {
 
       {pane === 'profile' && (
       <>
-      {/* MVP Plus — Growth UI (live local engine) */}
+      {/* Progression + Community (no redesign) */}
+      <PendingTagsBanner />
+      <TransformationPendingBanner />
       <div className="px-4 mt-4 space-y-3">
         <ProgressCard />
         <GrowthQuickActions />
+        <LocalRankCard />
+        <CommunityStatsCard />
+        <TransformationGallery />
+        <AmbassadorCard />
+        <ProfileMissionsStrip />
         <BadgeShowcase />
+        <ProfileAchievementsStrip />
       </div>
       </>
       )}
@@ -359,30 +413,6 @@ export default function ProfileTab() {
         />
       )}
 
-      {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
-        <div className="px-4 mt-4">
-          <button
-            type="button"
-            onClick={() => setSubPage('services')}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right"
-            style={{ backgroundColor: themeConfig.colors.primary + '12', borderColor: themeConfig.colors.primary + '40' }}
-          >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: themeConfig.colors.primary + '18' }}>
-              <Scissors size={21} style={{ color: themeConfig.colors.primary }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>إدارة الخدمات والأسعار</p>
-              <p className="text-[11px]" style={{ color: themeConfig.colors.textMuted }}>
-                {ownProfessional?.services.length
-                  ? `${ownProfessional.services.length} خدمة — اضغط للتعديل`
-                  : 'أضف خدماتك وأسعارك للظهور في الحجز'}
-              </p>
-            </div>
-            <ChevronLeft size={17} style={{ color: themeConfig.colors.textMuted }} />
-          </button>
-        </div>
-      )}
-
       {pane === 'profile' && appUser?.user_role === 'admin' && (
         <div className="px-4 mt-4">
           <button
@@ -396,23 +426,6 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {pane === 'profile' && appUser && userRole !== 'client' && (
-        <div className="px-4 mt-3">
-          <button
-            type="button"
-            onClick={() => setSubPage('saves')}
-            className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
-            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-          >
-            <Bookmark size={16} style={{ color: themeConfig.colors.primary }} />
-            <span className="flex-1">
-              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>محفوظاتي</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>منتجات وإشارات على الجهاز</span>
-            </span>
-            <ChevronLeft size={16} style={{ color: themeConfig.colors.textMuted }} />
-          </button>
-        </div>
-      )}
 
       {/* Client: appointments moved out of bottom nav — accessible here */}
       {pane === 'profile' && (userRole === 'client' || !appUser) && (
@@ -439,18 +452,6 @@ export default function ProfileTab() {
             <span>
               <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>السوق</span>
               <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>اكتشف المنتجات</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubPage('saves')}
-            className="col-span-2 flex items-center gap-2 p-3 rounded-2xl border text-right"
-            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-          >
-            <Bookmark size={16} style={{ color: themeConfig.colors.primary }} />
-            <span>
-              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>محفوظاتي</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>منتجات وإشارات على هذا الجهاز</span>
             </span>
           </button>
         </div>
@@ -481,40 +482,11 @@ export default function ProfileTab() {
         </div>
       )}
 
-      {pane === 'profile' && (userRole === 'barber' || userRole === 'specialist') && (
-        <div className="px-4 mt-4 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('appointments')}
-            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
-            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-          >
-            <Scissors size={16} style={{ color: themeConfig.colors.primary }} />
-            <span>
-              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>استوديو العمل</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>يومي + إدخال سريع</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('ai-hub')}
-            className="flex items-center gap-2 p-3 rounded-2xl border text-right"
-            style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
-          >
-            <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
-            <span>
-              <span className="block text-xs font-bold" style={{ color: themeConfig.colors.text }}>مساعد AI</span>
-              <span className="block text-[10px]" style={{ color: themeConfig.colors.textMuted }}>نصائح وتوصيات</span>
-            </span>
-          </button>
-        </div>
-      )}
-
       {pane === 'profile' && FEATURE_FLAGS.loyaltyEnabled && (
         <div className="px-4 mt-4">
           <button
             type="button"
-            onClick={() => setSubPage('loyalty')}
+            onClick={() => openSubPage('loyalty')}
             className="w-full flex items-center gap-3 p-4 rounded-2xl border text-right"
             style={{ backgroundColor: themeConfig.colors.accent + '0D', borderColor: themeConfig.colors.accent + '40' }}
           >
@@ -546,7 +518,7 @@ export default function ProfileTab() {
         {FEATURE_FLAGS.accountTypeSwitchEnabled && appUser && (
           <button
             type="button"
-            onClick={() => setSubPage('account-type')}
+            onClick={() => openSubPage('account-type')}
             className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
             style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
           >
@@ -561,7 +533,7 @@ export default function ProfileTab() {
         {canAccessMfaSettings(userRole) && (
           <button
             type="button"
-            onClick={() => setSubPage('security')}
+            onClick={() => openSubPage('security')}
             className="w-full flex items-center gap-2 p-3 rounded-2xl border text-right"
             style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
           >
@@ -639,7 +611,7 @@ export default function ProfileTab() {
                   if (item.id === 'featureRequest') { window.location.href = 'mailto:support@hallaqi.app?subject=Hallaqi%20Feature%20Request'; return; }
                   if (item.id === 'editProfile') {
                     setEditSection('photos');
-                    setSubPage('edit-profile');
+                    openSubPage('edit-profile');
                     return;
                   }
                   const pageMap: Record<string, ProfileSubPage> = {
@@ -652,7 +624,7 @@ export default function ProfileTab() {
                     idVerification: 'id-verification', linkedAccounts: 'linked-accounts', helpCenter: 'help', aboutApp: 'about',
                     services: 'services', privacyPolicy: 'privacy-policy', termsOfService: 'terms', licenses: 'licenses',
                   };
-                  const page = pageMap[item.id]; if (page) setSubPage(page);
+                  const page = pageMap[item.id]; if (page) openSubPage(page);
                 };
                 return (
                   <button key={item.id} onClick={() => void handleClick()} className={`w-full flex items-center gap-3 px-4 py-3.5 text-right transition-all hover:bg-black/5 ${!isLast ? 'border-b' : ''}`} style={{ borderColor: themeConfig.colors.border + '60' }}>
@@ -883,6 +855,7 @@ function SecuritySettings({ onBack }: { onBack: () => void }) {
 
 function AccessibilitySettings({ onBack }: { onBack: () => void }) {
   const { themeConfig, settings, updateSettings } = useApp();
+  useScrollToTopOnMount();
   return (
     <div className="pb-20">
       <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>

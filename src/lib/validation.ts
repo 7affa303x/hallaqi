@@ -23,7 +23,7 @@ export function normalizeAlgerianPhone(raw: string): string | null {
 export const algerianPhoneSchema = z
   .string()
   .min(1, 'أدخل رقم الهاتف')
-  .refine(v => normalizeAlgerianPhone(v) !== null, 'رقم جزائري غير صالح (مثال: 0555123456)');
+  .refine(v => normalizeAlgerianPhone(v) !== null, 'أدخل رقماً جزائرياً صالحاً (يمكن استخدام رقم العائلة)');
 
 export const registerSchema = z.object({
   name: z.string().min(1, 'أدخل اسمك الكامل').min(2, 'الاسم قصير جداً'),

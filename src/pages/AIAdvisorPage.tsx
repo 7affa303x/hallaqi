@@ -23,7 +23,7 @@ const fallbackCapabilities: AICapabilities = {
 };
 
 export default function AIAdvisorPage() {
-  const { themeConfig, goBack, navigate, barbers, bookings, currentUser } = useApp();
+  const { themeConfig, goBack, navigate, barbers, bookings, currentUser, activeTab, prevTab, setActiveTab } = useApp();
   const { isLoggedIn, needsLogin, ready: authReady } = useAuthGate();
   const [capabilities, setCapabilities] = useState(fallbackCapabilities);
   const [mode, setMode] = useState<'advice' | 'image'>('advice');
@@ -113,10 +113,18 @@ export default function AIAdvisorPage() {
     : capabilities.hairstyleImageGeneration && !imagePaused;
   const canSubmit = providerReady && isLoggedIn && !(mode === 'image' && imagePaused);
 
+  const handleBack = () => {
+    if (activeTab === 'ai-hub' && prevTab) {
+      setActiveTab(prevTab);
+      return;
+    }
+    goBack();
+  };
+
   return (
     <div className="min-h-screen pb-8" style={{ backgroundColor: themeConfig.colors.background }}>
       <header className="sticky top-0 z-20 p-4 flex items-center gap-3 border-b" style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}>
-        <button type="button" onClick={goBack} aria-label="رجوع" className="w-10 h-10 rounded-xl flex items-center justify-center">
+        <button type="button" onClick={handleBack} aria-label="رجوع" className="w-10 h-10 rounded-xl flex items-center justify-center">
           <ArrowRight size={20} style={{ color: themeConfig.colors.text }} />
         </button>
         <div>

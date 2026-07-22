@@ -180,7 +180,7 @@ const LAUNCH_VISIBLE_SETTING_IDS = new Set([
  */
 export function isSettingsItemVisible(
   itemId: string,
-  role: string | undefined,
+  _role: string | undefined,
 ): boolean {
   if (FEATURE_FLAGS.advancedAppearanceEnabled) {
     // when advanced appearance is on, still use base set + extras below
@@ -203,10 +203,8 @@ export function isSettingsItemVisible(
   // Profile edit: avatar/name tap only — hide duplicate settings row + old gear entry.
   if (itemId === 'editProfile') return false;
 
-  // Services management: barbers / specialists only
-  if (itemId === 'services') {
-    return role === 'barber' || role === 'specialist';
-  }
+  // Services management moved to barber profile header shortcuts
+  if (itemId === 'services') return false;
 
   // Soft launch: only show the curated set (plus role-gated services above)
   if (!LAUNCH_VISIBLE_SETTING_IDS.has(itemId) && itemId !== 'services') {

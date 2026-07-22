@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react';
 import GrowthPageShell from '@/components/growth/GrowthPageShell';
-import { missionsForPeriod, type MissionPeriod } from '@/lib/growth/engine';
+import { missionsForPeriod, type MissionType } from '@/lib/progression';
 import { useGrowth } from '@/hooks/useGrowth';
 import { useApp } from '@/contexts/useApp';
-import type { GrowthMissionMock } from '@/data/growthMock';
+import type { MissionView } from '@/lib/progression';
 
-const PERIODS: { id: MissionPeriod; label: string }[] = [
+const PERIODS: { id: MissionType; label: string }[] = [
   { id: 'daily', label: 'يومي' },
   { id: 'weekly', label: 'أسبوعي' },
   { id: 'monthly', label: 'شهري' },
 ];
 
-function MissionCard({ mission }: { mission: GrowthMissionMock }) {
+function MissionCard({ mission }: { mission: MissionView }) {
   const { themeConfig } = useApp();
   const pct = Math.min(100, Math.round((mission.progress / Math.max(mission.target, 1)) * 100));
   return (
@@ -24,15 +24,18 @@ function MissionCard({ mission }: { mission: GrowthMissionMock }) {
           <p className="text-sm font-bold" style={{ color: themeConfig.colors.text }}>{mission.title}</p>
           <p className="text-[11px] mt-0.5" style={{ color: themeConfig.colors.textMuted }}>{mission.description}</p>
         </div>
-        <span
-          className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
-          style={{
-            backgroundColor: mission.done ? `${themeConfig.colors.success}18` : `${themeConfig.colors.primary}14`,
-            color: mission.done ? themeConfig.colors.success : themeConfig.colors.primary,
-          }}
-        >
-          {mission.done ? 'تم ✓' : `${mission.progress}/${mission.target}`}
-        </span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span
+            className="text-[10px] font-bold px-2 py-1 rounded-full"
+            style={{
+              backgroundColor: mission.done ? `${themeConfig.colors.success}18` : `${themeConfig.colors.primary}14`,
+              color: mission.done ? themeConfig.colors.success : themeConfig.colors.primary,
+            }}
+          >
+            {mission.done ? 'تم ✓' : `${mission.progress}/${mission.target}`}
+          </span>
+          <span className="text-[9px] font-bold" style={{ color: themeConfig.colors.textMuted }}>+{mission.xpReward} XP</span>
+        </div>
       </div>
       <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: themeConfig.colors.border }}>
         <div
@@ -47,7 +50,7 @@ function MissionCard({ mission }: { mission: GrowthMissionMock }) {
 export default function MissionsPage() {
   const { themeConfig } = useApp();
   const { snapshot } = useGrowth();
-  const [period, setPeriod] = useState<MissionPeriod>('daily');
+  const [period, setPeriod] = useState<MissionType>('daily');
   const missions = useMemo(() => missionsForPeriod(snapshot, period), [snapshot, period]);
   const doneCount = missions.filter(m => m.done).length;
 
@@ -81,7 +84,7 @@ export default function MissionsPage() {
       </div>
 
       <p className="text-[11px] mb-3 leading-relaxed" style={{ color: themeConfig.colors.textMuted }}>
-        تُحدَّث تلقائياً من نشاطك في التطبيق (ملف، حجوزات، منتدى، سوق، دعوات).
+        تُحدَّث تلقائياً من نشاطك. قيم XP من محرك التقدّم فقط — بدون تعديل يدوي.
       </p>
 
       <div className="space-y-2">

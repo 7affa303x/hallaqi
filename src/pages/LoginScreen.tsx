@@ -42,10 +42,6 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
   });
 
   const [localError, setLocalError] = useState('');
-  console.log('LoginScreen: authError', authError);
-  console.log('LoginScreen: localError', localError);
-  console.log('LoginScreen: isAuthenticated', isAuthenticated);
-  console.log('LoginScreen: authLoading', authLoading);
   const [showPassword, setShowPassword] = useState(false);
 
   const error = localError || authError || '';
@@ -86,7 +82,6 @@ export default function LoginScreen({ redirectScreen, redirectParams }: LoginScr
       // a double-navigation that can land on a blank / stale page.
       await login(data.email, data.password);
       // Do NOT call completeRedirect() here — the useEffect handles it.
-      console.log('Login successful, redirect handled by useEffect');
     } catch (err) {
       const msg = getErrMsg(err);
       console.error('Login error:', msg);

@@ -146,6 +146,9 @@ export function mapForumPost(value: unknown, isLiked = false): ForumPost {
     isLiked,
     isPinned: row.is_pinned === true,
     isAnnouncement: row.type === 'announcement',
+    allowMemeComments: row.allow_meme_comments === true,
+    beforeImage: asString(row.before_image_url) || undefined,
+    afterImage: asString(row.after_image_url) || undefined,
   };
 }
 

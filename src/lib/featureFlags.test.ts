@@ -47,7 +47,7 @@ describe('featureFlags', () => {
     expect(isSettingsItemVisible('paymentMethods', 'client')).toBe(false);
     expect(isSettingsItemVisible('idVerification', 'client')).toBe(false);
     expect(isSettingsItemVisible('services', 'client')).toBe(false);
-    expect(isSettingsItemVisible('services', 'barber')).toBe(true);
+    expect(isSettingsItemVisible('services', 'barber')).toBe(false);
   });
 
   it('limits MFA settings to privileged roles', () => {

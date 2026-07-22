@@ -71,7 +71,7 @@ export default function BookingTab() {
   const { isLoggedIn } = useAuthGate();
   const { t, money } = useI18n();
   const lang = settings.language;
-  const tx = (key: TranslationKey) => translate(lang, key);
+  const tx = useCallback((key: TranslationKey) => translate(lang, key), [lang]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<BarberTag[]>([]);
@@ -95,11 +95,61 @@ export default function BookingTab() {
   const [locationMessage, setLocationMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const gpsAutoTried = useRef(false);
+  const collapsibleRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
+  const [collapsibleHeight, setCollapsibleHeight] = useState(0);
+  const [headerReveal, setHeaderReveal] = useState(1);
+
+  const countryMeta = DISCOVERY_COUNTRIES.find(c => c.code === selectedCountry) || DISCOVERY_COUNTRIES[0];
+  const countrySupportsWilayas = countryMeta.hasWilayas;
+
+  useEffect(() => {
+    const measure = () => {
+      if (collapsibleRef.current) setCollapsibleHeight(collapsibleRef.current.offsetHeight);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [showFilters, selectedWilaya, countrySupportsWilayas]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y <= 0) {
+        setHeaderReveal(1);
+        lastScrollY.current = 0;
+        return;
+      }
+      const delta = y - lastScrollY.current;
+      lastScrollY.current = y;
+      const travel = Math.max(collapsibleHeight, 1);
+      setHeaderReveal(prev => {
+        if (delta > 0) return Math.max(0, prev - delta / travel);
+        return Math.min(1, prev - delta / travel);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [collapsibleHeight]);
+
+  const hiddenHeaderPx = Math.round((1 - headerReveal) * collapsibleHeight);
+
+  const openBarberDetail = useCallback((barberId: string, source: string) => {
+    trackProductEvent('Barber Viewed', { source, barberId });
+    navigate('barber-detail', { barberId });
+  }, [navigate]);
+
+  const openBarberBooking = useCallback((barberId: string, serviceId?: string) => {
+    if (!isLoggedIn) {
+      navigate('login', { redirectScreen: 'booking-flow', barberId, serviceIds: serviceId });
+      return;
+    }
+    trackProductEvent('Booking Started', { source: 'discovery', barberId, serviceId });
+    navigate('booking-flow', { barberId, serviceIds: serviceId });
+  }, [isLoggedIn, navigate]);
 
   const userLocation = currentUser as { city?: string; wilaya?: string } | null;
   const preferredCity = userLocation?.city || userLocation?.wilaya || 'الجزائر';
-  const countryMeta = DISCOVERY_COUNTRIES.find(c => c.code === selectedCountry) || DISCOVERY_COUNTRIES[0];
-  const countrySupportsWilayas = countryMeta.hasWilayas;
 
   const wilayaOptions = useMemo(
     () => (countrySupportsWilayas ? filterWilayasByQuery(wilayaQuery, lang) : []),
@@ -363,7 +413,15 @@ export default function BookingTab() {
 
   return (
     <div className="pb-20">
-      <div className="sticky top-0 z-30 px-4 pt-3 pb-3 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
+      <div className="sticky top-0 z-30 backdrop-blur-lg" style={{ backgroundColor: `${themeConfig.colors.background}ee` }}>
+        <div
+          ref={collapsibleRef}
+          className="px-4 pt-3 overflow-hidden will-change-transform"
+          style={{
+            transform: `translateY(-${hiddenHeaderPx}px)`,
+            marginBottom: `-${hiddenHeaderPx}px`,
+          }}
+        >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <BrandLogo className="w-9 h-9 shadow-sm" priority />
@@ -452,34 +510,6 @@ export default function BookingTab() {
           )}
         </div>
 
-        {/* Country + wilaya summary row */}
-        <div className="flex gap-2 mb-2 overflow-x-auto scrollbar-hide pb-0.5">
-          {(FEATURE_FLAGS.algeriaOnlyDiscovery
-            ? DISCOVERY_COUNTRIES.filter(c => c.code === 'DZ')
-            : DISCOVERY_COUNTRIES
-          ).map(c => (
-            <button
-              key={c.code}
-              type="button"
-              onClick={() => persistCountry(c.code)}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border"
-              style={{
-                backgroundColor: selectedCountry === c.code ? themeConfig.colors.primary : themeConfig.colors.surface,
-                color: selectedCountry === c.code ? '#fff' : themeConfig.colors.textMuted,
-                borderColor: selectedCountry === c.code ? themeConfig.colors.primary : themeConfig.colors.border,
-              }}
-            >
-              {lang === 'fr' ? c.nameFr : lang === 'en' ? c.nameEn : c.nameAr}
-            </button>
-          ))}
-          {selectedWilaya && (
-            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: themeConfig.colors.info + '14', color: themeConfig.colors.info }}>
-              <MapPin size={11} /> {selectedWilaya}
-              <button type="button" aria-label="مسح الولاية" onClick={() => persistWilaya('')}><X size={12} /></button>
-            </span>
-          )}
-        </div>
-
         {!countrySupportsWilayas && (
           <p className="text-[10px] mb-2 px-1" style={{ color: themeConfig.colors.warning }}>{tx('countrySoon')}</p>
         )}
@@ -493,7 +523,7 @@ export default function BookingTab() {
             }
             setActiveTab('appointments');
           }}
-          className="w-full mb-3 flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl text-right"
+          className="w-full mb-1 flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl text-right"
           style={{
             background: `linear-gradient(135deg, ${themeConfig.colors.primary}, ${themeConfig.colors.accent})`,
             color: '#fff',
@@ -509,6 +539,38 @@ export default function BookingTab() {
           </span>
           <ChevronLeft size={20} className="opacity-90" />
         </button>
+        </div>
+
+        <div className="px-4 pb-3">
+        {/* Country row hidden for Algeria-only launch — wilaya chip stays in filters */}
+        {!FEATURE_FLAGS.algeriaOnlyDiscovery && (
+        <div className="flex gap-2 mb-2 overflow-x-auto scrollbar-hide pb-0.5">
+          {DISCOVERY_COUNTRIES.map(c => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => persistCountry(c.code)}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap border"
+              style={{
+                backgroundColor: selectedCountry === c.code ? themeConfig.colors.primary : themeConfig.colors.surface,
+                color: selectedCountry === c.code ? '#fff' : themeConfig.colors.textMuted,
+                borderColor: selectedCountry === c.code ? themeConfig.colors.primary : themeConfig.colors.border,
+              }}
+            >
+              {lang === 'fr' ? c.nameFr : lang === 'en' ? c.nameEn : c.nameAr}
+            </button>
+          ))}
+        </div>
+        )}
+
+        {selectedWilaya && (
+          <div className="flex gap-2 mb-2 overflow-x-auto scrollbar-hide pb-0.5">
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: themeConfig.colors.info + '14', color: themeConfig.colors.info }}>
+              <MapPin size={11} /> {selectedWilaya}
+              <button type="button" aria-label="مسح الولاية" onClick={() => persistWilaya('')}><X size={12} /></button>
+            </span>
+          </div>
+        )}
 
         {/* Quick filter chips */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -709,10 +771,11 @@ export default function BookingTab() {
           {selectedWilaya ? ` · ${selectedWilaya}` : ''}
           {userCoordinates ? ' · GPS' : ''}
         </p>
+        </div>
       </div>
 
       {isLoggedIn && !searchQuery && selectedTags.length === 0 && recommendations.length > 0 && (
-        <section className="px-4 mt-3" aria-labelledby="recommended-title">
+        <section className="px-4 mt-1" aria-labelledby="recommended-title">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles size={16} style={{ color: themeConfig.colors.accent }} />
             <div>
@@ -763,10 +826,12 @@ export default function BookingTab() {
               className="rounded-2xl overflow-hidden border"
               style={{ backgroundColor: themeConfig.colors.surface, borderColor: themeConfig.colors.border }}
             >
-              <div className="relative h-32 overflow-hidden">
+              <div className="relative h-32 overflow-hidden cursor-pointer" role="button" tabIndex={0}
+                onClick={() => openBarberDetail(barber.id, 'discovery_cover')}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') openBarberDetail(barber.id, 'discovery_cover'); }}>
                 <img src={barber.coverImage} alt={barber.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
+                <div className="absolute top-2 left-2 flex gap-1 flex-wrap pointer-events-none">
                   {isBarberOpenNow(barber.workingHours) && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-green-500">مفتوح</span>
                   )}
@@ -777,23 +842,29 @@ export default function BookingTab() {
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white bg-sky-500"><BadgeCheck size={10} /> موثق</span>
                   )}
                 </div>
-                <div className="absolute bottom-2 right-2">
+                <div className="absolute bottom-2 right-2 pointer-events-none">
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{ backgroundColor: themeConfig.colors.primary }}>{barber.priceRange}</span>
                 </div>
               </div>
 
               <div className="p-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <img src={barber.avatar} alt={barber.name} loading="lazy" decoding="async" className="w-12 h-12 rounded-xl object-cover border-2" style={{ borderColor: themeConfig.colors.primary + '40' }} />
-                    <div>
-                      <h3 className="font-bold text-sm" style={{ color: themeConfig.colors.text }}>{barber.name}</h3>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                        <span className="text-xs font-medium" style={{ color: themeConfig.colors.text }}>{barber.rating}</span>
-                        <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>({barber.reviewCount})</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => openBarberDetail(barber.id, 'discovery_avatar')}
+                      className="flex items-center gap-2 min-w-0 text-right"
+                    >
+                      <img src={barber.avatar} alt={barber.name} loading="lazy" decoding="async" className="w-12 h-12 rounded-xl object-cover border-2 shrink-0" style={{ borderColor: themeConfig.colors.primary + '40' }} />
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-sm truncate" style={{ color: themeConfig.colors.text }}>{barber.name}</h3>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                          <span className="text-xs font-medium" style={{ color: themeConfig.colors.text }}>{barber.rating}</span>
+                          <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}>({barber.reviewCount})</span>
+                        </div>
                       </div>
-                    </div>
+                    </button>
                   </div>
                   <button
                     type="button"
@@ -849,27 +920,25 @@ export default function BookingTab() {
 
                 <div className="mt-2 space-y-1">
                   {barber.services.slice(0, 2).map(svc => (
-                    <div key={svc.id} className="flex items-center justify-between py-1">
+                    <button
+                      key={svc.id}
+                      type="button"
+                      onClick={() => openBarberBooking(barber.id, svc.id)}
+                      className="w-full flex items-center justify-between py-1 text-right rounded-lg px-1 -mx-1 active:bg-black/5"
+                    >
                       <span className="text-xs" style={{ color: themeConfig.colors.textMuted }}>{svc.name}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px]" style={{ color: themeConfig.colors.textMuted }}><Clock size={10} className="inline ml-0.5" />{svc.duration}د</span>
                         <span className="text-xs font-bold" style={{ color: themeConfig.colors.primary }}>{money(svc.price)}</span>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
 
                 <div className="flex gap-2 mt-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!isLoggedIn) {
-                        navigate('login', { redirectScreen: 'booking-flow', barberId: barber.id });
-                        return;
-                      }
-                      trackProductEvent('Booking Started', { source: 'discovery', barberId: barber.id });
-                      navigate('booking-flow', { barberId: barber.id });
-                    }}
+                    onClick={() => openBarberBooking(barber.id)}
                     className="flex-1 h-10 rounded-xl text-sm font-bold text-white"
                     style={{ backgroundColor: themeConfig.colors.primary }}
                   >
@@ -886,10 +955,7 @@ export default function BookingTab() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      trackProductEvent('Barber Viewed', { source: 'discovery', barberId: barber.id });
-                      navigate('barber-detail', { barberId: barber.id });
-                    }}
+                    onClick={() => openBarberDetail(barber.id, 'discovery_chevron')}
                     className="h-10 w-10 flex items-center justify-center rounded-xl border"
                     style={{ borderColor: themeConfig.colors.border, color: themeConfig.colors.textMuted }}
                   >
